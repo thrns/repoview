@@ -1,0 +1,155 @@
+# RepoView
+
+RepoView is a private, read-only source-sharing app. An owner signs in, registers a GitHub App-backed repository, creates a scoped share link, and receives a deduplicated email when a recipient meaningfully views the source.
+
+Recipients receive a short-lived session cookie after the secret-link exchange. The viewer exposes only the authorized repository tree, Markdown, source code, and protected image assets. Downloads remain disabled by default and are available only when the owner explicitly enables them.
+
+## Architecture
+
+- `app/(auth)/login` provides Supabase email/password sign-in.
+- `app/(admin)/dashboard` is server-guarded owner UI for repositories, shares, activity, and SMTP settings.
+- `app/s/[token]` exchanges a one-time URL token for an HttpOnly viewer session, then redirects to a token-free viewer URL.
+- `app/view/[shareId]` renders the session-authorized repository root, tree, Markdown, code, and safe error states.
+- `app/api/view` confirms meaningful views, batches semantic engagement, updates heartbeats, and serves explicitly allowed downloads; `app/api/assets` serves authorized image bytes.
+- `app/privacy` discloses anonymous viewer analytics, approximate location/network context, recipient-label semantics, and the non-use of raw keylogging or browser permissions.
+- `lib/github` owns GitHub App authentication and server-side repository/tree/file access.
+- `lib/security` owns token hashing, path normalization, visibility rules, coarse bot/context signals, and safe boundaries.
+- `lib/supabase` owns browser, SSR, and server-only clients; `lib/notifications` owns Gmail SMTP and delivery dedupe.
+- `supabase/migrations` is the schema source of truth; `tests` contains unit and integration coverage.
+
+## Prerequisites
+
+- Node.js 22.x (the repository pins Node 22 in `.nvmrc` and `package.json`).
+- pnpm 10.12.4.
+- A Supabase project with email/password Auth enabled.
+- A GitHub App installation with read-only Contents permission.
+- A Gmail or Google Workspace App Password for notifications.
+
+## Local setup
+
+```bash
+corepack enable
+pnpm install
+cp .env.example .env
+```
+
+Fill in `.env` using the configuration below, apply the migrations, then start the app:
+
+```bash
+pnpm dev
+```
+
+Open [http://localhost:3000/login](http://localhost:3000/login). Create the owner account in Supabase Auth first; if `ADMIN_EMAIL` is set, the signed-in email must match it case-insensitively.
+
+## Environment configuration
+
+Copy `.env.example` and replace every required blank value. Never commit `.env` or paste its values into logs, issues, or browser code.
+
+```env
+# App
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Admin
+ADMIN_EMAIL=owner@example.com
+
+# GitHub App
+GITHUB_APP_ID=123456
+GITHUB_APP_INSTALLATION_ID=12345678
+GITHUB_APP_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+
+# Token hashing; use independent random values of at least 32 characters
+SHARE_TOKEN_PEPPER=replace-with-random-value
+SESSION_TOKEN_PEPPER=replace-with-random-value
+IP_HASH_SALT=replace-with-random-value
+
+# Gmail SMTP
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_USER=owner@example.com
+SMTP_APP_PASSWORD=your-google-app-password
+SMTP_FROM_NAME=RepoView
+NOTIFICATION_TO_EMAIL=owner@example.com
+```
+
+`NEXT_PUBLIC_*` values are browser-visible. The service-role key, GitHub private key, token peppers, SMTP credentials, and installation tokens remain server-only.
+
+## Supabase setup and migrations
+
+1. Create a Supabase project and enable email/password authentication.
+2. Create the owner in **Authentication → Users**.
+3. Apply the SQL files in `supabase/migrations/` in filename order using the Supabase SQL editor or the Supabase CLI:
+
+```bash
+supabase db push
+```
+
+The initial migration creates repositories, shares, viewer sessions, view events, notification deliveries, indexes, timestamps, and RLS-enabled tables. The follow-up migrations add generic/recipient share metadata, persistent anonymous viewers, repository events, file engagement, location/network/device/security fields, invalid/valid access attempts, and notification summaries. RepoView uses the server-only service-role client only after its admin/viewer authorization checks.
+
+## GitHub App setup
+
+Create a GitHub App for the owner or organization and install it on the repositories RepoView should expose.
+
+- Contents: **Read-only**.
+- Webhooks and OAuth callback: not required for this v1 flow.
+- Copy the App ID, installation ID, and PEM private key into `.env`.
+- Keep the repository selected in the installation; RepoView only lists repositories accessible to that installation.
+
+The app fetches refs, recursive trees, and file contents on the server through Octokit. Visibility rules are applied before tree entries or file bytes are returned, and paths are checked again before direct file or asset fetches.
+
+## Gmail App Password setup
+
+1. Enable two-step verification for the Gmail/Workspace account where required.
+2. Create a Google App Password for RepoView.
+3. Set `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, the full account address as `SMTP_USER`, and the generated value as `SMTP_APP_PASSWORD`.
+4. Set `NOTIFICATION_TO_EMAIL` to the owner inbox.
+5. Use **Dashboard → Settings → Send test email** after deployment.
+
+RepoView sends only low-volume, deduplicated first-meaningful-view notifications. SMTP failures are recorded safely and never deny an otherwise authorized viewer.
+
+## Security model
+
+- Raw share and viewer tokens are generated with cryptographic randomness and stored only as peppered HMAC digests.
+- Secret-link exchange sets a scoped HttpOnly, SameSite cookie and redirects to a token-free viewer route.
+- Every viewer page, confirmation, heartbeat, and asset request revalidates the session, share, expiry, revocation, repository, and visibility rules.
+- Hidden files are denied server-side; CSS masking is not used as an access control.
+- Markdown is sanitized and dangerous URLs are rendered inert. Relative links and images resolve only within the authorized tree.
+- Viewer/admin/private API responses are `private, no-store`; security headers, `noindex`, and `robots.txt` rules prevent intentional indexing but never replace authorization.
+- First-party anonymous viewer IDs are stored as peppered digests server-side; browser fingerprinting is not used as identity.
+- Prompt-free browser/device context, server/CDN-derived location, and nullable network intelligence fields may be stored for owner analytics. These values are labeled approximate/observed/inferred in the dashboard and notification emails; they are never used to claim a real identity.
+- Raw viewer tokens, installation tokens, private keys, and SMTP passwords are not sent to the browser or email. Public IP and user-agent fields are restricted to the owner analytics surface and are omitted from emails.
+- Download events are recorded only when the owner explicitly enables protected text downloads.
+
+## Deployment to Vercel
+
+1. Import the repository into Vercel with the **Next.js** framework preset.
+2. Use the default build command, `pnpm build`.
+3. Add all `.env` values in the appropriate Vercel environment scopes.
+4. Set `NEXT_PUBLIC_APP_URL=https://code.thrn.im` for production.
+5. Keep GitHub, SMTP, Supabase service-role, and Shiki work on the normal Node/serverless runtime; do not move them to Edge without validating the dependencies.
+
+## `code.thrn.im` domain
+
+In Vercel, open **Settings → Domains**, add `code.thrn.im`, and publish the exact DNS record Vercel provides for the current project. Do not guess or hardcode a DNS target. Confirm Vercel has issued HTTPS, then update `NEXT_PUBLIC_APP_URL` and create new share links from the canonical domain.
+
+## Development commands
+
+```bash
+pnpm dev
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+For restricted environments where Corepack cannot write its default cache, use:
+
+```bash
+COREPACK_HOME=/private/tmp/repoview-corepack pnpm install
+```
+
+See [`docs/tasks.md`](docs/tasks.md), [`docs/docs.md`](docs/docs.md), and [`docs/architecture-boundaries.md`](docs/architecture-boundaries.md) for the implementation checklist, product contract, and boundary rules.
