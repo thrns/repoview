@@ -74,7 +74,7 @@ export function ViewerPrivacySettings({ shareId }: { shareId: string }) {
             />
             <PreferenceOption
               title="Optional engagement analytics"
-              description="Adds returning-viewer recognition, file engagement, scroll depth, time spent, and detailed device context for this share."
+              description="Adds returning-viewer recognition, file order and duration, search/copy/download events, and coarse browser, device, and location context for this share."
               selected={currentMode === 'optional'}
               disabled={saving !== null || analytics.gpcApplied}
               loading={saving === 'optional'}

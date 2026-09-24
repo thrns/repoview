@@ -100,10 +100,7 @@ export async function exchangeShareToken(
   }
 
   const tokenAgeSeconds = (share.created_at ?? share.updated_at) ? Math.max(0, Math.floor((Date.now() - new Date(share.created_at ?? share.updated_at).getTime()) / 1000)) : null
-  const networkKeyHash = metadata.publicIp ? hashNetworkValue(metadata.publicIp) : null
-  const deviceProfileHash = metadata.browser || metadata.os || metadata.deviceType
-    ? hashNetworkValue([metadata.browser, metadata.os, metadata.deviceType].filter(Boolean).join('|'))
-    : null
+  const ipHash = metadata.publicIp ? hashNetworkValue(`${share.workspace_id}:${metadata.publicIp}`) : null
   let previousVisitCount = 0
   if (collectOptionalAnalytics && viewer) {
     try {
@@ -126,24 +123,14 @@ export async function exchangeShareToken(
     session_token_hash: hashViewerSessionToken(rawSessionToken),
     analytics_mode: analyticsMode,
     gpc_applied: gpcApplied,
-    referrer_host: metadata.referrerHost,
-    public_ip: metadata.publicIp,
-    ip_version: metadata.ipVersion,
+    ip_hash: ipHash,
     is_probable_bot: metadata.isProbableBot,
-    asn: metadata.asn,
-    asn_organization: metadata.asnOrganization,
-    isp_organization: metadata.ispOrganization,
-    network_classification: metadata.networkClassification,
     vpn_indication: metadata.vpnIndication,
     proxy_indication: metadata.proxyIndication,
     tor_indication: metadata.torIndication,
     datacenter_indication: metadata.datacenterIndication,
-    http_protocol: metadata.httpProtocol,
-    network_key_hash: networkKeyHash,
-    token_age_seconds: tokenAgeSeconds,
     security_signals: {
       token_valid: true,
-      approximate_location: Boolean(metadata.country || metadata.city || metadata.region),
       vpn: metadata.vpnIndication,
       proxy: metadata.proxyIndication,
       tor: metadata.torIndication,
@@ -152,24 +139,13 @@ export async function exchangeShareToken(
     },
     ...(collectOptionalAnalytics ? {
       viewer_id: viewer?.id ?? null,
-      user_agent: metadata.userAgent,
+      referrer_host: metadata.referrerHost,
       browser: metadata.browser,
-      browser_version: metadata.browserVersion,
-      rendering_engine: metadata.renderingEngine,
       os: metadata.os,
-      os_version: metadata.osVersion,
       device_type: metadata.deviceType,
       country: metadata.country,
       region: metadata.region,
-      region_code: metadata.regionCode,
       city: metadata.city,
-      postal_area: metadata.postalArea,
-      timezone: metadata.timezone,
-      continent: metadata.continent,
-      approximate_latitude: metadata.approximateLatitude,
-      approximate_longitude: metadata.approximateLongitude,
-      referrer_url: metadata.referrerUrl,
-      device_profile_hash: deviceProfileHash,
       is_returning_visit: previousVisitCount > 0,
       previous_visit_count: previousVisitCount,
     } : {}),
@@ -207,18 +183,12 @@ export async function exchangeShareToken(
     token_hash: hashShareToken(normalizedToken),
     valid: true,
     token_age_seconds: tokenAgeSeconds,
-    public_ip: metadata.publicIp,
-    referrer_host: metadata.referrerHost,
+    ip_hash: ipHash,
     is_probable_bot: metadata.isProbableBot,
-    ...(collectOptionalAnalytics ? {
-      browser: metadata.browser,
-      os: metadata.os,
-      device_type: metadata.deviceType,
-    } : {}),
   }
   void Promise.resolve(admin.from('share_access_attempts').insert(accessAttempt)).then(() => undefined).catch(() => undefined)
 
-  void annotateSessionSecurity({ admin, workspaceId: share.workspace_id, shareId: share.id, sessionId: session.id, viewerId: viewer?.id ?? null, networkKeyHash, deviceProfileHash }).catch(() => undefined)
+  void annotateSessionSecurity({ admin, workspaceId: share.workspace_id, shareId: share.id, sessionId: session.id, viewerId: viewer?.id ?? null, ipHash }).catch(() => undefined)
 
   return {
     shareId: share.id,
@@ -230,18 +200,16 @@ export async function exchangeShareToken(
   }
 }
 
-async function annotateSessionSecurity({ admin, workspaceId, shareId, sessionId, viewerId, networkKeyHash, deviceProfileHash }: { admin: ReturnType<typeof createSupabaseAdminClient>; workspaceId: string; shareId: string; sessionId: string; viewerId: string | null; networkKeyHash: string | null; deviceProfileHash: string | null }) {
-  const { data: previousSessions } = await admin.from('viewer_sessions').select('id, viewer_id, network_key_hash, device_profile_hash, last_seen_at').eq('share_id', shareId).eq('workspace_id', workspaceId).neq('id', sessionId).order('last_seen_at', { ascending: false }).limit(25)
+async function annotateSessionSecurity({ admin, workspaceId, shareId, sessionId, viewerId, ipHash }: { admin: ReturnType<typeof createSupabaseAdminClient>; workspaceId: string; shareId: string; sessionId: string; viewerId: string | null; ipHash: string | null }) {
+  const { data: previousSessions } = await admin.from('viewer_sessions').select('id, viewer_id, ip_hash, last_seen_at').eq('share_id', shareId).eq('workspace_id', workspaceId).neq('id', sessionId).order('last_seen_at', { ascending: false }).limit(25)
   const sessions = previousSessions ?? []
   const otherViewer = Boolean(viewerId && sessions.some((session) => session.viewer_id && session.viewer_id !== viewerId))
-  const newNetwork = Boolean(networkKeyHash && sessions.some((session) => session.network_key_hash && session.network_key_hash !== networkKeyHash))
-  const newDevice = Boolean(deviceProfileHash && sessions.some((session) => session.device_profile_hash && session.device_profile_hash !== deviceProfileHash))
+  const newNetwork = Boolean(ipHash && sessions.some((session) => session.ip_hash && session.ip_hash !== ipHash))
   const concurrent = sessions.filter((session) => Date.now() - new Date(session.last_seen_at).getTime() < 5 * 60_000).length + 1
   const signals = {
     token_valid: true,
     ...(otherViewer ? { possible_link_forwarding: true } : {}),
     ...(newNetwork ? { new_network: true } : {}),
-    ...(newDevice ? { new_device: true } : {}),
     ...(concurrent > 1 ? { concurrent_sessions: concurrent } : {}),
   }
   if (Object.keys(signals).length === 0) return
@@ -256,11 +224,8 @@ async function recordInvalidAttempt(admin: ReturnType<typeof createSupabaseAdmin
       valid: false,
       failure_reason: reason,
       share_id: shareId ?? null,
-      public_ip: metadata.publicIp,
+      ip_hash: metadata.publicIp ? hashNetworkValue(`${workspaceId ?? 'unknown'}:${metadata.publicIp}`) : null,
       referrer_host: metadata.referrerHost,
-      browser: metadata.browser,
-      os: metadata.os,
-      device_type: metadata.deviceType,
       is_probable_bot: metadata.isProbableBot,
     })
   } catch {

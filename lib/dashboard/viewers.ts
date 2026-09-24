@@ -32,16 +32,14 @@ export type ViewerSessionDetail = {
   lastSeenAt: string
   endedAt: string | null
   activeSeconds: number
-  idleSeconds: number
   firstFile: string | null
   lastFile: string | null
   files: string[]
   entryPath: string | null
   exitPath: string | null
   referrer: string | null
-  location: { city: string | null; region: string | null; country: string | null; timezone: string | null; latitude: number | null; longitude: number | null }
+  location: { city: string | null; region: string | null; country: string | null }
   device: Record<string, string | number | boolean | null>
-  network: Record<string, string | number | boolean | null>
   security: Json
 }
 
@@ -148,16 +146,14 @@ export async function getViewerDetail(viewerId: string): Promise<ViewerDetailDat
       lastSeenAt: session.last_seen_at,
       endedAt: session.ended_at,
       activeSeconds: Math.round(Number(session.active_ms ?? 0) / 1000),
-      idleSeconds: Math.round(Number(session.idle_ms ?? 0) / 1000),
       firstFile: paths[0] ?? null,
       lastFile: paths.at(-1) ?? null,
       files: [...new Set(paths)],
       entryPath: session.entry_path,
       exitPath: session.exit_path,
-      referrer: session.referrer_url || session.referrer_host,
-      location: { city: session.city, region: session.region, country: session.country, timezone: session.timezone, latitude: session.approximate_latitude, longitude: session.approximate_longitude },
-      device: { type: session.device_type, browser: session.browser, browserVersion: session.browser_version, engine: session.rendering_engine, os: session.os, osVersion: session.os_version, architecture: session.architecture, language: session.primary_language, timezone: session.browser_timezone, screen: session.screen_width && session.screen_height ? `${session.screen_width}×${session.screen_height}` : null, viewport: session.viewport_width && session.viewport_height ? `${session.viewport_width}×${session.viewport_height}` : null, pixelRatio: session.pixel_ratio, orientation: session.orientation, touch: session.touch_capable, darkMode: session.dark_mode, reducedMotion: session.reduced_motion },
-      network: { ip: session.public_ip, ipVersion: session.ip_version, asn: session.asn, asnOrganization: session.asn_organization, isp: session.isp_organization, classification: session.network_classification, vpn: session.vpn_indication, proxy: session.proxy_indication, tor: session.tor_indication, datacenter: session.datacenter_indication, protocol: session.http_protocol },
+      referrer: session.referrer_host,
+      location: { city: session.city, region: session.region, country: session.country },
+      device: { type: session.device_type, browser: session.browser, os: session.os },
       security: session.security_signals,
     }
   })

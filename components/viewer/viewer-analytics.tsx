@@ -28,17 +28,13 @@ export function ViewerAnalyticsProvider({ shareId, initialPath, analyticsMode: i
   const entryPathRef = useRef(typeof window === 'undefined' ? null : window.location.pathname)
   const sequenceRef = useRef(0)
   const activeMsRef = useRef(0)
-  const idleMsRef = useRef(0)
-  const visibilityChangesRef = useRef(0)
-  const focusChangesRef = useRef(0)
-  const lastVisibilityRef = useRef(typeof document === 'undefined' ? 'hidden' : document.visibilityState)
   const [analyticsMode, setAnalyticsModeState] = useState<ViewerAnalyticsMode>(initialAnalyticsMode)
   const [gpcApplied, setGpcApplied] = useState(initialGpcApplied)
   const analyticsModeRef = useRef(initialAnalyticsMode)
   const gpcAppliedRef = useRef(initialGpcApplied)
   const clientContextRef = useRef<ViewerClientContext>(initialAnalyticsMode === 'optional' && !initialGpcApplied ? getClientContext() : {})
   const previousPathRef = useRef<string | null>(null)
-  const fileTimeRef = useRef(new Map<string, { activeMs: number; idleMs: number }>())
+  const fileTimeRef = useRef(new Map<string, { activeMs: number }>())
 
   const send = useCallback((ended = false) => {
     if (analyticsModeRef.current !== 'optional' || gpcAppliedRef.current || !confirmedRef.current || (pendingRef.current && !ended) || queueRef.current.length === 0) return
@@ -46,11 +42,8 @@ export function ViewerAnalyticsProvider({ shareId, initialPath, analyticsMode: i
     pendingRef.current = true
     const session: ViewerSessionSnapshot = {
       activeMs: activeMsRef.current,
-      idleMs: idleMsRef.current,
       entryPath: entryPathRef.current,
       exitPath: currentPathRef.current,
-      visibilityChanges: visibilityChangesRef.current,
-      focusChanges: focusChangesRef.current,
       ...(ended ? { ended: true } : {}),
     }
     void fetch('/api/view/events', {
@@ -74,11 +67,10 @@ export function ViewerAnalyticsProvider({ shareId, initialPath, analyticsMode: i
 
   const flushFileDwell = useCallback((path: string | null) => {
     if (!path) return
-    const dwell = fileTimeRef.current.get(path) ?? { activeMs: 0, idleMs: 0 }
+    const dwell = fileTimeRef.current.get(path) ?? { activeMs: 0 }
     track('file_viewed', path, {
       active_ms: dwell.activeMs,
-      idle_ms: dwell.idleMs,
-      dwell_ms: dwell.activeMs + dwell.idleMs,
+      dwell_ms: dwell.activeMs,
     })
     fileTimeRef.current.delete(path)
   }, [track])
@@ -114,11 +106,8 @@ export function ViewerAnalyticsProvider({ shareId, initialPath, analyticsMode: i
 
   const getSessionSnapshot = useCallback((): ViewerSessionSnapshot => ({
     activeMs: activeMsRef.current,
-    idleMs: idleMsRef.current,
     entryPath: entryPathRef.current,
     exitPath: currentPathRef.current,
-    visibilityChanges: visibilityChangesRef.current,
-    focusChanges: focusChangesRef.current,
   }), [])
 
   const value = useMemo<ViewerAnalyticsContextValue>(() => ({ track, setCurrentPath, clientContext: clientContextRef.current, markConfirmed, getSessionSnapshot, analyticsMode, gpcApplied, setAnalyticsPreference }), [analyticsMode, gpcApplied, getSessionSnapshot, markConfirmed, setAnalyticsPreference, setCurrentPath, track])
@@ -150,54 +139,23 @@ export function ViewerAnalyticsProvider({ shareId, initialPath, analyticsMode: i
       if (analyticsModeRef.current !== 'optional' || gpcAppliedRef.current) return
       const active = document.visibilityState === 'visible' && document.hasFocus()
       if (active) activeMsRef.current += 5_000
-      else idleMsRef.current += 5_000
       const path = currentPathRef.current
       if (path) {
-        const dwell = fileTimeRef.current.get(path) ?? { activeMs: 0, idleMs: 0 }
+        const dwell = fileTimeRef.current.get(path) ?? { activeMs: 0 }
         if (active) dwell.activeMs += 5_000
-        else dwell.idleMs += 5_000
         fileTimeRef.current.set(path, dwell)
       }
     }, 5_000)
 
-    const handleVisibility = () => {
-      if (lastVisibilityRef.current !== document.visibilityState) {
-        visibilityChangesRef.current += 1
-        lastVisibilityRef.current = document.visibilityState
-        track('tab_visibility_changed', currentPathRef.current, { state: document.visibilityState })
-      }
-    }
-    const handleFocus = () => {
-      focusChangesRef.current += 1
-      track('focus_changed', currentPathRef.current, { focused: document.hasFocus() })
-    }
     const handlePageHide = () => {
       flushFileDwell(currentPathRef.current)
       track('session_ended', currentPathRef.current, { reason: 'pagehide' })
       send(true)
     }
-    const handleDocumentClick = (event: MouseEvent) => {
-      const target = event.target instanceof Element ? event.target.closest('a') : null
-      if (!target?.href) return
-      try {
-        const url = new URL(target.href, window.location.href)
-        if (url.origin !== window.location.origin) track('external_link_clicked', currentPathRef.current, { host: url.hostname.slice(0, 255) })
-      } catch {
-        // Ignore malformed links.
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibility)
-    window.addEventListener('focus', handleFocus)
-    window.addEventListener('blur', handleFocus)
     window.addEventListener('pagehide', handlePageHide)
-    document.addEventListener('click', handleDocumentClick)
     return () => {
       window.clearInterval(interval)
-      document.removeEventListener('visibilitychange', handleVisibility)
-      window.removeEventListener('focus', handleFocus)
-      window.removeEventListener('blur', handleFocus)
       window.removeEventListener('pagehide', handlePageHide)
-      document.removeEventListener('click', handleDocumentClick)
     }
   }, [flushFileDwell, initialPath, send, track])
 
@@ -208,31 +166,6 @@ export function ViewerAnalyticsProvider({ shareId, initialPath, analyticsMode: i
     previousPathRef.current = initialPath
     setCurrentPath(initialPath)
   }, [initialPath, setCurrentPath, track])
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (analyticsModeRef.current !== 'optional' || gpcAppliedRef.current) return
-      const path = currentPathRef.current
-      if (!path) return
-      const percent = Math.min(100, Math.max(0, Math.round(((window.scrollY + window.innerHeight) / Math.max(document.documentElement.scrollHeight, window.innerHeight)) * 100)))
-      const bucket = percent >= 100 ? 100 : percent >= 90 ? 90 : percent >= 75 ? 75 : percent >= 50 ? 50 : percent >= 25 ? 25 : 0
-      if (bucket > 0) track('scroll_depth', path, { percent: bucket })
-    }
-    const handleSelection = () => {
-      const selection = window.getSelection()
-      if (!selection || selection.isCollapsed || !selection.anchorNode || !selection.focusNode) return
-      const startLine = getLineNumber(selection.anchorNode)
-      const endLine = getLineNumber(selection.focusNode)
-      if (startLine === null || endLine === null) return
-      track('code_selected', currentPathRef.current, { start_line: Math.min(startLine, endLine), end_line: Math.max(startLine, endLine) })
-    }
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    document.addEventListener('selectionchange', handleSelection)
-    return () => {
-      window.removeEventListener('scroll', handleScroll)
-      document.removeEventListener('selectionchange', handleSelection)
-    }
-  }, [track])
 
   useEffect(() => {
     const timer = window.setInterval(() => send(), 8_000)
@@ -265,7 +198,7 @@ export function useViewerAnalytics() {
     setCurrentPath: () => undefined,
     clientContext: {},
     markConfirmed: () => undefined,
-    getSessionSnapshot: () => ({ activeMs: 0, idleMs: 0, visibilityChanges: 0, focusChanges: 0 }),
+    getSessionSnapshot: () => ({ activeMs: 0 }),
     analyticsMode: 'necessary',
     gpcApplied: false,
     setAnalyticsPreference: () => undefined,
@@ -278,26 +211,7 @@ function getClientContext(): ViewerClientContext {
   return {
     deviceType: /Tablet|iPad|Android(?!.*Mobile)/i.test(ua) ? 'tablet' : /Mobile|Android.*(?:Mobile|Mobi)|iPhone|iPod/i.test(ua) ? 'mobile' : 'desktop',
     browser: getBrowser(ua),
-    browserVersion: ua.match(/(?:Edg|OPR|Chrome|CriOS|Firefox|FxiOS|Version|SamsungBrowser)\/([\d.]+)/i)?.[1] ?? null,
-    renderingEngine: /Gecko\//i.test(ua) && /Firefox\//i.test(ua) ? 'Gecko' : /AppleWebKit\//i.test(ua) ? 'WebKit/Blink' : null,
     os: getOs(ua),
-    osVersion: ua.match(/(?:Windows NT|Android|Mac OS X|CPU (?:iPhone )?OS)\s?([\d_\.]+)/i)?.[1]?.replaceAll('_', '.') ?? null,
-    architecture: getArchitecture(),
-    primaryLanguage: navigator.language ?? null,
-    languages: navigator.languages ? [...navigator.languages].slice(0, 20) : [],
-    browserTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone ?? null,
-    screenWidth: window.screen.width,
-    screenHeight: window.screen.height,
-    viewportWidth: window.innerWidth,
-    viewportHeight: window.innerHeight,
-    pixelRatio: window.devicePixelRatio,
-    colorDepth: window.screen.colorDepth,
-    orientation: window.screen.orientation?.type ?? null,
-    logicalCpuCount: navigator.hardwareConcurrency ?? null,
-    approximateMemoryGb: 'deviceMemory' in navigator ? Number((navigator as Navigator & { deviceMemory?: number }).deviceMemory) || null : null,
-    touchCapable: navigator.maxTouchPoints > 0,
-    darkMode: window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? null,
-    reducedMotion: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? null,
   }
 }
 
@@ -319,18 +233,4 @@ function getOs(userAgent: string) {
   if (/Macintosh|Mac OS X/i.test(userAgent)) return 'macOS'
   if (/Linux/i.test(userAgent)) return 'Linux'
   return null
-}
-
-function getArchitecture() {
-  const userAgentData = (navigator as Navigator & { userAgentData?: { architecture?: string; bitness?: string } }).userAgentData
-  return userAgentData?.architecture && userAgentData.bitness ? `${userAgentData.architecture}/${userAgentData.bitness}` : null
-}
-
-function getLineNumber(node: Node) {
-  const element = node.nodeType === Node.ELEMENT_NODE ? node as Element : node.parentElement
-  const line = element?.closest('.line')
-  if (!line) return null
-  const lines = [...document.querySelectorAll('.source-code .line')]
-  const index = lines.indexOf(line)
-  return index >= 0 ? index + 1 : null
 }

@@ -27,7 +27,6 @@ export type DashboardActivityItem = {
   sessionLastSeenAt: string | null
   sessionEndedAt: string | null
   sessionActiveMs: number
-  sessionIdleMs: number
 }
 
 export async function getDashboardActivity(filter: ActivityFilter = 'all'): Promise<DashboardActivityItem[]> {
@@ -67,7 +66,7 @@ export async function getDashboardActivity(filter: ActivityFilter = 'all'): Prom
     ...(notifications ?? []).map((notification) => notification.session_id),
   ])]
   const resolvedSessions = sessionIds.length > 0
-    ? await supabase.from('viewer_sessions').select('id, viewer_id, browser, device_type, country, first_seen_at, last_seen_at, ended_at, active_ms, idle_ms').eq('workspace_id', workspace.id).in('id', sessionIds)
+    ? await supabase.from('viewer_sessions').select('id, viewer_id, browser, device_type, country, first_seen_at, last_seen_at, ended_at, active_ms').eq('workspace_id', workspace.id).in('id', sessionIds)
     : { data: [], error: null }
 
   if (resolvedSessions.error) {
@@ -118,7 +117,6 @@ export async function getDashboardActivity(filter: ActivityFilter = 'all'): Prom
         sessionLastSeenAt: session?.last_seen_at ?? null,
         sessionEndedAt: session?.ended_at ?? null,
         sessionActiveMs: Number(session?.active_ms ?? 0),
-        sessionIdleMs: Number(session?.idle_ms ?? 0),
       })
     }
   }
@@ -151,7 +149,6 @@ export async function getDashboardActivity(filter: ActivityFilter = 'all'): Prom
         sessionLastSeenAt: session?.last_seen_at ?? null,
         sessionEndedAt: session?.ended_at ?? null,
         sessionActiveMs: Number(session?.active_ms ?? 0),
-        sessionIdleMs: Number(session?.idle_ms ?? 0),
       })
     }
   }

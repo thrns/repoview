@@ -143,9 +143,9 @@ RepoView composes low-volume, deduplicated first-meaningful-view and session-sum
 - Hidden files are denied server-side; CSS masking is not used as an access control.
 - Markdown is sanitized and dangerous URLs are rendered inert. Relative links and images resolve only within the authorized tree.
 - Viewer/admin/private API responses are `private, no-store`; security headers, `noindex`, and `robots.txt` rules prevent intentional indexing but never replace authorization.
-- Necessary-only sessions retain the minimum request, IP, bot, abuse, and security signals needed to operate a protected share. First-party anonymous viewer IDs and detailed browser/device/engagement analytics are stored only after the viewer enables optional engagement analytics; browser fingerprinting is not used as identity.
-- Prompt-free browser/device context, server/CDN-derived location, and nullable network intelligence fields may be stored for owner analytics only when optional engagement analytics is enabled. These values are labeled approximate/observed/inferred in the dashboard and notification emails; they are never used to claim a real identity. Global Privacy Control keeps optional analytics off.
-- Raw viewer tokens, installation tokens, private keys, and transactional provider credentials are not sent to the browser or email. Public IP and user-agent fields are restricted to the owner analytics surface and are omitted from emails.
+- Necessary-only sessions retain the minimum request, salted-IP-hash, bot, abuse, and security signals needed to operate a protected share. First-party anonymous viewer IDs and coarse browser/device/location and engagement analytics are stored only after the viewer enables optional engagement analytics; browser fingerprinting is not used as identity.
+- Coarse browser/device labels and provider-supplied location labels may be stored for owner analytics only when optional engagement analytics is enabled. These values are labeled approximate/observed/inferred in the dashboard and notification emails; they are never used to claim a real identity. Global Privacy Control keeps optional analytics off.
+- Raw viewer tokens, installation tokens, private keys, raw IPs, raw user-agents, and transactional provider credentials are not sent to the browser or email. Security uses compact indicators and salted hashes rather than raw network or device profiles.
 - Download events are recorded only when the owner explicitly enables protected text downloads.
 
 ## Deployment to Vercel

@@ -179,62 +179,21 @@ type ViewerSession = {
   notified_at: string | null
   session_summary_notified_at: string | null
   active_ms: number
-  idle_ms: number
   entry_path: string | null
   exit_path: string | null
-  referrer_url: string | null
-  user_agent: string | null
+  referrer_host: string | null
   browser: string | null
-  browser_version: string | null
-  rendering_engine: string | null
   os: string | null
-  os_version: string | null
-  architecture: string | null
   device_type: string | null
-  primary_language: string | null
-  languages: Json | null
-  browser_timezone: string | null
-  screen_width: number | null
-  screen_height: number | null
-  viewport_width: number | null
-  viewport_height: number | null
-  pixel_ratio: number | null
-  color_depth: number | null
-  orientation: string | null
-  logical_cpu_count: number | null
-  approximate_memory_gb: number | null
-  touch_capable: boolean | null
-  dark_mode: boolean | null
-  reduced_motion: boolean | null
-  public_ip: string | null
-  ip_version: number | null
-  asn: string | null
-  asn_organization: string | null
-  isp_organization: string | null
-  network_classification: string | null
   vpn_indication: boolean | null
   proxy_indication: boolean | null
   tor_indication: boolean | null
   datacenter_indication: boolean | null
-  http_protocol: string | null
   country: string | null
   region: string | null
-  region_code: string | null
   city: string | null
-  postal_area: string | null
-  timezone: string | null
-  continent: string | null
-  approximate_latitude: number | null
-  approximate_longitude: number | null
-  referrer_host: string | null
   ip_hash: string | null
-  network_key_hash: string | null
-  device_profile_hash: string | null
   security_signals: Json
-  visibility_changes: number
-  focus_changes: number
-  max_directory_depth: number
-  token_age_seconds: number | null
   is_returning_visit: boolean
   previous_visit_count: number
   is_probable_bot: boolean
@@ -268,8 +227,6 @@ type FileEngagement = {
   last_viewed_at: string
   view_count: number
   active_ms: number
-  idle_ms: number
-  max_scroll_percent: number
   first_view_order: number | null
 }
 
@@ -281,11 +238,8 @@ type ShareAccessAttempt = {
   valid: boolean
   failure_reason: string | null
   token_age_seconds: number | null
-  public_ip: string | null
+  ip_hash: string | null
   referrer_host: string | null
-  browser: string | null
-  os: string | null
-  device_type: string | null
   is_probable_bot: boolean
   created_at: string
 }

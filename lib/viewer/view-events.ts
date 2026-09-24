@@ -4,7 +4,7 @@ import { createSupabaseAdminClient } from '../supabase/admin'
 import type { Json } from '../supabase/database.types'
 import type { ViewerAnalyticsMode } from './privacy'
 
-export type ViewerViewEventType = 'repository_opened' | 'file_opened' | 'file_viewed' | 'markdown_viewed' | 'directory_viewed' | 'directory_opened' | 'mermaid_viewed' | 'image_viewed' | 'raw_file_viewed' | 'search' | 'search_result_clicked' | 'code_selected' | 'copy' | 'download' | 'external_link_clicked' | 'scroll_depth' | 'tab_visibility_changed' | 'focus_changed' | 'session_ended' | 'view_confirmed' | 'link_opened'
+export type ViewerViewEventType = 'repository_opened' | 'file_opened' | 'file_viewed' | 'markdown_viewed' | 'directory_viewed' | 'directory_opened' | 'mermaid_viewed' | 'image_viewed' | 'raw_file_viewed' | 'search' | 'search_result_clicked' | 'copy' | 'download' | 'session_ended' | 'view_confirmed' | 'link_opened'
 
 const VIEW_EVENT_DEDUPE_WINDOW_MS = 10_000
 
@@ -59,7 +59,7 @@ export async function recordViewerViewEvent({
     session_id: sessionId,
     event_type: eventType,
     path,
-    metadata,
+    metadata: sanitizeViewEventMetadata(metadata),
   } as never)
 
   if (insertError) {
@@ -67,4 +67,13 @@ export async function recordViewerViewEvent({
   }
 
   return { recorded: true }
+}
+
+function sanitizeViewEventMetadata(metadata: Record<string, Json>) {
+  const result: Record<string, Json> = {}
+  for (const key of ['route', 'preview']) {
+    const value = metadata[key]
+    if (typeof value === 'string' && value.length <= 32) result[key] = value
+  }
+  return result
 }

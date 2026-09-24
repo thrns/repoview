@@ -46,7 +46,7 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
 
   useEffect(() => {
     if (!normalizedQuery) return
-    const timer = window.setTimeout(() => analytics.track('search', null, { query: normalizedQuery }), 450)
+    const timer = window.setTimeout(() => analytics.track('search', null, { query_length: normalizedQuery.length }), 450)
     return () => window.clearTimeout(timer)
   }, [analytics, normalizedQuery])
 
@@ -229,7 +229,7 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
                     if (node.kind === 'directory') {
                       togglePath(node.path)
                     } else {
-                      if (normalizedQuery) analytics.track('search_result_clicked', node.path, { query: normalizedQuery })
+                      if (normalizedQuery) analytics.track('search_result_clicked', node.path, { query_length: normalizedQuery.length })
                       onSelectPath(node.path)
                     }
                   }}

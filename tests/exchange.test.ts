@@ -114,6 +114,7 @@ describe('share token exchange', () => {
       os: 'Windows',
       deviceType: 'desktop',
       country: 'CA',
+      publicIp: '203.0.113.42',
       isProbableBot: true,
     }
     const result = await exchangeShareToken(rawShareToken, metadata, undefined, { analyticsMode: 'optional' })
@@ -131,6 +132,8 @@ describe('share token exchange', () => {
       country: 'CA',
       is_probable_bot: true,
     }))
+    expect(sessionInsert.mock.calls[0]?.[0]).toHaveProperty('ip_hash', expect.stringMatching(/^[a-f0-9]{64}$/))
+    expect(sessionInsert.mock.calls[0]?.[0]).not.toHaveProperty('public_ip')
     expect(sessionInsert.mock.calls[0]?.[0]).not.toHaveProperty('rawSessionToken')
     expect(eventInsert).toHaveBeenCalledWith({
       workspace_id: '77777777-7777-4777-8777-777777777777',

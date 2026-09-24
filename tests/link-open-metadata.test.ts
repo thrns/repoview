@@ -15,12 +15,13 @@ describe('link-open metadata', () => {
         purpose: 'prefetch',
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128.0.0.0 Safari/537.36',
         'x-vercel-ip-country': 'ca',
+        'x-forwarded-for': '203.0.113.42',
       },
     })
 
     const metadata = getLinkOpenMetadata(request)
 
-    expect(metadata).toEqual({
+    expect(metadata).toMatchObject({
       referrerHost: 'example.com',
       fetchSite: 'cross-site',
       isPrefetch: true,
@@ -30,6 +31,8 @@ describe('link-open metadata', () => {
       country: 'CA',
       isProbableBot: false,
     })
+    expect(metadata.publicIp).toBe('203.0.113.42')
+    expect(toLinkOpenEventMetadata(metadata)).not.toHaveProperty('public_ip')
     expect(toLinkOpenEventMetadata(metadata)).toEqual({
       referrer_host: 'example.com',
       fetch_site: 'cross-site',
@@ -52,7 +55,7 @@ describe('link-open metadata', () => {
       deviceType: 'unknown' as never,
       country: 'Canada' as never,
       isProbableBot: false,
-    })).toEqual({
+    })).toMatchObject({
       referrerHost: null,
       fetchSite: null,
       isPrefetch: false,
@@ -71,7 +74,7 @@ describe('link-open metadata', () => {
         'x-vercel-ip-country': 'XX',
         'cf-ipcountry': 'Canada',
       },
-    }))).toEqual({
+    }))).toMatchObject({
       referrerHost: null,
       fetchSite: null,
       isPrefetch: true,

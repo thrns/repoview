@@ -2,7 +2,7 @@ export const TERMS_MARKDOWN = String.raw`
 # RepoView Terms of Service
 
 **Effective date:** September 23, 2026  
-**Last updated:** September 23, 2026
+**Last updated:** September 24, 2026
 
 RepoView is an independently developed, publicly available software project operated by **Tharun Pranav Sakthivel**, an individual developer based in **6088 Walter Gage Road, Vancouver, BC, Canada V6T 0B4** ("**RepoView**," "**I**," "**me**," or "**my**").
 
@@ -109,7 +109,7 @@ Owners are responsible for choosing a sharing method appropriate to the sensitiv
 
 ## 8. Analytics are signals, not proof
 
-RepoView may provide Analytics for a Share as described in the Privacy Policy. Depending on configuration and privacy choices, Analytics may include session timing, file/page interactions, searches, copy/download actions, scroll/focus events, browser/device context, IP/network context, approximate IP-derived location, and probabilistic network/security signals.
+RepoView may provide Analytics for a Share as described in the Privacy Policy. Depending on configuration and privacy choices, Analytics may include session timing, file/page interactions, searches, copy/download actions, coarse browser/device context, approximate city/region/country labels, and probabilistic security signals.
 
 Analytics can be incomplete or inaccurate.
 
@@ -351,7 +351,7 @@ export const PRIVACY_MARKDOWN = String.raw`
 # RepoView Privacy Policy
 
 **Effective date:** September 23, 2026  
-**Last updated:** September 23, 2026
+**Last updated:** September 24, 2026
 
 RepoView is an independently developed, publicly available software project operated by **Tharun Pranav Sakthivel**, an individual developer based in **6088 Walter Gage Road, Vancouver, BC, Canada V6T 0B4** ("**RepoView**," "**I**," "**me**," or "**my**").
 
@@ -375,13 +375,12 @@ RepoView is designed to let an Owner share selected repository content and under
 
 When a Viewer opens a valid share, RepoView may process:
 
-- a **pseudonymous** first-party viewer identifier;
+- a **pseudonymous** first-party viewer identifier, only after optional engagement analytics is enabled;
 - a server-side session identifier;
 - repository and file interaction events;
-- browser, device, and technical context;
-- public IP and network information;
-- approximate IP-derived location; and
-- security and abuse-prevention signals.
+- coarse browser, operating-system, and device-category context when optional analytics is enabled;
+- coarse city, region, or country labels when optional analytics is enabled; and
+- a salted IP hash and compact security/abuse-prevention signals. The ordinary request IP may be processed in memory for security, but the raw IP is not stored.
 
 RepoView may make relevant share analytics available to the Owner who created the share.
 
@@ -409,10 +408,10 @@ RepoView does not ask for or need an Owner's GitHub password. When GitHub author
 
 RepoView may create or receive:
 
-- a first-party pseudonymous viewer identifier;
+- a first-party pseudonymous viewer identifier, only after optional engagement analytics is enabled;
 - a server-side session identifier;
 - a share or share-token identifier;
-- timestamps, session start/end, duration, and returning-session status; and
+- timestamps, session start/end, active engagement duration, and returning-session status; and
 - consent, objection, or analytics-preference records where applicable.
 
 A pseudonymous identifier distinguishes browser activity over time but does not establish a person's legal name or identity.
@@ -423,41 +422,30 @@ RepoView may record events such as:
 
 - repository and ref viewed;
 - directories, pages, and files opened;
-- order and timing of file views;
-- searches submitted within the shared repository;
-- line-range selections;
-- copy, download, or export actions;
-- external-link clicks;
-- navigation patterns and scroll depth;
-- tab visibility and focus/blur changes;
-- errors, performance, and load-time events; and
+- order and active engagement duration of file views;
+- search and search-result events;
+- copy and download actions; and
 - other clearly disclosed interactions introduced as RepoView evolves.
 
-RepoView does not intentionally record every key pressed while a Viewer types. If a Viewer submits a search query, the submitted query may be stored as part of the search event.
+RepoView does not intentionally record every key pressed while a Viewer types. Search events store a bounded signal such as query length, not the submitted search text.
 
 ### 4.3 Browser, device, and request context
 
 Depending on what the browser, network request, host, CDN, or security layer provides, RepoView may process:
 
-- public IP address;
-- browser family/version and user-agent information;
-- operating system;
-- device category;
-- language and timezone;
-- screen or viewport characteristics;
-- referring URL or source where available;
-- network/ASN information and an organization associated with an IP range; and
-- similar prompt-free technical context.
+- browser family, operating-system family, and device category when optional analytics is enabled;
+- a referring host, without URL paths, queries, fragments, or credentials, when optional analytics is enabled; and
+- a salted IP hash and bot, VPN, proxy, Tor, datacenter, and unusual-traffic indicators for necessary security processing.
 
 ### 4.4 Approximate location and security/network signals
 
-RepoView may derive approximate country, region/province/state, city, postal area, timezone, or coarse coordinates from an IP address or infrastructure metadata.
+RepoView may derive a coarse country, region/province/state, or city label from provider infrastructure metadata when optional analytics is enabled.
 
 RepoView may also receive or derive probabilistic indicators such as likely VPN, proxy, Tor, hosting/datacenter, bot/automation, or unusual traffic signals.
 
 These signals are **estimates, not facts**. They may be incorrect because of VPNs, proxies, corporate gateways, cellular networks, privacy relays, shared networks, automated previews, or inaccurate third-party databases.
 
-RepoView does not request browser precise-location/GPS permission for share analytics.
+RepoView does not request browser precise-location/GPS permission for share analytics and does not store postal codes, timezones, coordinates, ASN/ISP details, raw user agents, device-profile hashes, screen characteristics, CPU count, memory estimates, or similar fingerprinting inputs.
 
 ## 5. Recipient-labelled links
 
@@ -491,7 +479,7 @@ RepoView may use the information described above to:
 
 1. **Provide the project.** Authenticate Owners, connect repositories, create and revoke shares, render repository content, and operate the dashboard.
 2. **Provide share analytics.** Show an Owner how a particular share was used, subject to the privacy choices described in this Policy.
-3. **Maintain security.** Detect abuse, unauthorized access, automated attacks, malicious traffic, compromised links, and technical failures.
+3. **Maintain security.** Detect abuse, unauthorized access, automated attacks, malicious traffic, compromised links, and technical failures using request-time IP handling, salted hashes, bot signals, and compact security indicators.
 4. **Maintain reliability.** Diagnose errors, measure performance, debug failures, and improve rendering or navigation.
 5. **Remember privacy choices.** Record consent, objections, or settings so that RepoView can respect them.
 6. **Communicate.** Send requested service messages, security notices, share notifications, or replies to support requests.
@@ -505,7 +493,7 @@ RepoView may use first-party cookies, browser storage, or equivalent first-party
 
 New share sessions start in **Necessary only** mode. In that mode RepoView may process the share authentication token, a server-side security session, ordinary request IP information, abuse and rate-limit signals, bot-detection signals, and security logs. RepoView does not create a persistent cross-session Viewer analytics identifier or collect detailed engagement analytics in this mode.
 
-After a Viewer chooses **Optional engagement analytics**, RepoView may activate a first-party pseudonymous Viewer identifier and collect returning-viewer recognition, file engagement, scroll depth, time spent, detailed device/profile context, and other disclosed engagement events. This choice is stored as a privacy preference and can be changed from the share page. Refusing or later disabling optional analytics does not prevent access to an otherwise valid share.
+After a Viewer chooses **Optional engagement analytics**, RepoView may activate a first-party pseudonymous Viewer identifier and collect returning-viewer recognition, file engagement/order, active time spent, coarse browser/OS/device context, coarse location labels, search/copy/download events, and other disclosed engagement events. This choice is stored as a privacy preference and can be changed from the share page. Refusing or later disabling optional analytics does not prevent access to an otherwise valid share.
 
 Where applicable law requires consent before non-essential storage or access on a Viewer's device, RepoView will ask for that consent before activating a persistent individual-level Viewer analytics identifier. Refusing optional analytics will not, by itself, prevent access to an otherwise valid repository share.
 
@@ -568,7 +556,7 @@ RepoView follows data-minimization principles and is intended to use the followi
 |---|---|
 | Individual-level Viewer interaction events | **180 days from the event** |
 | Persistent pseudonymous Viewer identifier/profile | **180 days from last Viewer activity** |
-| IP/network and approximate-location fields attached to Viewer analytics | **180 days from the event** |
+| Salted IP hashes and security indicators | **90 days from the event**, unless needed for an active investigation |
 | Security/abuse request logs not needed for an active investigation | **90 days** |
 | Share configuration and recipient labels | Until the Owner deletes the share/account, then **30 days** from active systems |
 | Owner account/configuration data | Until account deletion, then **30 days** from active systems |

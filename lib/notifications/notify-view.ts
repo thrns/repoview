@@ -23,7 +23,6 @@ type NotifyConfirmedViewerInput = {
   }
   session: {
     browser: string | null
-    browser_version?: string | null
     os: string | null
     device_type: string | null
     country: string | null
@@ -126,7 +125,7 @@ export async function notifySessionSummary({ shareId, sessionId, share, reposito
     repositoryName,
     ref: String(share.ref ?? 'unknown ref'),
     endedAt,
-    duration: formatDuration(Number(session.active_ms ?? 0) + Number(session.idle_ms ?? 0)),
+    duration: formatDuration(Number(session.active_ms ?? 0)),
     filesViewed: files.length,
     directoriesViewed: directories.size,
     searches: (events ?? []).filter((event) => event.event_type === 'search').length,

@@ -9,13 +9,8 @@ export const VIEWER_ANALYTICS_EVENT_TYPES = [
   'raw_file_viewed',
   'search',
   'search_result_clicked',
-  'code_selected',
   'copy',
   'download',
-  'external_link_clicked',
-  'scroll_depth',
-  'tab_visibility_changed',
-  'focus_changed',
   'session_ended',
 ] as const
 
@@ -24,26 +19,7 @@ export type ViewerAnalyticsEventType = typeof VIEWER_ANALYTICS_EVENT_TYPES[numbe
 export type ViewerClientContext = {
   deviceType?: 'desktop' | 'mobile' | 'tablet' | null
   browser?: string | null
-  browserVersion?: string | null
-  renderingEngine?: string | null
   os?: string | null
-  osVersion?: string | null
-  architecture?: string | null
-  primaryLanguage?: string | null
-  languages?: string[]
-  browserTimezone?: string | null
-  screenWidth?: number | null
-  screenHeight?: number | null
-  viewportWidth?: number | null
-  viewportHeight?: number | null
-  pixelRatio?: number | null
-  colorDepth?: number | null
-  orientation?: string | null
-  logicalCpuCount?: number | null
-  approximateMemoryGb?: number | null
-  touchCapable?: boolean | null
-  darkMode?: boolean | null
-  reducedMotion?: boolean | null
 }
 
 export type ViewerAnalyticsEvent = {
@@ -55,10 +31,7 @@ export type ViewerAnalyticsEvent = {
 
 export type ViewerSessionSnapshot = {
   activeMs: number
-  idleMs: number
   entryPath?: string | null
   exitPath?: string | null
-  visibilityChanges: number
-  focusChanges: number
   ended?: boolean
 }

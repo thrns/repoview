@@ -645,21 +645,23 @@ create table public.viewer_sessions (
   last_seen_at timestamptz not null default now(),
   confirmed_at timestamptz,
   notified_at timestamptz,
-  user_agent text,
   browser text,
   os text,
   device_type text,
   country text,
+  region text,
+  city text,
   referrer_host text,
   ip_hash text,
   is_probable_bot boolean not null default false
 );
 ```
 
-The initial schema retains nullable `user_agent` and `ip_hash` compatibility
-columns, but the current application does not write raw user-agent or IP values
-to them. Viewer sessions store only bounded parsed browser/OS/device/country
-fields and a coarse referrer host.
+Viewer sessions store only a salted IP hash for security and bounded parsed
+browser/OS/device/country/region/city fields for optional owner analytics. Raw
+user-agent and IP values are not stored. The minimization migration removes
+fingerprint-like device, network, location-precision, idle-time, and focus/
+visibility columns from earlier deployments.
 
 ### `view_events`
 
@@ -1245,7 +1247,7 @@ not:
 
 Keep tracking small, transparent, and choice-aware. Every new share session starts in necessary-only mode. Necessary processing covers share authentication, session security, ordinary request IP handling, abuse/rate limiting, bot detection, and security logging. It must not create a persistent cross-session viewer identifier or write detailed engagement analytics.
 
-The public viewer exposes a visible **Privacy / Analytics Settings** control. A viewer may enable optional engagement analytics, which permits the pseudonymous cross-session viewer identifier, returning-viewer recognition, file engagement, scroll depth, time spent, and detailed device/profile context. The preference is stored server-side behind a secure first-party preference cookie, and it can be changed later without affecting repository access. A `Sec-GPC: 1` request always takes the necessary-only path, even if an older optional preference exists.
+The public viewer exposes a visible **Privacy / Analytics Settings** control. A viewer may enable optional engagement analytics, which permits the pseudonymous cross-session viewer identifier, returning-viewer recognition, file order and duration, search/copy/download events, and coarse browser/device/location context. Search text, raw IPs, raw user-agents, and fingerprint-like device fields are not stored. The preference is stored server-side behind a secure first-party preference cookie, and it can be changed later without affecting repository access. A `Sec-GPC: 1` request always takes the necessary-only path, even if an older optional preference exists.
 
 `ViewTracker`:
 - no third-party fingerprint library;
@@ -1982,7 +1984,7 @@ These can distract from the core portfolio-sharing experience.
 - [ ] Hidden path direct requests fail.
 - [ ] Revoked shares fail immediately.
 - [ ] Expired shares fail.
-- [ ] No raw IP stored.
+- [x] No raw IP stored; only a salted workspace-scoped hash is retained for security.
 - [ ] Viewer pages are noindex/nofollow.
 - [ ] Markdown dangerous schemes/HTML are sanitized.
 

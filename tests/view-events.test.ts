@@ -68,7 +68,7 @@ describe('viewer view events', () => {
       path: 'README.md',
       workspaceId: 'workspace-1',
       analyticsMode: 'optional',
-      metadata: { route: 'root', preview: 'markdown' },
+      metadata: { route: 'root', preview: 'markdown', query: 'secret source text' },
       now: Date.parse('2026-09-22T00:00:10.000Z'),
     })).resolves.toEqual({ recorded: true })
     expect(builder.eq).toHaveBeenCalledWith('path', 'README.md')
