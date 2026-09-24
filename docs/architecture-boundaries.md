@@ -9,6 +9,9 @@ application compilation scope; its adopted visual surface lives in
 
 - `app/(auth)/` contains public authentication pages only.
 - `app/(admin)/` contains server-guarded owner dashboard pages and its shell.
+- `app/(system)/system-admin/` contains the isolated operator surface. It does
+  not import customer dashboard routes/components and never loads repository
+  source or share content.
 - `app/s/` contains the one-time secret-token exchange route. It must redirect
   to token-free viewer routes after setting the HttpOnly viewer cookie.
 - `app/view/` contains token-free, session-authorized viewer pages.
@@ -27,7 +30,10 @@ application compilation scope; its adopted visual surface lives in
 
 ## Server libraries
 
-- `lib/auth/` owns admin guards and viewer-session cookie validation.
+- `lib/auth/` owns workspace guards, the separate system-admin guard, and
+  viewer-session cookie validation. `system_admins` is never inferred from
+  `workspace_members`.
+- `lib/system-admin/` owns operator telemetry and system-admin audit writes.
 - `lib/github/` owns GitHub App auth, API wrappers, refs, trees, and contents.
 - `lib/markdown/` owns parsing, sanitization, and relative URL resolution.
 - `lib/code/` owns language mapping, binary detection, and highlighting.
@@ -51,3 +57,9 @@ application compilation scope; its adopted visual surface lives in
 Server-only modules that can access private keys, service-role credentials,
 installation tokens, viewer secrets, or transactional email provider credentials must remain outside
 Client Components and use `server-only` where appropriate.
+
+System-admin authorization is granted explicitly in the server-only
+`system_admins` table by a trusted operator. The legacy configured-email
+equality check is not a supported authorization mechanism. Operator pages may
+expose aggregate account, installation, webhook, notification, rate-limit, and
+quota health, but do not expose private repository source automatically.

@@ -4,8 +4,6 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { requireWorkspace, requireWorkspaceAdmin } from '../../../../lib/auth/workspace'
-import { getServerEnv } from '../../../../lib/env/server'
-import { sendTransactionalEmail } from '../../../../lib/notifications/email-provider'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import { enforceAuthenticatedRateLimit, enforceRateLimits } from '../../../../lib/security/rate-limit'
 import { AUDIT_ACTIONS, recordAuditLogBestEffort } from '../../../../lib/audit-log'
@@ -205,29 +203,4 @@ export async function changePassword(input: { password: string }) {
     metadata: { setting: 'password' },
   })
   return { changed: true as const }
-}
-
-export async function sendTestEmail() {
-  const context = await requireWorkspaceAdmin()
-  await enforceAuthenticatedRateLimit('authenticated-test-email', context.workspace.id, context.user.id)
-
-  try {
-    const env = getServerEnv()
-    const destination = env.OPERATOR_EMAIL ?? (env.EMAIL_PROVIDER === 'smtp' ? env.SMTP_USER : undefined)
-    if (!destination) return { sent: false as const, error: 'The test email could not be sent.' }
-    await sendTransactionalEmail({
-      to: destination,
-      subject: 'RepoView: transactional email test',
-      text: [
-        'RepoView',
-        '',
-        'This is a test email from the configured RepoView transactional email provider.',
-        `Sent: ${new Date().toISOString()}`,
-      ].join('\n'),
-      html: '<p><strong>RepoView</strong></p><p>This is a test email from the configured RepoView transactional email provider.</p>',
-    })
-    return { sent: true as const }
-  } catch {
-    return { sent: false as const, error: 'The test email could not be sent.' }
-  }
 }

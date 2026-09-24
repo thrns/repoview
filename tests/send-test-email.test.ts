@@ -1,37 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
-vi.mock('../lib/auth/workspace', () => ({ requireWorkspaceAdmin: vi.fn() }))
-vi.mock('../lib/security/rate-limit', () => ({ enforceAuthenticatedRateLimit: vi.fn(async () => undefined) }))
-vi.mock('../lib/supabase/server', () => ({
-  createSupabaseServerClient: vi.fn(async () => ({
-    from: vi.fn(() => ({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-    })),
-  })),
-}))
+vi.mock('../lib/auth/system-admin', () => ({ requireSystemAdmin: vi.fn() }))
+vi.mock('../lib/security/rate-limit', () => ({ enforceRateLimits: vi.fn(async () => undefined) }))
 vi.mock('../lib/env/server', () => ({ getServerEnv: vi.fn(() => ({ OPERATOR_EMAIL: 'operator@example.com' })) }))
 vi.mock('../lib/notifications/email-provider', () => ({ sendTransactionalEmail: vi.fn() }))
 
-import { sendTestEmail } from '../app/(admin)/dashboard/settings/actions'
-import { requireWorkspaceAdmin } from '../lib/auth/workspace'
+import { sendTestEmail } from '../app/(system)/system-admin/actions'
+import { requireSystemAdmin } from '../lib/auth/system-admin'
 import { sendTransactionalEmail } from '../lib/notifications/email-provider'
 
-const requireWorkspaceAdminMock = vi.mocked(requireWorkspaceAdmin)
+const requireSystemAdminMock = vi.mocked(requireSystemAdmin)
 const sendEmail = vi.mocked(sendTransactionalEmail)
 
 beforeEach(() => {
-  requireWorkspaceAdminMock.mockResolvedValue({ user: { id: 'user-1' }, workspace: { id: 'workspace-1' } } as never)
+  requireSystemAdminMock.mockResolvedValue({ user: { id: 'user-1' }, systemAdmin: { user_id: 'user-1', status: 'active', role: 'operator' } } as never)
   sendEmail.mockReset()
-  sendEmail.mockResolvedValue({ messageId: 'message-1' } as never)
+  sendEmail.mockResolvedValue({ provider: 'smtp', providerMessageId: 'message-1' } as never)
 })
 
 describe('send test email action', () => {
-  it('requires workspace admin access and returns only a safe success result', async () => {
+  it('requires system-admin access and returns only a safe success result', async () => {
     await expect(sendTestEmail()).resolves.toEqual({ sent: true })
-    expect(requireWorkspaceAdminMock).toHaveBeenCalledOnce()
+    expect(requireSystemAdminMock).toHaveBeenCalledOnce()
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({
       to: 'operator@example.com',
       subject: 'RepoView: transactional email test',
@@ -45,7 +36,7 @@ describe('send test email action', () => {
   })
 
   it('does not send when admin authorization fails', async () => {
-    requireWorkspaceAdminMock.mockRejectedValue(new Error('forbidden'))
+    requireSystemAdminMock.mockRejectedValue(new Error('forbidden'))
 
     await expect(sendTestEmail()).rejects.toThrow('forbidden')
     expect(sendEmail).not.toHaveBeenCalled()

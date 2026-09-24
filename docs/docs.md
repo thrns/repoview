@@ -543,7 +543,7 @@ Implemented boundary map:
 
 ```text
 lib/
-├── auth/                  # require-admin.ts, viewer-session.ts
+├── auth/                  # workspace.ts, system-admin.ts, viewer-session.ts
 ├── dashboard/              # overview.ts, activity.ts
 ├── env/                    # public/server schemas and accessors
 ├── github/                 # client, repositories, trees, contents, types

@@ -25,6 +25,7 @@ const nextConfig: NextConfig = {
       { source: '/dashboard', headers: privateNoStore },
       { source: '/dashboard/:path*', headers: privateNoStore },
       { source: '/onboarding/:path*', headers: privateNoStore },
+      { source: '/system-admin/:path*', headers: [...privateNoStore, { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }] },
     ]
   },
 }

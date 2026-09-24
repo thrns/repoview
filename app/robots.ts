@@ -4,7 +4,7 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: '*',
-      disallow: ['/s/', '/view/', '/dashboard/'],
+      disallow: ['/s/', '/view/', '/dashboard/', '/system-admin'],
     },
   }
 }

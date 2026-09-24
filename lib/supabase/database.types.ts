@@ -280,6 +280,25 @@ type AuditLog = {
   created_at: string
 }
 
+type SystemAdmin = {
+  user_id: string
+  role: 'operator'
+  status: 'active' | 'suspended' | 'revoked'
+  granted_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+type SystemAdminAuditLog = {
+  id: number
+  actor_user_id: string | null
+  action: string
+  resource_type: string
+  resource_id: string | null
+  metadata: Json
+  created_at: string
+}
+
 type RetentionCleanupRun = {
   id: string
   job_name: string
@@ -332,6 +351,8 @@ export interface Database {
       share_access_attempts: TableDefinition<ShareAccessAttempt, Partial<Omit<ShareAccessAttempt, 'id' | 'created_at'>> & Pick<ShareAccessAttempt, 'token_hash' | 'valid'> & { id?: string; created_at?: string }, never>
       notification_deliveries: TableDefinition<NotificationDelivery, Partial<Omit<NotificationDelivery, 'id' | 'created_at'>> & Pick<NotificationDelivery, 'workspace_id' | 'share_id' | 'session_id' | 'status' | 'recipient'> & { id?: string; created_at?: string }, Partial<Omit<NotificationDelivery, 'id' | 'workspace_id' | 'created_at'>>>
       audit_logs: TableDefinition<AuditLog, Partial<Omit<AuditLog, 'id' | 'created_at'>> & Pick<AuditLog, 'workspace_id' | 'action' | 'resource_type'> & { id?: never; created_at?: string }, never>
+      system_admins: TableDefinition<SystemAdmin, Partial<Omit<SystemAdmin, 'created_at' | 'updated_at'>> & Pick<SystemAdmin, 'user_id'> & { role?: SystemAdmin['role']; status?: SystemAdmin['status']; created_at?: string; updated_at?: string }, Partial<Omit<SystemAdmin, 'user_id' | 'created_at'>>>
+      system_admin_audit_logs: TableDefinition<SystemAdminAuditLog, Partial<Omit<SystemAdminAuditLog, 'id' | 'created_at'>> & Pick<SystemAdminAuditLog, 'action' | 'resource_type'> & { id?: never; created_at?: string }, never>
       retention_cleanup_runs: TableDefinition<RetentionCleanupRun, Partial<Omit<RetentionCleanupRun, 'id' | 'started_at'>> & Pick<RetentionCleanupRun, 'job_name'> & { id?: string; status?: RetentionCleanupRun['status']; batch_limit?: number; rows_processed?: number; details?: Json; error?: string | null; started_at?: string; completed_at?: string | null }, Partial<Omit<RetentionCleanupRun, 'id' | 'job_name' | 'started_at'>>>
       rate_limit_buckets: TableDefinition<RateLimitBucket, Partial<Omit<RateLimitBucket, 'updated_at'>> & Pick<RateLimitBucket, 'key_hash' | 'scope' | 'window_started_at'> & { request_count?: number; updated_at?: string }, Partial<Omit<RateLimitBucket, 'key_hash'>>>
       quota_counters: TableDefinition<QuotaCounter, Partial<Omit<QuotaCounter, 'created_at' | 'updated_at'>> & Pick<QuotaCounter, 'scope' | 'workspace_id' | 'subject_id' | 'period_start'> & { usage?: number; created_at?: string; updated_at?: string }, Partial<Omit<QuotaCounter, 'scope' | 'workspace_id' | 'subject_id' | 'period_start' | 'created_at'>>>

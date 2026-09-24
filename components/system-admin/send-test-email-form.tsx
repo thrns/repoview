@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react'
 
+import { sendTestEmail } from '@/app/(system)/system-admin/actions'
 import { Button } from '@/components/ui'
-import { sendTestEmail } from '@/app/(admin)/dashboard/settings/actions'
 
 export function SendTestEmailForm() {
   const [pending, startTransition] = useTransition()
@@ -30,11 +30,7 @@ export function SendTestEmailForm() {
       <Button type="button" variant="outline" loading={pending} onClick={handleSend}>
         Send test email
       </Button>
-      {message ? (
-        <p className={`text-sm ${success ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive'}`} role="status">
-          {message}
-        </p>
-      ) : null}
+      {message ? <p className={`text-sm ${success ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive'}`} role="status">{message}</p> : null}
     </div>
   )
 }

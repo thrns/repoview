@@ -25,6 +25,7 @@ type RetentionTable =
   | 'share_access_attempts'
   | 'share_recipients'
   | 'shares'
+  | 'system_admin_audit_logs'
   | 'viewer_sessions'
   | 'view_events'
   | 'viewers'
@@ -107,6 +108,7 @@ export async function runRetentionCleanup({
   processed.notificationDeliveryLogs = await deleteOldRows(admin, 'notification_deliveries', 'created_at', cutoffs.notificationDeliveryLogs, batchSize, maxBatches)
   processed.shareAccessAttempts = await deleteOldRows(admin, 'share_access_attempts', 'created_at', cutoffs.shareAccessAttempts, batchSize, maxBatches)
   processed.securityAuditLogs = await deleteOldRows(admin, 'audit_logs', 'created_at', cutoffs.securityAuditLogs, batchSize, maxBatches)
+  processed.systemAdminAuditLogs = await deleteOldRows(admin, 'system_admin_audit_logs', 'created_at', cutoffs.securityAuditLogs, batchSize, maxBatches)
   processed.rateLimitBuckets = await deleteOldRateLimitBuckets(admin, cutoffs.rateLimitBuckets, batchSize, maxBatches)
   processed.quotaCounters = await deleteOldQuotaCounters(admin, cutoffs.quotaCounters, batchSize, maxBatches)
   processed.networkLocationMetadata = await scrubNetworkLocationMetadata(admin, cutoffs.networkLocationMetadata, referenceTime, batchSize, maxBatches)

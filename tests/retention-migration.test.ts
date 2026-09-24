@@ -20,7 +20,7 @@ describe('retention cleanup integration', () => {
   })
 
   it('covers each required category and keeps share dependencies safe', () => {
-    for (const table of ['view_events', 'repository_events', 'file_engagement', 'viewer_sessions', 'viewers', 'share_access_attempts', 'notification_deliveries', 'rate_limit_buckets', 'quota_counters', 'shares', 'workspaces']) {
+    for (const table of ['view_events', 'repository_events', 'file_engagement', 'viewer_sessions', 'viewers', 'share_access_attempts', 'notification_deliveries', 'system_admin_audit_logs', 'rate_limit_buckets', 'quota_counters', 'shares', 'workspaces']) {
       expect(cleanup).toContain(`'${table}'`)
     }
     expect(cleanup).toContain('hasAnyRows')

@@ -133,6 +133,21 @@ The app fetches refs, recursive trees, and file contents on the server through O
 
 For production, set `EMAIL_PROVIDER=resend` or `EMAIL_PROVIDER=postmark`, the provider credential, and a verified `EMAIL_FROM`. For local development, set `EMAIL_PROVIDER=smtp` with a Gmail/Workspace App Password. `OPERATOR_EMAIL` is used only by the protected operator test-email action. Customer notification destinations are configured and verified per workspace in **Dashboard → Settings → Notifications**.
 
+RepoView operator access is separate from customer workspaces. Do not use an
+email equality check or a workspace owner/admin role for platform operations.
+After the operator has an Auth account, grant access explicitly from a trusted
+Supabase SQL session:
+
+```sql
+insert into public.system_admins (user_id, granted_by)
+values ('operator-auth-user-uuid', 'grantor-auth-user-uuid');
+```
+
+The internal surface is available at `/system-admin`. It shows aggregate
+health and failure metadata only; it does not load private repository source,
+share tokens, or workspace content. `system_admin_audit_logs` records sensitive
+operator activity separately from tenant `audit_logs`.
+
 RepoView composes low-volume, deduplicated first-meaningful-view and session-summary notifications into the workspace-scoped `notification_deliveries` ledger. The viewer request only queues a message; an after-response dispatch performs the provider call, while the protected dispatcher endpoint retries transient failures. Permanent failures and safe error summaries remain visible to workspace admins without exposing provider credentials or response bodies.
 
 ## Security model
