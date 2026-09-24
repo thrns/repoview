@@ -21,6 +21,7 @@ export const GITHUB_COMMON_HEADERS = Object.freeze({
 
 const installationAuthenticators = new Map<number, ReturnType<typeof createAppAuth>>()
 const installationClients = new Map<number, Octokit>()
+let appClient: Octokit | undefined
 
 export class GitHubInstallationConfigurationError extends Error {
   constructor(message = 'The GitHub App installation is unavailable for this workspace.') {
@@ -29,14 +30,14 @@ export class GitHubInstallationConfigurationError extends Error {
   }
 }
 
-function getGitHubAppAuthOptions(installationId: number): StrategyOptions {
-  assertInstallationId(installationId)
+function getGitHubAppAuthOptions(installationId?: number): StrategyOptions {
+  if (installationId !== undefined) assertInstallationId(installationId)
   const env = getServerEnv()
 
   return {
     appId: env.GITHUB_APP_ID,
-    installationId,
     privateKey: env.GITHUB_APP_PRIVATE_KEY,
+    ...(installationId === undefined ? {} : { installationId }),
   }
 }
 
@@ -50,16 +51,24 @@ function assertInstallationId(installationId: number) {
  * Resolve active installations visible to an authenticated workspace member.
  * The workspace id is never treated as authorization on its own.
  */
-export async function listWorkspaceGitHubInstallations(workspaceId: string): Promise<Tables<'github_installations'>[]> {
+export async function listWorkspaceGitHubInstallations(
+  workspaceId: string,
+  options: { includeInactive?: boolean } = {},
+): Promise<Tables<'github_installations'>[]> {
   await requireWorkspaceMember(workspaceId)
   const { createSupabaseServerClient } = await import('../supabase/server')
   const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
+  let query = supabase
     .from('github_installations')
     .select('*')
     .eq('workspace_id', workspaceId)
-    .eq('status', 'active')
     .order('created_at', { ascending: true })
+
+  if (!options.includeInactive) {
+    query = query.eq('status', 'active')
+  }
+
+  const { data, error } = await query
 
   if (error) {
     throw new GitHubInstallationConfigurationError()
@@ -127,6 +136,29 @@ export async function getGitHubInstallationAuthentication(installationId: number
     installationAuthenticators.set(installationId, authenticator)
   }
   return authenticator({ type: 'installation' })
+}
+
+/**
+ * Returns the App-authenticated client used only for installation metadata.
+ * This client authenticates with a short-lived JWT and never enters a browser
+ * bundle because this module is explicitly server-only.
+ */
+export function getGitHubAppClient() {
+  if (appClient) return appClient
+
+  appClient = new Octokit({
+    authStrategy: createAppAuth,
+    auth: getGitHubAppAuthOptions(),
+    baseUrl: GITHUB_API_BASE_URL,
+    headers: GITHUB_COMMON_HEADERS,
+  })
+  return appClient
+}
+
+export async function getGitHubAppInstallation(installationId: number) {
+  assertInstallationId(installationId)
+  const { data } = await getGitHubAppClient().rest.apps.getInstallation({ installation_id: installationId })
+  return data
 }
 
 /**
