@@ -1,13 +1,18 @@
 import { Mail } from 'lucide-react'
 
+import { GitHubConnectionCard, GitHubConnectionStatusAlert } from '@/components/admin/github-connection-card'
 import { SendTestEmailForm } from '@/components/admin/send-test-email-form'
 import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui'
 import { requireWorkspace } from '@/lib/auth/workspace'
+import { listWorkspaceGitHubInstallations } from '@/lib/github/client'
 
 export const dynamic = 'force-dynamic'
 
-export default async function SettingsPage() {
-  await requireWorkspace()
+export default async function SettingsPage({ searchParams }: { searchParams?: Promise<{ github?: string | string[] }> }) {
+  const context = await requireWorkspace()
+  const installations = await listWorkspaceGitHubInstallations(context.workspace.id, { includeInactive: true })
+  const params = await searchParams
+  const githubStatus = typeof params?.github === 'string' ? params.github : undefined
 
   return (
     <section className="mx-auto w-full max-w-5xl space-y-8 px-6 py-10 lg:px-10 lg:py-14">
@@ -18,6 +23,13 @@ export default async function SettingsPage() {
           Validate the workspace notification channel without exposing SMTP credentials to the browser.
         </p>
       </header>
+
+      <GitHubConnectionStatusAlert status={githubStatus} />
+
+      <GitHubConnectionCard
+        installations={installations}
+        canConnect={context.membership.role === 'owner' || context.membership.role === 'admin'}
+      />
 
       <Card>
         <CardHeader className="border-b border-border sm:flex-row sm:items-start sm:justify-between sm:space-y-0">

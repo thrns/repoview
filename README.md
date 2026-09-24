@@ -22,7 +22,7 @@ Recipients receive a short-lived session cookie after the secret-link exchange. 
 - Node.js 22.x (the repository pins Node 22 in `.nvmrc` and `package.json`).
 - pnpm 10.12.4.
 - A Supabase project with email/password Auth enabled.
-- A GitHub App installation with read-only Contents permission.
+- A public GitHub App with read-only Contents permission and OAuth authorization enabled through a callback URL.
 - A Gmail or Google Workspace App Password for notifications.
 
 ## Local setup
@@ -56,6 +56,9 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # GitHub App
 GITHUB_APP_ID=123456
+GITHUB_APP_SLUG=repoview
+GITHUB_APP_CLIENT_ID=Iv1...
+GITHUB_APP_CLIENT_SECRET=your-github-app-client-secret
 GITHUB_APP_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
 
 # Token hashing; use independent random values of at least 32 characters
@@ -72,7 +75,7 @@ SMTP_FROM_NAME=RepoView
 NOTIFICATION_TO_EMAIL=owner@example.com
 ```
 
-`NEXT_PUBLIC_*` values are browser-visible. The service-role key, GitHub private key, token peppers, SMTP credentials, and installation tokens remain server-only.
+`NEXT_PUBLIC_*` values are browser-visible. The service-role key, GitHub App client secret, private key, token peppers, SMTP credentials, OAuth user tokens, and installation tokens remain server-only.
 
 ## Supabase setup and migrations
 
@@ -94,14 +97,16 @@ pnpm test:db
 
 ## GitHub App setup
 
-Create a GitHub App and install it on the repositories a workspace should expose. RepoView stores each installation and its GitHub account metadata in `github_installations`; each repository record points to exactly one installation row.
+Create a public GitHub App and configure both its **Setup URL** (`/api/github/setup`) and **Callback URL** (`/api/github/callback`) using the production `NEXT_PUBLIC_APP_URL`. Leave “Request user authorization (OAuth) during installation” disabled so the setup URL can hand off to RepoView’s PKCE authorization step. Installations can be made on personal accounts or organizations; organization requests may wait for owner approval. RepoView stores each verified installation and its GitHub account metadata in `github_installations`; each repository record points to exactly one installation row.
 
 RepoView identifies a repository by GitHub's stable numeric repository ID. The owner/name pair is retained as current display and API location metadata, so a rename or transfer updates the existing RepoView row and keeps its UUID and share URLs.
 
 - Contents: **Read-only**.
-- Webhooks and OAuth callback: not required for the manual connection flow.
-- Keep only the App ID and PEM private key in server environment configuration.
-- Register the installation metadata with `registerGitHubInstallation` from a server-side GitHub installation callback or provisioning flow.
+- Webhooks are not required for the connection flow.
+- Keep the App ID, App slug, OAuth client ID/secret, and PEM private key in server environment configuration. The client secret and private key are never sent to the browser.
+- Connect from **Dashboard → Settings → GitHub** or the first-run dashboard card. RepoView generates one-time state and PKCE values, verifies the authenticated GitHub user can see the returned installation, and only then saves installation metadata.
+- The callback never trusts `installation_id` from the GitHub setup URL by itself. A missing user-visible installation is treated as pending/failed and is never attached to a workspace.
+- GitHub user access tokens are held in memory only for the callback exchange and repository verification; installation tokens remain short-lived server-side Octokit credentials.
 - The existing single-owner installation is migrated once with `GITHUB_APP_INSTALLATION_ID=... pnpm migrate:github-installation`; this variable is not part of RepoView runtime configuration.
 - Existing repository rows are then backfilled in place with `pnpm migrate:github-repository-identities`; this preserves repository UUIDs and all share references while capturing the current GitHub owner/name, repository ID, node ID, and default branch.
 - Keep the repository selected in each installation when least-privilege access is desired; RepoView lists repositories returned by that specific installation.

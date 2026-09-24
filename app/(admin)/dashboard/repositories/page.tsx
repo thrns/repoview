@@ -1,4 +1,5 @@
 import { Alert, AlertDescription, AlertTitle, Card, CardContent } from '@/components/ui'
+import { GitHubConnectionStatusAlert } from '@/components/admin/github-connection-card'
 import { RepositoriesView, type RepositoryDashboardItem } from '@/components/admin/repositories-view'
 import { listWorkspaceInstallationRepositories } from '@/lib/github/repositories'
 import { GitHubRepositoryError } from '@/lib/github/types'
@@ -9,9 +10,10 @@ import { requireWorkspace } from '@/lib/auth/workspace'
 
 export const dynamic = 'force-dynamic'
 
-export default async function RepositoriesPage() {
+export default async function RepositoriesPage({ searchParams }: { searchParams?: Promise<{ github?: string | string[] }> }) {
   try {
     const context = await requireWorkspace()
+    const params = await searchParams
     const [githubRepositories, registeredRepositories] = await Promise.all([
       listWorkspaceInstallationRepositories(context.workspace.id),
       listRegisteredRepositories(),
@@ -28,7 +30,16 @@ export default async function RepositoriesPage() {
       }
     })
 
-    return <RepositoriesView items={items} />
+    return (
+      <>
+        {typeof params?.github === 'string' ? (
+          <div className="mx-auto w-full max-w-[1400px] px-5 pt-7 sm:px-8 lg:px-10 lg:pt-9">
+            <GitHubConnectionStatusAlert status={params.github} />
+          </div>
+        ) : null}
+        <RepositoriesView items={items} />
+      </>
+    )
   } catch (error) {
     const message = error instanceof GitHubRepositoryError || error instanceof Error
       ? error.message
