@@ -73,6 +73,17 @@ type GitHubConnectionTransaction = {
   updated_at: string
 }
 
+type GitHubWebhookDelivery = {
+  delivery_id: string
+  event: string
+  action: string
+  installation_id: number | null
+  status: 'processing' | 'processed' | 'ignored' | 'failed'
+  received_at: string
+  processed_at: string | null
+  error: string | null
+}
+
 type Repository = {
   id: string
   workspace_id: string
@@ -287,6 +298,7 @@ export interface Database {
       notification_settings: TableDefinition<NotificationSettings, Partial<Omit<NotificationSettings, 'id' | 'created_at' | 'updated_at'>> & Pick<NotificationSettings, 'workspace_id'> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<NotificationSettings, 'id' | 'workspace_id' | 'created_at'>>>
       github_installations: TableDefinition<GitHubInstallation, Partial<Omit<GitHubInstallation, 'id' | 'workspace_id' | 'created_at' | 'updated_at'>> & Pick<GitHubInstallation, 'workspace_id' | 'github_installation_id' | 'github_account_id' | 'github_account_login' | 'github_account_type' | 'repository_selection'> & { id?: string; permissions?: Json; status?: GitHubInstallation['status']; suspended_at?: string | null; created_at?: string; updated_at?: string }, Partial<Omit<GitHubInstallation, 'id' | 'workspace_id' | 'created_at'>>>
       github_connection_transactions: TableDefinition<GitHubConnectionTransaction, Partial<Omit<GitHubConnectionTransaction, 'id' | 'created_at' | 'updated_at'>> & Pick<GitHubConnectionTransaction, 'workspace_id' | 'user_id' | 'state_hash' | 'code_verifier' | 'expires_at'> & { id?: string; status?: GitHubConnectionTransaction['status']; claimed_installation_id?: number | null; return_path?: string; consumed_at?: string | null; created_at?: string; updated_at?: string }, Partial<Omit<GitHubConnectionTransaction, 'id' | 'workspace_id' | 'user_id' | 'created_at'>>>
+      github_webhook_deliveries: TableDefinition<GitHubWebhookDelivery, Partial<Omit<GitHubWebhookDelivery, 'received_at'>> & Pick<GitHubWebhookDelivery, 'delivery_id' | 'event' | 'action'> & { installation_id?: number | null; status?: GitHubWebhookDelivery['status']; received_at?: string; processed_at?: string | null; error?: string | null }, Partial<Omit<GitHubWebhookDelivery, 'delivery_id' | 'received_at'>>>
       repositories: TableDefinition<Repository, Partial<Omit<Repository, 'id' | 'created_at' | 'updated_at'>> & Pick<Repository, 'workspace_id' | 'github_installation_id' | 'github_owner' | 'github_repo' | 'default_branch'> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<Repository, 'id' | 'workspace_id' | 'created_at'>>>
       shares: TableDefinition<Share, Partial<Omit<Share, 'id' | 'created_at' | 'updated_at'>> & Pick<Share, 'workspace_id' | 'repository_id' | 'token_hash' | 'ref'> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<Share, 'id' | 'workspace_id' | 'created_at'>>>
       share_recipients: TableDefinition<ShareRecipient, Partial<Omit<ShareRecipient, 'created_at' | 'updated_at'>> & Pick<ShareRecipient, 'share_id' | 'workspace_id'> & { created_at?: string; updated_at?: string }, Partial<Omit<ShareRecipient, 'share_id' | 'workspace_id' | 'created_at'>>>

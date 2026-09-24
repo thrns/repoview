@@ -20,6 +20,7 @@ beforeAll(() => {
     GITHUB_APP_CLIENT_ID: 'Iv1.test-client-id',
     GITHUB_APP_CLIENT_SECRET: 'client-secret',
     GITHUB_APP_PRIVATE_KEY: 'private-key',
+    GITHUB_WEBHOOK_SECRET: 'w'.repeat(32),
     SHARE_TOKEN_PEPPER: 's'.repeat(32),
     SESSION_TOKEN_PEPPER: 't'.repeat(32),
     IP_HASH_SALT: 'i'.repeat(32),

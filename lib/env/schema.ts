@@ -7,6 +7,7 @@ export const serverEnvSchema = z.object({
   GITHUB_APP_CLIENT_ID: z.string().trim().min(1, 'GITHUB_APP_CLIENT_ID is required'),
   GITHUB_APP_CLIENT_SECRET: z.string().min(1, 'GITHUB_APP_CLIENT_SECRET is required'),
   GITHUB_APP_PRIVATE_KEY: z.string().min(1, 'GITHUB_APP_PRIVATE_KEY is required').transform((value) => value.replace(/\\n/g, '\n').trim()),
+  GITHUB_WEBHOOK_SECRET: z.string().min(32, 'GITHUB_WEBHOOK_SECRET must be at least 32 characters'),
   SHARE_TOKEN_PEPPER: z.string().min(32, 'SHARE_TOKEN_PEPPER must be at least 32 characters'),
   SESSION_TOKEN_PEPPER: z.string().min(32, 'SESSION_TOKEN_PEPPER must be at least 32 characters'),
   IP_HASH_SALT: z.string().min(32, 'IP_HASH_SALT must be at least 32 characters'),
