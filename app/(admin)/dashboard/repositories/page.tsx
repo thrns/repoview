@@ -3,7 +3,8 @@ import { RepositoriesView, type RepositoryDashboardItem } from '@/components/adm
 import { listWorkspaceInstallationRepositories } from '@/lib/github/repositories'
 import { GitHubRepositoryError } from '@/lib/github/types'
 import { getSafeVisibilityRules } from '@/lib/security/visibility'
-import { listRegisteredRepositories } from '@/lib/repositories/registry'
+import { listRegisteredRepositories, syncRegisteredRepositoryMetadata } from '@/lib/repositories/registry'
+import { findRegisteredRepository } from '@/lib/repositories/identity'
 import { requireWorkspace } from '@/lib/auth/workspace'
 
 export const dynamic = 'force-dynamic'
@@ -15,19 +16,17 @@ export default async function RepositoriesPage() {
       listWorkspaceInstallationRepositories(context.workspace.id),
       listRegisteredRepositories(),
     ])
-    const localByFullName = new Map(
-      registeredRepositories.map((repository) => [
-        `${repository.github_owner}/${repository.github_repo}`,
-        repository,
-      ]),
-    )
-    const items: RepositoryDashboardItem[] = githubRepositories.map((github) => ({
-      github,
-      local: localByFullName.get(github.fullName) ?? null,
-      rules: localByFullName.has(github.fullName)
-        ? getSafeVisibilityRules(localByFullName.get(github.fullName)?.default_rules)
-        : null,
-    }))
+    if (context.membership.role === 'owner' || context.membership.role === 'admin') {
+      await syncRegisteredRepositoryMetadata(githubRepositories, registeredRepositories)
+    }
+    const items: RepositoryDashboardItem[] = githubRepositories.map((github) => {
+      const local = findRegisteredRepository(registeredRepositories, github)
+      return {
+        github,
+        local,
+        rules: local ? getSafeVisibilityRules(local.default_rules) : null,
+      }
+    })
 
     return <RepositoriesView items={items} />
   } catch (error) {

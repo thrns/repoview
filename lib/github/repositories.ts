@@ -10,6 +10,7 @@ import {
 
 type GitHubRepositoryLike = {
   id: number
+  node_id: string
   owner: { login: string }
   name: string
   full_name: string
@@ -51,7 +52,14 @@ export async function listWorkspaceInstallationRepositories(workspaceId: string)
     )),
   )
 
-  return repositories.flat()
+  const uniqueRepositories = new Map<number, GitHubRepositorySummary>()
+  for (const repository of repositories.flat()) {
+    if (!uniqueRepositories.has(repository.githubRepositoryId)) {
+      uniqueRepositories.set(repository.githubRepositoryId, repository)
+    }
+  }
+
+  return [...uniqueRepositories.values()]
 }
 
 export async function getRepositoryMetadata(owner: string, repo: string, installationId: number, installationRecordId: string): Promise<GitHubRepositorySummary> {
@@ -103,7 +111,8 @@ export async function getRepositoryRef(owner: string, repo: string, ref: string,
 
 function mapGitHubRepository(repository: GitHubRepositoryLike, installationRecordId: string): GitHubRepositorySummary {
   return {
-    id: repository.id,
+    githubRepositoryId: repository.id,
+    githubNodeId: repository.node_id,
     installationRecordId,
     owner: repository.owner.login,
     name: repository.name,

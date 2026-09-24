@@ -18,6 +18,7 @@ const getClient = vi.mocked(getGitHubInstallationClient)
 
 const repository = {
   id: 42,
+  node_id: 'MDEwOlJlcG9zaXRvcnk0Mg==',
   owner: { login: 'octocat' },
   name: 'hello-world',
   full_name: 'octocat/hello-world',
@@ -39,7 +40,8 @@ describe('GitHub installation repositories', () => {
     } as never)
 
     await expect(listInstallationRepositories(5678, 'installation-record-id')).resolves.toEqual([{
-      id: 42,
+      githubRepositoryId: 42,
+      githubNodeId: 'MDEwOlJlcG9zaXRvcnk0Mg==',
       installationRecordId: 'installation-record-id',
       owner: 'octocat',
       name: 'hello-world',

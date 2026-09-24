@@ -1,5 +1,6 @@
 export interface GitHubRepositorySummary {
-  id: number
+  githubRepositoryId: number
+  githubNodeId: string
   installationRecordId: string
   owner: string
   name: string

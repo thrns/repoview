@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:db": "supabase test db",
-    "migrate:github-installation": "node scripts/migrate-legacy-github-installation.mjs"
+    "migrate:github-installation": "node scripts/migrate-legacy-github-installation.mjs",
+    "migrate:github-repository-identities": "node scripts/migrate-repository-identities.mjs"
   },
   "dependencies": {
     "@octokit/auth-app": "^8.3.1",

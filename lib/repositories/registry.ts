@@ -1,6 +1,8 @@
 import 'server-only'
 
 import { requireRepositoryAccess, requireWorkspace, requireWorkspaceAdmin, requireWorkspaceRole } from '../auth/workspace'
+import type { GitHubRepositorySummary } from '../github/types'
+import { findRegisteredRepository } from './identity'
 import { createSupabaseServerClient } from '../supabase/server'
 import type { VisibilityRules } from '../security/visibility'
 import type { Tables } from '../supabase/database.types'
@@ -24,13 +26,51 @@ export async function listRegisteredRepositories(): Promise<RepositoryRecord[]> 
   return data ?? []
 }
 
+/**
+ * Refresh mutable GitHub location metadata for repositories already registered
+ * in the workspace. The stable GitHub ID is the lookup key, so this preserves
+ * the RepoView UUID and all share references across renames and transfers.
+ */
+export async function syncRegisteredRepositoryMetadata(
+  githubRepositories: GitHubRepositorySummary[],
+  registeredRepositories: RepositoryRecord[],
+) {
+  const { workspace } = await requireWorkspaceAdmin()
+  const supabase = await createSupabaseServerClient()
+
+  await Promise.all(githubRepositories.map(async (githubRepository) => {
+    const existing = findRegisteredRepository(registeredRepositories, githubRepository)
+    if (!existing) return
+
+    const { error } = await supabase
+      .from('repositories')
+      .update({
+        github_installation_id: githubRepository.installationRecordId,
+        github_repository_id: githubRepository.githubRepositoryId,
+        github_node_id: githubRepository.githubNodeId,
+        github_owner: githubRepository.owner,
+        github_repo: githubRepository.name,
+        default_branch: githubRepository.defaultBranch,
+      })
+      .eq('id', existing.id)
+      .eq('workspace_id', workspace.id)
+
+    if (error) {
+      throw new Error('RepoView could not synchronize GitHub repository metadata.')
+    }
+  }))
+}
+
 export async function saveRepositoryRecord(input: {
   githubInstallationId: string
+  githubRepositoryId: number
+  githubNodeId: string
   githubOwner: string
   githubRepo: string
   defaultBranch: string
   enabled: boolean
   defaultRules?: VisibilityRules
+  existingRepositoryId?: string
 }) {
   const { workspace } = await requireWorkspaceAdmin()
   const supabase = await createSupabaseServerClient()
@@ -46,22 +86,49 @@ export async function saveRepositoryRecord(input: {
     throw new Error('RepoView could not verify the GitHub App installation for this workspace.')
   }
 
-  const { error } = await supabase
-    .from('repositories')
-    .upsert({
-      workspace_id: workspace.id,
-      github_installation_id: input.githubInstallationId,
-      github_owner: input.githubOwner,
-      github_repo: input.githubRepo,
-      default_branch: input.defaultBranch,
-      enabled: input.enabled,
-      ...(input.defaultRules ? {
-        default_rules: {
-          hidden: [...input.defaultRules.hidden],
-          allowOnly: [...input.defaultRules.allowOnly],
-        },
-      } : {}),
-    }, { onConflict: 'workspace_id,github_owner,github_repo' })
+  const repositoryFields = {
+    workspace_id: workspace.id,
+    github_installation_id: input.githubInstallationId,
+    github_repository_id: input.githubRepositoryId,
+    github_node_id: input.githubNodeId,
+    github_owner: input.githubOwner,
+    github_repo: input.githubRepo,
+    default_branch: input.defaultBranch,
+    enabled: input.enabled,
+    ...(input.defaultRules ? {
+      default_rules: {
+        hidden: [...input.defaultRules.hidden],
+        allowOnly: [...input.defaultRules.allowOnly],
+      },
+    } : {}),
+  }
+  const repositoryUpdate = {
+    github_installation_id: input.githubInstallationId,
+    github_repository_id: input.githubRepositoryId,
+    github_node_id: input.githubNodeId,
+    github_owner: input.githubOwner,
+    github_repo: input.githubRepo,
+    default_branch: input.defaultBranch,
+    enabled: input.enabled,
+    ...(input.defaultRules ? {
+      default_rules: {
+        hidden: [...input.defaultRules.hidden],
+        allowOnly: [...input.defaultRules.allowOnly],
+      },
+    } : {}),
+  }
+
+  const query = input.existingRepositoryId
+    ? supabase
+      .from('repositories')
+      .update(repositoryUpdate)
+      .eq('id', input.existingRepositoryId)
+      .eq('workspace_id', workspace.id)
+    : supabase
+      .from('repositories')
+      .upsert(repositoryFields, { onConflict: 'workspace_id,github_repository_id' })
+
+  const { error } = await query
 
   if (error) {
     throw new Error('RepoView could not save this repository record.')

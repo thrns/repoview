@@ -73,8 +73,8 @@ insert into public.github_installations (
 select installation_b, workspace_b, 910004, 920004, 'foreign-org', 'Organization', 'selected', '{"contents":"read"}'::jsonb, 'active'
 from rls_fixture;
 
-insert into public.repositories (id, workspace_id, github_installation_id, github_owner, github_repo, default_branch)
-select repository_b, workspace_b, installation_b, 'rls', 'foreign-repository', 'main'
+insert into public.repositories (id, workspace_id, github_installation_id, github_repository_id, github_node_id, github_owner, github_repo, default_branch)
+select repository_b, workspace_b, installation_b, 930004, 'R_repo_foreign', 'rls', 'foreign-repository', 'main'
 from rls_fixture;
 
 insert into public.shares (id, workspace_id, repository_id, token_hash, ref, created_by)
@@ -141,7 +141,7 @@ select is((select count(*) from public.audit_logs where id = audit_b), 0::bigint
 select throws_ok($$insert into public.workspaces (name, slug, owner_id) values ('forbidden', 'rls-forbidden', auth.uid())$$, '42501', null, 'User A cannot insert a workspace through the client');
 select throws_ok($$insert into public.workspace_members (workspace_id, user_id, role) select workspace_b, auth.uid(), 'member' from rls_fixture$$, '42501', null, 'User A cannot add a member to User B workspace');
 select throws_ok($$insert into public.github_installations (workspace_id, github_installation_id, github_account_id, github_account_login, github_account_type, repository_selection) select workspace_b, 910005, 920005, 'forbidden-org', 'Organization', 'selected' from rls_fixture$$, '42501', null, 'User A cannot insert User B GitHub installation');
-select throws_ok($$insert into public.repositories (workspace_id, github_installation_id, github_owner, github_repo, default_branch) select workspace_b, installation_b, 'rls', 'forbidden', 'main' from rls_fixture$$, '42501', null, 'User A cannot insert User B repository');
+select throws_ok($$insert into public.repositories (workspace_id, github_installation_id, github_repository_id, github_node_id, github_owner, github_repo, default_branch) select workspace_b, installation_b, 930005, 'R_repo_forbidden', 'rls', 'forbidden', 'main' from rls_fixture$$, '42501', null, 'User A cannot insert User B repository');
 select throws_ok($$insert into public.shares (workspace_id, repository_id, token_hash, ref, created_by) select workspace_b, repository_b, 'rls-forbidden-share-token', 'main', auth.uid() from rls_fixture$$, '42501', null, 'User A cannot insert User B share');
 select throws_ok($$insert into public.share_recipients (workspace_id, share_id, recipient_name) select workspace_b, share_b, 'forbidden' from rls_fixture$$, '42501', null, 'User A cannot insert User B recipient');
 select throws_ok($$insert into public.viewer_sessions (workspace_id, share_id, session_token_hash) select workspace_b, share_b, 'rls-forbidden-session' from rls_fixture$$, '42501', null, 'User A cannot insert User B viewer session');

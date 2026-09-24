@@ -120,6 +120,8 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
         await setRepositoryEnabled({
           repositoryId: item.local?.id,
           installationRecordId: item.github.installationRecordId,
+          githubRepositoryId: item.github.githubRepositoryId,
+          githubNodeId: item.github.githubNodeId,
           owner: item.github.owner,
           repo: item.github.name,
           enabled,
@@ -150,6 +152,8 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
           repositories: repositories.map((item) => ({
             repositoryId: item.local?.id,
             installationRecordId: item.github.installationRecordId,
+            githubRepositoryId: item.github.githubRepositoryId,
+            githubNodeId: item.github.githubNodeId,
             owner: item.github.owner,
             repo: item.github.name,
             enabled,
@@ -369,7 +373,7 @@ function getEnabled(item: RepositoryDashboardItem, overrides: Record<string, boo
 }
 
 function repositoryKey(item: RepositoryDashboardItem) {
-  return `${item.github.installationRecordId}:${item.github.fullName}`
+  return String(item.github.githubRepositoryId)
 }
 
 function isShareable(item: RepositoryDashboardItem, enabled: boolean) {

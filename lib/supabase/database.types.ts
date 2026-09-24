@@ -62,6 +62,8 @@ type Repository = {
   id: string
   workspace_id: string
   github_installation_id: string
+  github_repository_id: number | null
+  github_node_id: string | null
   github_owner: string
   github_repo: string
   default_branch: string
@@ -269,7 +271,7 @@ export interface Database {
       workspace_members: TableDefinition<WorkspaceMember, Partial<Omit<WorkspaceMember, 'created_at' | 'updated_at'>> & Pick<WorkspaceMember, 'workspace_id' | 'user_id'> & { created_at?: string; updated_at?: string }, Partial<Omit<WorkspaceMember, 'workspace_id' | 'user_id' | 'created_at'>>>
       notification_settings: TableDefinition<NotificationSettings, Partial<Omit<NotificationSettings, 'id' | 'created_at' | 'updated_at'>> & Pick<NotificationSettings, 'workspace_id'> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<NotificationSettings, 'id' | 'workspace_id' | 'created_at'>>>
       github_installations: TableDefinition<GitHubInstallation, Partial<Omit<GitHubInstallation, 'id' | 'workspace_id' | 'created_at' | 'updated_at'>> & Pick<GitHubInstallation, 'workspace_id' | 'github_installation_id' | 'github_account_id' | 'github_account_login' | 'github_account_type' | 'repository_selection'> & { id?: string; permissions?: Json; status?: GitHubInstallation['status']; suspended_at?: string | null; created_at?: string; updated_at?: string }, Partial<Omit<GitHubInstallation, 'id' | 'workspace_id' | 'created_at'>>>
-      repositories: TableDefinition<Repository, Partial<Omit<Repository, 'id' | 'created_at' | 'updated_at'>> & Pick<Repository, 'workspace_id' | 'github_installation_id' | 'github_owner' | 'github_repo' | 'default_branch'> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<Repository, 'id' | 'workspace_id' | 'github_installation_id' | 'created_at'>>>
+      repositories: TableDefinition<Repository, Partial<Omit<Repository, 'id' | 'created_at' | 'updated_at'>> & Pick<Repository, 'workspace_id' | 'github_installation_id' | 'github_owner' | 'github_repo' | 'default_branch'> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<Repository, 'id' | 'workspace_id' | 'created_at'>>>
       shares: TableDefinition<Share, Partial<Omit<Share, 'id' | 'created_at' | 'updated_at'>> & Pick<Share, 'workspace_id' | 'repository_id' | 'token_hash' | 'ref'> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<Share, 'id' | 'workspace_id' | 'created_at'>>>
       share_recipients: TableDefinition<ShareRecipient, Partial<Omit<ShareRecipient, 'created_at' | 'updated_at'>> & Pick<ShareRecipient, 'share_id' | 'workspace_id'> & { created_at?: string; updated_at?: string }, Partial<Omit<ShareRecipient, 'share_id' | 'workspace_id' | 'created_at'>>>
       viewers: TableDefinition<Viewer, Partial<Omit<Viewer, 'id' | 'first_seen_at' | 'last_seen_at'>> & Pick<Viewer, 'workspace_id' | 'viewer_code' | 'viewer_token_hash'> & { id?: string; first_seen_at?: string; last_seen_at?: string }, Partial<Omit<Viewer, 'id' | 'workspace_id' | 'viewer_token_hash'>>>
