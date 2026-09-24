@@ -16,27 +16,35 @@ export async function recordViewerAnalytics({
   events: ViewerAnalyticsEvent[]
   clientContext?: ViewerClientContext
   session?: ViewerSessionSnapshot
-}) {
+}, options: { gpcApplied?: boolean } = {}) {
   const viewer = await requireViewerSession(shareId)
   const internalShareId = viewer.share.id
   const admin = createSupabaseAdminClient()
   const now = new Date().toISOString()
-  const update = buildSessionUpdate(viewer.session, clientContext, session, now)
-  if (events.filter((event) => ['file_opened', 'file_viewed', 'markdown_viewed'].includes(event.eventType)).length >= 8) {
+  const collectOptionalAnalytics = viewer.session.analytics_mode === 'optional' && viewer.session.gpc_applied !== true && options.gpcApplied !== true
+  const update = buildSessionUpdate(
+    viewer.session,
+    collectOptionalAnalytics ? clientContext : undefined,
+    collectOptionalAnalytics ? session : undefined,
+    now,
+  )
+  if (collectOptionalAnalytics && events.filter((event) => ['file_opened', 'file_viewed', 'markdown_viewed'].includes(event.eventType)).length >= 8) {
     update.security_signals = {
       ...(isRecord(viewer.session.security_signals) ? viewer.session.security_signals : {}),
       rapid_file_traversal: true,
     }
   }
-  const maxDirectoryDepth = Math.max(0, ...events.map((event) => event.path ? Math.max(0, event.path.split('/').length - 1) : 0))
-  if (maxDirectoryDepth > numberValue(viewer.session.max_directory_depth)) update.max_directory_depth = maxDirectoryDepth
+  if (collectOptionalAnalytics) {
+    const maxDirectoryDepth = Math.max(0, ...events.map((event) => event.path ? Math.max(0, event.path.split('/').length - 1) : 0))
+    if (maxDirectoryDepth > numberValue(viewer.session.max_directory_depth)) update.max_directory_depth = maxDirectoryDepth
+  }
 
   if (Object.keys(update).length > 0) {
     const { error } = await admin.from('viewer_sessions').update(update as never).eq('id', viewer.session.id).eq('share_id', internalShareId).eq('workspace_id', viewer.share.workspace_id)
     if (error) throw error
   }
 
-  if (events.length > 0) {
+  if (collectOptionalAnalytics && events.length > 0) {
     const rows = events.map((event) => ({
       workspace_id: viewer.share.workspace_id,
       share_id: internalShareId,
@@ -55,7 +63,7 @@ export async function recordViewerAnalytics({
     await updateFileEngagement(admin, internalShareId, viewer.session.id, viewer.session.viewer_id, viewer.share.workspace_id, events, now)
   }
 
-  if (session?.ended) {
+  if (collectOptionalAnalytics && session?.ended) {
     after(() => notifySessionSummarySafely({
       shareId: internalShareId,
       sessionId: viewer.session.id,

@@ -8,6 +8,7 @@ import {
 import { generateViewerSessionToken, hashNetworkValue, hashShareToken, hashViewerSessionToken } from '../security/tokens'
 import { findOrCreateViewer } from '../analytics/identity'
 import { createSupabaseAdminClient } from '../supabase/admin'
+import type { ViewerAnalyticsMode } from '../viewer/privacy'
 
 export const VIEWER_SESSION_COOKIE = 'repoview_viewer_session'
 
@@ -20,7 +21,12 @@ export class ShareExchangeError extends Error {
   }
 }
 
-export async function exchangeShareToken(rawToken: string, requestMetadata?: Partial<LinkOpenMetadata>, rawViewerId?: string) {
+export async function exchangeShareToken(
+  rawToken: string,
+  requestMetadata?: Partial<LinkOpenMetadata>,
+  rawViewerId?: string,
+  privacy?: { analyticsMode?: ViewerAnalyticsMode; gpc?: boolean },
+) {
   const normalizedToken = rawToken.trim()
   if (!normalizedToken || normalizedToken.length > 512) {
     throw new ShareExchangeError('invalid')
@@ -77,15 +83,20 @@ export async function exchangeShareToken(rawToken: string, requestMetadata?: Par
   }
 
   const metadata = sanitizeLinkOpenMetadata(requestMetadata)
+  const gpcApplied = privacy?.gpc === true
+  const analyticsMode: ViewerAnalyticsMode = gpcApplied ? 'necessary' : privacy?.analyticsMode === 'optional' ? 'optional' : 'necessary'
+  const collectOptionalAnalytics = analyticsMode === 'optional'
   let viewer: Awaited<ReturnType<typeof findOrCreateViewer>>['viewer'] | null = null
   let resolvedViewerId: string | undefined
-  try {
-    const identity = await findOrCreateViewer(rawViewerId, share.workspace_id)
-    viewer = identity.viewer
-    resolvedViewerId = identity.rawViewerId
-  } catch {
-    // Analytics must never block a valid repository view. The session remains
-    // useful even if the optional anonymous identity write is unavailable.
+  if (collectOptionalAnalytics) {
+    try {
+      const identity = await findOrCreateViewer(rawViewerId, share.workspace_id)
+      viewer = identity.viewer
+      resolvedViewerId = identity.rawViewerId
+    } catch {
+      // Analytics must never block a valid repository view. The session remains
+      // useful even if the optional anonymous identity write is unavailable.
+    }
   }
 
   const tokenAgeSeconds = (share.created_at ?? share.updated_at) ? Math.max(0, Math.floor((Date.now() - new Date(share.created_at ?? share.updated_at).getTime()) / 1000)) : null
@@ -94,7 +105,7 @@ export async function exchangeShareToken(rawToken: string, requestMetadata?: Par
     ? hashNetworkValue([metadata.browser, metadata.os, metadata.deviceType].filter(Boolean).join('|'))
     : null
   let previousVisitCount = 0
-  if (viewer) {
+  if (collectOptionalAnalytics && viewer) {
     try {
       const { data: previousSessions } = await admin
         .from('viewer_sessions')
@@ -109,34 +120,46 @@ export async function exchangeShareToken(rawToken: string, requestMetadata?: Par
     }
   }
   const rawSessionToken = generateViewerSessionToken()
-  const { data: session, error: sessionError } = await admin
-    .from('viewer_sessions')
-    .insert({
-      workspace_id: share.workspace_id,
-      share_id: share.id,
-      session_token_hash: hashViewerSessionToken(rawSessionToken),
-      referrer_host: metadata.referrerHost,
-      browser: metadata.browser,
-      os: metadata.os,
-      device_type: metadata.deviceType,
-      country: metadata.country,
-      is_probable_bot: metadata.isProbableBot,
-      ...(viewer ? { viewer_id: viewer.id } : {}),
+  const sessionInsert = {
+    workspace_id: share.workspace_id,
+    share_id: share.id,
+    session_token_hash: hashViewerSessionToken(rawSessionToken),
+    analytics_mode: analyticsMode,
+    gpc_applied: gpcApplied,
+    referrer_host: metadata.referrerHost,
+    public_ip: metadata.publicIp,
+    ip_version: metadata.ipVersion,
+    is_probable_bot: metadata.isProbableBot,
+    asn: metadata.asn,
+    asn_organization: metadata.asnOrganization,
+    isp_organization: metadata.ispOrganization,
+    network_classification: metadata.networkClassification,
+    vpn_indication: metadata.vpnIndication,
+    proxy_indication: metadata.proxyIndication,
+    tor_indication: metadata.torIndication,
+    datacenter_indication: metadata.datacenterIndication,
+    http_protocol: metadata.httpProtocol,
+    network_key_hash: networkKeyHash,
+    token_age_seconds: tokenAgeSeconds,
+    security_signals: {
+      token_valid: true,
+      approximate_location: Boolean(metadata.country || metadata.city || metadata.region),
+      vpn: metadata.vpnIndication,
+      proxy: metadata.proxyIndication,
+      tor: metadata.torIndication,
+      datacenter: metadata.datacenterIndication,
+      automation: metadata.isProbableBot,
+    },
+    ...(collectOptionalAnalytics ? {
+      viewer_id: viewer?.id ?? null,
       user_agent: metadata.userAgent,
+      browser: metadata.browser,
       browser_version: metadata.browserVersion,
       rendering_engine: metadata.renderingEngine,
+      os: metadata.os,
       os_version: metadata.osVersion,
-      public_ip: metadata.publicIp,
-      ip_version: metadata.ipVersion,
-      asn: metadata.asn,
-      asn_organization: metadata.asnOrganization,
-      isp_organization: metadata.ispOrganization,
-      network_classification: metadata.networkClassification,
-      vpn_indication: metadata.vpnIndication,
-      proxy_indication: metadata.proxyIndication,
-      tor_indication: metadata.torIndication,
-      datacenter_indication: metadata.datacenterIndication,
-      http_protocol: metadata.httpProtocol,
+      device_type: metadata.deviceType,
+      country: metadata.country,
       region: metadata.region,
       region_code: metadata.regionCode,
       city: metadata.city,
@@ -146,21 +169,14 @@ export async function exchangeShareToken(rawToken: string, requestMetadata?: Par
       approximate_latitude: metadata.approximateLatitude,
       approximate_longitude: metadata.approximateLongitude,
       referrer_url: metadata.referrerUrl,
-      network_key_hash: networkKeyHash,
       device_profile_hash: deviceProfileHash,
-      token_age_seconds: tokenAgeSeconds,
       is_returning_visit: previousVisitCount > 0,
       previous_visit_count: previousVisitCount,
-      security_signals: {
-        token_valid: true,
-        approximate_location: Boolean(metadata.country || metadata.city || metadata.region),
-        vpn: metadata.vpnIndication,
-        proxy: metadata.proxyIndication,
-        tor: metadata.torIndication,
-        datacenter: metadata.datacenterIndication,
-        automation: metadata.isProbableBot,
-      },
-    })
+    } : {}),
+  }
+  const { data: session, error: sessionError } = await admin
+    .from('viewer_sessions')
+    .insert(sessionInsert)
     .select('id')
     .single()
 
@@ -168,22 +184,24 @@ export async function exchangeShareToken(rawToken: string, requestMetadata?: Par
     throw new ShareExchangeError('upstream')
   }
 
-  // Link opening is analytics, not authorization. Persist it asynchronously so
-  // an event-table outage never prevents an otherwise valid repository view.
-  try {
-    void Promise.resolve(admin.from('view_events').insert({
-      workspace_id: share.workspace_id,
-      share_id: share.id,
-      session_id: session.id,
-      event_type: 'link_opened',
-      path: null,
-      metadata: toLinkOpenEventMetadata(metadata),
-    })).catch(() => undefined)
-  } catch {
-    // Best effort by design.
+  // Link opening is optional engagement analytics. Necessary-only mode still
+  // records the security/access attempt below, but not an owner-facing event.
+  if (collectOptionalAnalytics) {
+    try {
+      void Promise.resolve(admin.from('view_events').insert({
+        workspace_id: share.workspace_id,
+        share_id: share.id,
+        session_id: session.id,
+        event_type: 'link_opened',
+        path: null,
+        metadata: toLinkOpenEventMetadata(metadata, true),
+      })).catch(() => undefined)
+    } catch {
+      // Best effort by design.
+    }
   }
 
-  void Promise.resolve(admin.from('share_access_attempts').insert({
+  const accessAttempt = {
     workspace_id: share.workspace_id,
     share_id: share.id,
     token_hash: hashShareToken(normalizedToken),
@@ -191,11 +209,14 @@ export async function exchangeShareToken(rawToken: string, requestMetadata?: Par
     token_age_seconds: tokenAgeSeconds,
     public_ip: metadata.publicIp,
     referrer_host: metadata.referrerHost,
-    browser: metadata.browser,
-    os: metadata.os,
-    device_type: metadata.deviceType,
     is_probable_bot: metadata.isProbableBot,
-  })).then(() => undefined).catch(() => undefined)
+    ...(collectOptionalAnalytics ? {
+      browser: metadata.browser,
+      os: metadata.os,
+      device_type: metadata.deviceType,
+    } : {}),
+  }
+  void Promise.resolve(admin.from('share_access_attempts').insert(accessAttempt)).then(() => undefined).catch(() => undefined)
 
   void annotateSessionSecurity({ admin, workspaceId: share.workspace_id, shareId: share.id, sessionId: session.id, viewerId: viewer?.id ?? null, networkKeyHash, deviceProfileHash }).catch(() => undefined)
 

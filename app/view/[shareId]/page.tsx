@@ -18,6 +18,8 @@ export default async function ViewerHomePage({ params }: { params: Promise<{ sha
         shareId: data.internalShareId,
         sessionId: data.sessionId,
         workspaceId: data.workspaceId,
+        analyticsMode: data.analyticsMode,
+        gpcApplied: data.gpcApplied,
         eventType: 'markdown_viewed',
         path: readme.path,
         metadata: { route: 'root', preview: 'markdown' },

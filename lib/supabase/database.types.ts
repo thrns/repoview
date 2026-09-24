@@ -155,11 +155,22 @@ type Viewer = {
   last_seen_at: string
 }
 
+type ViewerPrivacyPreference = {
+  id: string
+  preference_key_hash: string
+  analytics_mode: 'necessary' | 'optional'
+  gpc_applied: boolean
+  created_at: string
+  updated_at: string
+}
+
 type ViewerSession = {
   id: string
   share_id: string
   workspace_id: string
   viewer_id: string | null
+  analytics_mode: 'necessary' | 'optional'
+  gpc_applied: boolean
   session_token_hash: string
   first_seen_at: string
   last_seen_at: string
@@ -323,6 +334,7 @@ export interface Database {
       shares: TableDefinition<Share, Partial<Omit<Share, 'id' | 'created_at' | 'updated_at'>> & Pick<Share, 'workspace_id' | 'repository_id' | 'token_hash' | 'ref'> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<Share, 'id' | 'workspace_id' | 'created_at'>>>
       share_recipients: TableDefinition<ShareRecipient, Partial<Omit<ShareRecipient, 'created_at' | 'updated_at'>> & Pick<ShareRecipient, 'share_id' | 'workspace_id'> & { created_at?: string; updated_at?: string }, Partial<Omit<ShareRecipient, 'share_id' | 'workspace_id' | 'created_at'>>>
       viewers: TableDefinition<Viewer, Partial<Omit<Viewer, 'id' | 'first_seen_at' | 'last_seen_at'>> & Pick<Viewer, 'workspace_id' | 'viewer_code' | 'viewer_token_hash'> & { id?: string; first_seen_at?: string; last_seen_at?: string }, Partial<Omit<Viewer, 'id' | 'workspace_id' | 'viewer_token_hash'>>>
+      viewer_privacy_preferences: TableDefinition<ViewerPrivacyPreference, Partial<Omit<ViewerPrivacyPreference, 'id' | 'created_at' | 'updated_at'>> & Pick<ViewerPrivacyPreference, 'preference_key_hash'> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<ViewerPrivacyPreference, 'id' | 'created_at'>>>
       viewer_sessions: TableDefinition<ViewerSession, Partial<Omit<ViewerSession, 'id' | 'first_seen_at' | 'last_seen_at'>> & Pick<ViewerSession, 'workspace_id' | 'share_id' | 'session_token_hash'> & { id?: string; first_seen_at?: string; last_seen_at?: string }, Partial<Omit<ViewerSession, 'id' | 'workspace_id' | 'share_id' | 'session_token_hash'>>>
       view_events: TableDefinition<ViewEvent, Partial<Omit<ViewEvent, 'id' | 'created_at'>> & Pick<ViewEvent, 'workspace_id' | 'share_id' | 'session_id' | 'event_type'> & { id?: never; created_at?: string }, never>
       repository_events: TableDefinition<RepositoryEvent, Partial<Omit<RepositoryEvent, 'id' | 'created_at'>> & Pick<RepositoryEvent, 'workspace_id' | 'id' | 'share_id' | 'session_id' | 'event_type' | 'occurred_at'>, never>

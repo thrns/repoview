@@ -36,6 +36,8 @@ export default async function ViewerFilePage({ params }: { params: Promise<{ sha
       shareId: data.internalShareId,
       sessionId: data.sessionId,
       workspaceId: data.workspaceId,
+      analyticsMode: data.analyticsMode,
+      gpcApplied: data.gpcApplied,
       eventType: file.kind === 'text' && detectViewerLanguage(file.path) === 'markdown' ? 'markdown_viewed' : 'file_viewed',
       path: file.path,
       metadata: { route: 'blob', preview: file.kind },

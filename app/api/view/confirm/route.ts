@@ -6,6 +6,7 @@ import { dispatchNotificationDelivery } from '../../../../lib/notifications/deli
 import { notifyConfirmedViewer } from '../../../../lib/notifications/notify-view'
 import { createSupabaseAdminClient } from '../../../../lib/supabase/admin'
 import type { ViewerClientContext } from '../../../../lib/viewer/analytics-types'
+import { isGlobalPrivacyControl } from '../../../../lib/viewer/privacy-shared'
 
 const clientContextSchema = z.object({
   deviceType: z.enum(['desktop', 'mobile', 'tablet']).nullable().optional(),
@@ -56,13 +57,16 @@ export async function POST(request: Request) {
   const confirmedAt = new Date().toISOString()
   const admin = createSupabaseAdminClient()
   const clientContext = parsedRequest.clientContext as ViewerClientContext | undefined
+  const collectOptionalAnalytics = viewer.session.analytics_mode === 'optional' && viewer.session.gpc_applied !== true && !isGlobalPrivacyControl(request.headers.get('sec-gpc'))
   const { data: confirmedSession, error: confirmError } = await admin
     .from('viewer_sessions')
     .update({
-      confirmed_at: confirmedAt,
       last_seen_at: confirmedAt,
-      entry_path: parsedRequest.entryPath ?? null,
-      ...(clientContext ? {
+      ...(collectOptionalAnalytics ? {
+        confirmed_at: confirmedAt,
+        entry_path: parsedRequest.entryPath ?? null,
+      } : {}),
+      ...(collectOptionalAnalytics && clientContext ? {
         device_type: clientContext.deviceType ?? null,
         browser: clientContext.browser ?? null,
         browser_version: clientContext.browserVersion ?? null,
@@ -104,20 +108,22 @@ export async function POST(request: Request) {
 
   // Confirmation is already durable on the session. The companion event is
   // best-effort so an analytics write cannot make a valid viewer lose access.
-  try {
-    void Promise.resolve(admin.from('view_events').insert({
-      workspace_id: viewer.share.workspace_id,
-      share_id: internalShareId,
-      session_id: confirmedSession.id,
-      event_type: 'view_confirmed',
-      path: null,
-      metadata: {},
-    } as never)).catch(() => undefined)
-  } catch {
-    // Best effort by design.
+  if (collectOptionalAnalytics) {
+    try {
+      void Promise.resolve(admin.from('view_events').insert({
+        workspace_id: viewer.share.workspace_id,
+        share_id: internalShareId,
+        session_id: confirmedSession.id,
+        event_type: 'view_confirmed',
+        path: null,
+        metadata: {},
+      } as never)).catch(() => undefined)
+    } catch {
+      // Best effort by design.
+    }
   }
 
-  try {
+  if (collectOptionalAnalytics) try {
     const notification = await notifyConfirmedViewer({
       shareId: internalShareId,
       sessionId: confirmedSession.id,

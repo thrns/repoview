@@ -19,6 +19,10 @@ export function generateViewerSessionToken() {
   return generateToken()
 }
 
+export function generateViewerPrivacyPreferenceToken() {
+  return generateToken()
+}
+
 export function hashShareToken(rawToken: string) {
   return hashToken(rawToken, getServerEnv().SHARE_TOKEN_PEPPER)
 }
@@ -29,6 +33,10 @@ export function hashViewerSessionToken(rawToken: string) {
 
 export function hashViewerIdentity(rawViewerId: string) {
   return hashToken(rawViewerId, getServerEnv().SESSION_TOKEN_PEPPER)
+}
+
+export function hashViewerPrivacyPreference(rawPreferenceToken: string) {
+  return hashToken(rawPreferenceToken, getServerEnv().SESSION_TOKEN_PEPPER)
 }
 
 export function hashNetworkValue(value: string) {

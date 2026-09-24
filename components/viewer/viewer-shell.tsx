@@ -16,6 +16,7 @@ import { ViewerFileTree } from './viewer-file-tree'
 import type { ViewerFilePreviewState } from './viewer-file-preview'
 import { ViewerWorkspaceProvider } from './viewer-workspace-context'
 import { ViewerAnalyticsProvider } from './viewer-analytics'
+import { ViewerPrivacySettings } from './viewer-privacy-settings'
 
 interface ViewerShellProps {
   children: ReactNode
@@ -23,6 +24,8 @@ interface ViewerShellProps {
   repositoryName: string
   refName: string
   allowDownload: boolean
+  analyticsMode: 'necessary' | 'optional'
+  gpcApplied: boolean
   root: ViewerRootState
   tree: ViewerTreeState
 }
@@ -34,7 +37,7 @@ const ViewerFileContent = dynamic(() => import('./viewer-file-content').then((mo
   loading: () => <ViewerFileLoading path="Preparing preview…" />,
 })
 
-export function ViewerShell({ children, shareId, repositoryName, refName, allowDownload, root, tree }: ViewerShellProps) {
+export function ViewerShell({ children, shareId, repositoryName, refName, allowDownload, analyticsMode, gpcApplied, root, tree }: ViewerShellProps) {
   const pathname = usePathname()
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [activeFile, setActiveFile] = useState<{ path: string; file: ViewerFilePreviewState } | null>(null)
@@ -145,7 +148,7 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
   }, [prefetchPath, root, tree])
 
   return (
-    <ViewerAnalyticsProvider shareId={shareId} initialPath={activePath}>
+    <ViewerAnalyticsProvider shareId={shareId} initialPath={activePath} analyticsMode={analyticsMode} gpcApplied={gpcApplied}>
       <ViewerWorkspaceProvider value={{ tree, root, selectedPath, openPath, prefetchPath }}>
       <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-background text-foreground">
         <header className="sticky top-0 z-40 shrink-0 border-b border-border bg-background">
@@ -171,7 +174,7 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
               <span className="truncate font-mono text-[13px] font-medium text-foreground">{repositoryName}</span>
             </div>
             <div className="ml-auto flex items-center gap-2">
-              <Link href="/privacy" className="hidden text-xs text-foreground-muted underline-offset-4 hover:text-foreground hover:underline sm:inline">Privacy</Link>
+              <ViewerPrivacySettings shareId={shareId} />
               <Link href="/terms" className="hidden text-xs text-foreground-muted underline-offset-4 hover:text-foreground hover:underline sm:inline">Terms</Link>
               <Badge variant="outline" className="hidden items-center gap-1.5 rounded px-2 font-mono text-[11px] sm:inline-flex">
                 <GitBranch className="size-3.5" aria-hidden="true" />

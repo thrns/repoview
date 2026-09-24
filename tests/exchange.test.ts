@@ -4,12 +4,17 @@ vi.mock('server-only', () => ({}))
 vi.mock('../lib/supabase/admin', () => ({
   createSupabaseAdminClient: vi.fn(),
 }))
+vi.mock('../lib/analytics/identity', () => ({
+  findOrCreateViewer: vi.fn(),
+}))
 
 import { createSupabaseAdminClient } from '../lib/supabase/admin'
+import { findOrCreateViewer } from '../lib/analytics/identity'
 import { type LinkOpenMetadata } from '../lib/shares/link-open-metadata'
 import { exchangeShareToken, ShareExchangeError } from '../lib/shares/exchange'
 
 const getAdmin = vi.mocked(createSupabaseAdminClient)
+const getViewer = vi.mocked(findOrCreateViewer)
 const rawShareToken = 'share-token'
 
 beforeAll(() => {
@@ -95,6 +100,11 @@ describe('share token exchange', () => {
   it('stores only the viewer-session hash and records link_opened', async () => {
     const { admin, sessionInsert, eventInsert } = createAdminMock()
     getAdmin.mockReturnValue(admin as never)
+    getViewer.mockResolvedValue({
+      viewer: { id: 'viewer-1', viewer_code: 'A123', viewer_token_hash: 'hash', workspace_id: '77777777-7777-4777-8777-777777777777', first_seen_at: '2026-09-21T00:00:00.000Z', last_seen_at: '2026-09-21T00:00:00.000Z' },
+      rawViewerId: 'viewer-token-12345678901234567890',
+      isNew: true,
+    })
 
     const metadata: LinkOpenMetadata = {
       referrerHost: 'example.com',
@@ -106,7 +116,7 @@ describe('share token exchange', () => {
       country: 'CA',
       isProbableBot: true,
     }
-    const result = await exchangeShareToken(rawShareToken, metadata)
+    const result = await exchangeShareToken(rawShareToken, metadata, undefined, { analyticsMode: 'optional' })
 
     expect(result.shareId).toBe('22222222-2222-4222-8222-222222222222')
     expect(result.shareCode).toBe('Ab3k9Qx2')
@@ -141,15 +151,18 @@ describe('share token exchange', () => {
     })
   })
 
-  it('leaves the session unconfirmed when a link is fetched', async () => {
+  it('defaults a new session to necessary-only analytics without a viewer identity', async () => {
     const { admin, sessionInsert, eventInsert } = createAdminMock()
     getAdmin.mockReturnValue(admin as never)
 
     await exchangeShareToken(rawShareToken)
 
     expect(sessionInsert.mock.calls[0]?.[0]).not.toHaveProperty('confirmed_at')
-    expect(eventInsert.mock.calls[0]?.[0]).toMatchObject({ event_type: 'link_opened' })
-    expect(eventInsert.mock.calls[0]?.[0]).not.toMatchObject({ event_type: 'view_confirmed' })
+    expect(sessionInsert.mock.calls[0]?.[0]).toMatchObject({ analytics_mode: 'necessary', gpc_applied: false })
+    expect(sessionInsert.mock.calls[0]?.[0]).not.toHaveProperty('viewer_id')
+    expect(sessionInsert.mock.calls[0]?.[0]).not.toHaveProperty('browser')
+    expect(eventInsert.mock.calls[0]?.[0]).toMatchObject({ valid: true })
+    expect(eventInsert.mock.calls[0]?.[0]).not.toMatchObject({ event_type: 'link_opened' })
   })
 
   it('rejects a disabled repository before creating a viewer session', async () => {
@@ -161,5 +174,17 @@ describe('share token exchange', () => {
     })
     await expect(exchangeShareToken(rawShareToken)).rejects.toBeInstanceOf(ShareExchangeError)
     expect(sessionInsert).not.toHaveBeenCalled()
+  })
+
+  it('treats Global Privacy Control as necessary-only even when optional analytics was requested', async () => {
+    const { admin, sessionInsert } = createAdminMock()
+    getAdmin.mockReturnValue(admin as never)
+    getViewer.mockClear()
+
+    await exchangeShareToken(rawShareToken, undefined, 'viewer-token-12345678901234567890', { analyticsMode: 'optional', gpc: true })
+
+    expect(getViewer).not.toHaveBeenCalled()
+    expect(sessionInsert.mock.calls[0]?.[0]).toMatchObject({ analytics_mode: 'necessary', gpc_applied: true })
+    expect(sessionInsert.mock.calls[0]?.[0]).not.toHaveProperty('viewer_id')
   })
 })

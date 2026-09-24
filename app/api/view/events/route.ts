@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import { recordViewerAnalytics } from '@/lib/viewer/analytics-server'
 import { VIEWER_ANALYTICS_EVENT_TYPES } from '@/lib/viewer/analytics-types'
+import { isGlobalPrivacyControl } from '@/lib/viewer/privacy-shared'
 
 const scalarSchema = z.union([z.string().max(512), z.number().finite(), z.boolean(), z.null()])
 const eventSchema = z.object({
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await recordViewerAnalytics(input)
+    const result = await recordViewerAnalytics(input, { gpcApplied: isGlobalPrivacyControl(request.headers.get('sec-gpc')) })
     return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } })
   } catch {
     return NextResponse.json({ error: 'unavailable' }, { status: 401, headers: { 'Cache-Control': 'no-store' } })

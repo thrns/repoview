@@ -168,13 +168,15 @@ function withHiddenAnalyticsFields<T extends Record<string, unknown>>(value: T, 
   return value as T & LinkOpenMetadata
 }
 
-export function toLinkOpenEventMetadata(metadata: LinkOpenMetadata) {
+export function toLinkOpenEventMetadata(metadata: LinkOpenMetadata, includeOptionalContext = true) {
   const values: Record<string, string | number | boolean> = {
     probable_bot: metadata.isProbableBot,
   }
   const optional: Array<[string, string | number | boolean | null | undefined]> = [
     ['referrer_host', metadata.referrerHost], ['fetch_site', metadata.fetchSite], ['prefetch', metadata.isPrefetch || null],
-    ['browser', metadata.browser], ['os', metadata.os], ['device_type', metadata.deviceType], ['country', metadata.country],
+    ...(includeOptionalContext ? [
+      ['browser', metadata.browser], ['os', metadata.os], ['device_type', metadata.deviceType], ['country', metadata.country],
+    ] as Array<[string, string | number | boolean | null | undefined]> : []),
   ]
   for (const [key, value] of optional) if (value !== null && value !== undefined && value !== false) values[key] = value
   return values

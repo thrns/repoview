@@ -7,6 +7,7 @@ import { normalizeRepositoryPath } from '@/lib/security/path'
 import { isPathAllowedForShare } from '@/lib/security/visibility'
 import { detectViewerLanguage } from '@/lib/viewer/language'
 import { recordViewerViewEvent } from '@/lib/viewer/view-events'
+import { isGlobalPrivacyControl } from '../../../../../lib/viewer/privacy-shared'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,6 +50,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ shar
       shareId: viewer.share.id,
       sessionId: viewer.session.id,
       workspaceId: viewer.share.workspace_id,
+      analyticsMode: viewer.session.analytics_mode === 'optional' ? 'optional' : 'necessary',
+      gpcApplied: isGlobalPrivacyControl(request.headers.get('sec-gpc')),
       eventType: file.kind === 'text' && detectViewerLanguage(file.path) === 'markdown' ? 'markdown_viewed' : 'file_viewed',
       path: file.path,
       metadata: { route: 'client-file', preview: file.kind },

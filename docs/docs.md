@@ -1243,7 +1243,9 @@ not:
 
 ### Client tracking
 
-Keep tracking small and transparent.
+Keep tracking small, transparent, and choice-aware. Every new share session starts in necessary-only mode. Necessary processing covers share authentication, session security, ordinary request IP handling, abuse/rate limiting, bot detection, and security logging. It must not create a persistent cross-session viewer identifier or write detailed engagement analytics.
+
+The public viewer exposes a visible **Privacy / Analytics Settings** control. A viewer may enable optional engagement analytics, which permits the pseudonymous cross-session viewer identifier, returning-viewer recognition, file engagement, scroll depth, time spent, and detailed device/profile context. The preference is stored server-side behind a secure first-party preference cookie, and it can be changed later without affecting repository access. A `Sec-GPC: 1` request always takes the necessary-only path, even if an older optional preference exists.
 
 `ViewTracker`:
 - no third-party fingerprint library;
@@ -1255,6 +1257,8 @@ Client activity signals:
 - confirmation;
 - file/route view;
 - heartbeat.
+
+Client event payloads and server-side page events are accepted only for sessions in optional mode. Confirmation and heartbeat remain available in necessary-only mode for session security, but optional fields are discarded server-side.
 
 ### Confirmation
 

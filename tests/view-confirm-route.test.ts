@@ -66,7 +66,7 @@ describe('view confirmation route', () => {
   })
 
   it('atomically confirms once and inserts view_confirmed', async () => {
-    requireSession.mockResolvedValue({ session: { id: sessionId }, share: { workspace_id: 'workspace-1' } } as never)
+    requireSession.mockResolvedValue({ session: { id: sessionId, analytics_mode: 'optional', gpc_applied: false }, share: { workspace_id: 'workspace-1' } } as never)
     const { admin, update, eq, is, select, eventInsert } = createAdminMock({ id: sessionId, share_id: shareId, confirmed_at: '2026-09-22T00:00:00.000Z' })
     getAdmin.mockReturnValue(admin as never)
 

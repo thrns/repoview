@@ -2,6 +2,7 @@ import 'server-only'
 
 import { createSupabaseAdminClient } from '../supabase/admin'
 import type { Json } from '../supabase/database.types'
+import type { ViewerAnalyticsMode } from './privacy'
 
 export type ViewerViewEventType = 'repository_opened' | 'file_opened' | 'file_viewed' | 'markdown_viewed' | 'directory_viewed' | 'directory_opened' | 'mermaid_viewed' | 'image_viewed' | 'raw_file_viewed' | 'search' | 'search_result_clicked' | 'code_selected' | 'copy' | 'download' | 'external_link_clicked' | 'scroll_depth' | 'tab_visibility_changed' | 'focus_changed' | 'session_ended' | 'view_confirmed' | 'link_opened'
 
@@ -14,6 +15,8 @@ export async function recordViewerViewEvent({
   path,
   metadata = {},
   workspaceId,
+  analyticsMode,
+  gpcApplied,
   now = Date.now(),
 }: {
   shareId: string
@@ -22,8 +25,14 @@ export async function recordViewerViewEvent({
   path: string | null
   metadata?: Record<string, Json>
   workspaceId: string
+  analyticsMode?: ViewerAnalyticsMode
+  gpcApplied?: boolean
   now?: number
 }) {
+  if (analyticsMode !== 'optional' || gpcApplied === true) {
+    return { recorded: false, reason: 'necessary-only' as const }
+  }
+
   const admin = createSupabaseAdminClient()
   const cutoff = new Date(now - VIEW_EVENT_DEDUPE_WINDOW_MS).toISOString()
   const recentEventQuery = admin

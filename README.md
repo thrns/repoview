@@ -10,8 +10,8 @@ Recipients receive a short-lived session cookie after the secret-link exchange. 
 - `app/(admin)/dashboard` is server-guarded workspace UI for repositories, shares, activity, and notification settings.
 - `app/s/[token]` exchanges a one-time URL token for an HttpOnly viewer session, then redirects to a token-free viewer URL.
 - `app/view/[shareId]` renders the session-authorized repository root, tree, Markdown, code, and safe error states.
-- `app/api/view` confirms meaningful views, batches semantic engagement, updates heartbeats, and serves explicitly allowed downloads; `app/api/assets` serves authorized image bytes.
-- `app/privacy` discloses anonymous viewer analytics, approximate location/network context, recipient-label semantics, and the non-use of raw keylogging or browser permissions.
+- `app/api/view` confirms secure sessions, accepts optional engagement analytics only after the viewer's choice, updates necessary heartbeats, and serves explicitly allowed downloads; `app/api/assets` serves authorized image bytes.
+- `app/privacy` and the public viewer's Privacy / Analytics Settings control explain necessary security processing, optional engagement analytics, GPC handling, approximate location/network context, recipient-label semantics, and the non-use of raw keylogging or browser permissions.
 - `lib/github` owns GitHub App authentication and server-side repository/tree/file access.
 - `lib/security` owns token hashing, path normalization, visibility rules, coarse bot/context signals, and safe boundaries.
 - `lib/supabase` owns browser, SSR, and server-only clients; `lib/notifications` owns composition, provider adapters, and durable delivery dedupe.
@@ -102,7 +102,7 @@ SMTP_FROM_NAME=RepoView
 supabase db push
 ```
 
-The initial migration creates repositories, shares, viewer sessions, view events, notification deliveries, indexes, timestamps, and RLS-enabled tables. The follow-up migrations add generic/recipient share metadata, persistent anonymous viewers, repository events, file engagement, location/network/device/security fields, invalid/valid access attempts, and notification summaries. The tenancy migrations add profiles, workspaces, memberships, workspace-owned settings/installations, audit logs, explicit role policies, immutable tenant ownership, and backfill the existing owner data into one workspace. The repository identity migration adds GitHub's stable repository and node IDs and replaces owner/name uniqueness with workspace-scoped repository identity. Authenticated dashboard flows use the cookie-authenticated Supabase server client so RLS applies; the service-role client is reserved for server-side viewer/session analytics and other explicitly scoped system operations.
+The initial migration creates repositories, shares, viewer sessions, view events, notification deliveries, indexes, timestamps, and RLS-enabled tables. The follow-up migrations add generic/recipient share metadata, workspace-scoped anonymous viewers, repository events, file engagement, location/network/device/security fields, invalid/valid access attempts, notification summaries, and viewer privacy preferences. New viewer sessions default to necessary-only analytics; the optional cross-session viewer identity is created only after an explicit choice and is suppressed by GPC. The tenancy migrations add profiles, workspaces, memberships, workspace-owned settings/installations, audit logs, explicit role policies, immutable tenant ownership, and backfill the existing owner data into one workspace. The repository identity migration adds GitHub's stable repository and node IDs and replaces owner/name uniqueness with workspace-scoped repository identity. Authenticated dashboard flows use the cookie-authenticated Supabase server client so RLS applies; the service-role client is reserved for server-side viewer/session analytics and other explicitly scoped system operations.
 
 Database policy tests live in `supabase/tests/rls_workspace.test.sql` and run with:
 
@@ -143,8 +143,8 @@ RepoView composes low-volume, deduplicated first-meaningful-view and session-sum
 - Hidden files are denied server-side; CSS masking is not used as an access control.
 - Markdown is sanitized and dangerous URLs are rendered inert. Relative links and images resolve only within the authorized tree.
 - Viewer/admin/private API responses are `private, no-store`; security headers, `noindex`, and `robots.txt` rules prevent intentional indexing but never replace authorization.
-- First-party anonymous viewer IDs are stored as peppered digests server-side; browser fingerprinting is not used as identity.
-- Prompt-free browser/device context, server/CDN-derived location, and nullable network intelligence fields may be stored for owner analytics. These values are labeled approximate/observed/inferred in the dashboard and notification emails; they are never used to claim a real identity.
+- Necessary-only sessions retain the minimum request, IP, bot, abuse, and security signals needed to operate a protected share. First-party anonymous viewer IDs and detailed browser/device/engagement analytics are stored only after the viewer enables optional engagement analytics; browser fingerprinting is not used as identity.
+- Prompt-free browser/device context, server/CDN-derived location, and nullable network intelligence fields may be stored for owner analytics only when optional engagement analytics is enabled. These values are labeled approximate/observed/inferred in the dashboard and notification emails; they are never used to claim a real identity. Global Privacy Control keeps optional analytics off.
 - Raw viewer tokens, installation tokens, private keys, and transactional provider credentials are not sent to the browser or email. Public IP and user-agent fields are restricted to the owner analytics surface and are omitted from emails.
 - Download events are recorded only when the owner explicitly enables protected text downloads.
 

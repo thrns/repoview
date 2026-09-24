@@ -32,6 +32,8 @@ export default async function ViewerLayout({
       repositoryName={data.repositoryName}
       refName={data.refName}
       allowDownload={data.allowDownload}
+      analyticsMode={data.analyticsMode}
+      gpcApplied={data.gpcApplied}
       root={data.root}
       tree={data.tree}
     >

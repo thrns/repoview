@@ -1,9 +1,10 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { VIEWER_ID_STORAGE_KEY } from '../../lib/analytics/constants'
 import { startViewTracker } from '../../lib/viewer/view-tracker'
+import type { ViewerAnalyticsMode } from '../../lib/viewer/privacy'
 import type { ViewerAnalyticsEvent, ViewerAnalyticsEventType, ViewerClientContext, ViewerSessionSnapshot } from '../../lib/viewer/analytics-types'
 
 type ViewerAnalyticsContextValue = {
@@ -12,11 +13,14 @@ type ViewerAnalyticsContextValue = {
   clientContext: ViewerClientContext
   markConfirmed: () => void
   getSessionSnapshot: () => ViewerSessionSnapshot
+  analyticsMode: ViewerAnalyticsMode
+  gpcApplied: boolean
+  setAnalyticsPreference: (mode: ViewerAnalyticsMode, gpcApplied?: boolean) => void
 }
 
 const ViewerAnalyticsContext = createContext<ViewerAnalyticsContextValue | null>(null)
 
-export function ViewerAnalyticsProvider({ shareId, initialPath, children }: { shareId: string; initialPath: string | null; children: ReactNode }) {
+export function ViewerAnalyticsProvider({ shareId, initialPath, analyticsMode: initialAnalyticsMode, gpcApplied: initialGpcApplied, children }: { shareId: string; initialPath: string | null; analyticsMode: ViewerAnalyticsMode; gpcApplied: boolean; children: ReactNode }) {
   const queueRef = useRef<ViewerAnalyticsEvent[]>([])
   const confirmedRef = useRef(false)
   const pendingRef = useRef(false)
@@ -28,12 +32,16 @@ export function ViewerAnalyticsProvider({ shareId, initialPath, children }: { sh
   const visibilityChangesRef = useRef(0)
   const focusChangesRef = useRef(0)
   const lastVisibilityRef = useRef(typeof document === 'undefined' ? 'hidden' : document.visibilityState)
-  const clientContextRef = useRef<ViewerClientContext>(getClientContext())
+  const [analyticsMode, setAnalyticsModeState] = useState<ViewerAnalyticsMode>(initialAnalyticsMode)
+  const [gpcApplied, setGpcApplied] = useState(initialGpcApplied)
+  const analyticsModeRef = useRef(initialAnalyticsMode)
+  const gpcAppliedRef = useRef(initialGpcApplied)
+  const clientContextRef = useRef<ViewerClientContext>(initialAnalyticsMode === 'optional' && !initialGpcApplied ? getClientContext() : {})
   const previousPathRef = useRef<string | null>(null)
   const fileTimeRef = useRef(new Map<string, { activeMs: number; idleMs: number }>())
 
   const send = useCallback((ended = false) => {
-    if (!confirmedRef.current || (pendingRef.current && !ended) || queueRef.current.length === 0) return
+    if (analyticsModeRef.current !== 'optional' || gpcAppliedRef.current || !confirmedRef.current || (pendingRef.current && !ended) || queueRef.current.length === 0) return
     const events = queueRef.current.splice(0, 50)
     pendingRef.current = true
     const session: ViewerSessionSnapshot = {
@@ -59,6 +67,7 @@ export function ViewerAnalyticsProvider({ shareId, initialPath, children }: { sh
   }, [shareId])
 
   const track = useCallback((eventType: ViewerAnalyticsEventType, path: string | null = null, metadata: Record<string, string | number | boolean | null> = {}) => {
+    if (analyticsModeRef.current !== 'optional' || gpcAppliedRef.current) return
     queueRef.current.push({ eventType, path, metadata, clientSequence: sequenceRef.current++ })
     if (confirmedRef.current && queueRef.current.length >= 8) send()
   }, [send])
@@ -86,6 +95,23 @@ export function ViewerAnalyticsProvider({ shareId, initialPath, children }: { sh
     send()
   }, [send])
 
+  const setAnalyticsPreference = useCallback((nextMode: ViewerAnalyticsMode, nextGpcApplied = false) => {
+    analyticsModeRef.current = nextMode
+    gpcAppliedRef.current = nextGpcApplied
+    setAnalyticsModeState(nextMode)
+    setGpcApplied(nextGpcApplied)
+    if (nextMode === 'optional' && !nextGpcApplied) {
+      clientContextRef.current = getClientContext()
+      return
+    }
+    queueRef.current = []
+    try {
+      window.localStorage.removeItem(VIEWER_ID_STORAGE_KEY)
+    } catch {
+      // Local storage may be unavailable.
+    }
+  }, [])
+
   const getSessionSnapshot = useCallback((): ViewerSessionSnapshot => ({
     activeMs: activeMsRef.current,
     idleMs: idleMsRef.current,
@@ -95,18 +121,33 @@ export function ViewerAnalyticsProvider({ shareId, initialPath, children }: { sh
     focusChanges: focusChangesRef.current,
   }), [])
 
-  const value = useMemo<ViewerAnalyticsContextValue>(() => ({ track, setCurrentPath, clientContext: clientContextRef.current, markConfirmed, getSessionSnapshot }), [getSessionSnapshot, markConfirmed, setCurrentPath, track])
+  const value = useMemo<ViewerAnalyticsContextValue>(() => ({ track, setCurrentPath, clientContext: clientContextRef.current, markConfirmed, getSessionSnapshot, analyticsMode, gpcApplied, setAnalyticsPreference }), [analyticsMode, gpcApplied, getSessionSnapshot, markConfirmed, setAnalyticsPreference, setCurrentPath, track])
 
   useEffect(() => {
-    try {
-      const viewerId = document.cookie.split('; ').find((cookie) => cookie.startsWith('repoview_viewer_id='))?.split('=').slice(1).join('=')
-      if (viewerId) window.localStorage.setItem(VIEWER_ID_STORAGE_KEY, decodeURIComponent(viewerId))
-    } catch {
-      // Local storage may be unavailable; the first-party cookie remains authoritative.
+    if (analyticsModeRef.current === 'necessary' || gpcAppliedRef.current) {
+      try {
+        window.localStorage.removeItem(VIEWER_ID_STORAGE_KEY)
+      } catch {
+        // Local storage may be unavailable.
+      }
     }
+    const browserGpc = (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true
+    if (!browserGpc || gpcAppliedRef.current) return
+    setAnalyticsPreference('necessary', true)
+    void fetch('/api/view/privacy', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ shareId, analyticsMode: 'necessary' }),
+    }).catch(() => undefined)
+  }, [setAnalyticsPreference, shareId])
 
-    track('repository_opened', initialPath, { entry_page: window.location.pathname })
+  useEffect(() => {
+    if (analyticsModeRef.current === 'optional' && !gpcAppliedRef.current) {
+      track('repository_opened', initialPath, { entry_page: window.location.pathname })
+    }
     const interval = window.setInterval(() => {
+      if (analyticsModeRef.current !== 'optional' || gpcAppliedRef.current) return
       const active = document.visibilityState === 'visible' && document.hasFocus()
       if (active) activeMsRef.current += 5_000
       else idleMsRef.current += 5_000
@@ -170,6 +211,7 @@ export function ViewerAnalyticsProvider({ shareId, initialPath, children }: { sh
 
   useEffect(() => {
     const handleScroll = () => {
+      if (analyticsModeRef.current !== 'optional' || gpcAppliedRef.current) return
       const path = currentPathRef.current
       if (!path) return
       const percent = Math.min(100, Math.max(0, Math.round(((window.scrollY + window.innerHeight) / Math.max(document.documentElement.scrollHeight, window.innerHeight)) * 100)))
@@ -206,10 +248,13 @@ function ViewTrackerBridge({ shareId }: { shareId: string }) {
   analyticsRef.current = analytics
   useEffect(() => startViewTracker({
     shareId,
-    confirmPayload: { entryPath: window.location.pathname, clientContext: analytics.clientContext },
+    confirmPayload: {
+      entryPath: window.location.pathname,
+      ...(analytics.analyticsMode === 'optional' && !analytics.gpcApplied ? { clientContext: analytics.clientContext } : {}),
+    },
     onConfirmed: () => analyticsRef.current.markConfirmed(),
     getHeartbeatPayload: () => analyticsRef.current.getSessionSnapshot(),
-  }), [analytics.clientContext, shareId])
+  }), [analytics.analyticsMode, analytics.clientContext, analytics.gpcApplied, shareId])
   return null
 }
 
@@ -221,6 +266,9 @@ export function useViewerAnalytics() {
     clientContext: {},
     markConfirmed: () => undefined,
     getSessionSnapshot: () => ({ activeMs: 0, idleMs: 0, visibilityChanges: 0, focusChanges: 0 }),
+    analyticsMode: 'necessary',
+    gpcApplied: false,
+    setAnalyticsPreference: () => undefined,
   }
 }
 

@@ -503,6 +503,10 @@ RepoView does not use Viewer analytics to build advertising profiles, sell audie
 
 RepoView may use first-party cookies, browser storage, or equivalent first-party technologies for authentication, security, session continuity, preferences, and analytics.
 
+New share sessions start in **Necessary only** mode. In that mode RepoView may process the share authentication token, a server-side security session, ordinary request IP information, abuse and rate-limit signals, bot-detection signals, and security logs. RepoView does not create a persistent cross-session Viewer analytics identifier or collect detailed engagement analytics in this mode.
+
+After a Viewer chooses **Optional engagement analytics**, RepoView may activate a first-party pseudonymous Viewer identifier and collect returning-viewer recognition, file engagement, scroll depth, time spent, detailed device/profile context, and other disclosed engagement events. This choice is stored as a privacy preference and can be changed from the share page. Refusing or later disabling optional analytics does not prevent access to an otherwise valid share.
+
 Where applicable law requires consent before non-essential storage or access on a Viewer's device, RepoView will ask for that consent before activating a persistent individual-level Viewer analytics identifier. Refusing optional analytics will not, by itself, prevent access to an otherwise valid repository share.
 
 Strictly necessary processing may continue without optional analytics where permitted by law. Examples include receiving an IP address as part of an ordinary web request, preventing abuse, maintaining a server-side request/session log, enforcing rate limits, and preserving the security of a share.
