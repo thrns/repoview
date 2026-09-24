@@ -60,6 +60,7 @@ GITHUB_APP_SLUG=repoview
 GITHUB_APP_CLIENT_ID=Iv1...
 GITHUB_APP_CLIENT_SECRET=your-github-app-client-secret
 GITHUB_APP_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+GITHUB_WEBHOOK_SECRET=replace-with-a-random-value-at-least-32-characters
 
 # Token hashing; use independent random values of at least 32 characters
 SHARE_TOKEN_PEPPER=replace-with-random-value
@@ -102,7 +103,8 @@ Create a public GitHub App and configure both its **Setup URL** (`/api/github/se
 RepoView identifies a repository by GitHub's stable numeric repository ID. The owner/name pair is retained as current display and API location metadata, so a rename or transfer updates the existing RepoView row and keeps its UUID and share URLs.
 
 - Contents: **Read-only**.
-- Webhooks are not required for the connection flow.
+- Configure the App webhook URL as `/api/github/webhook`, set a high-entropy `GITHUB_WEBHOOK_SECRET`, and subscribe to the installation and installation repository events. RepoView verifies every delivery against the raw request body with `X-Hub-Signature-256` before parsing it, and deduplicates retries with `X-GitHub-Delivery`.
+- Installation deletion closes all repository access and revokes active shares. Suspension blocks GitHub-backed access until an unsuspended event arrives; repository additions refresh registered metadata, while removals disable the repository and revoke its active shares.
 - Keep the App ID, App slug, OAuth client ID/secret, and PEM private key in server environment configuration. The client secret and private key are never sent to the browser.
 - Connect from **Dashboard → Settings → GitHub** or the first-run dashboard card. RepoView generates one-time state and PKCE values, verifies the authenticated GitHub user can see the returned installation, and only then saves installation metadata.
 - The callback never trusts `installation_id` from the GitHub setup URL by itself. A missing user-visible installation is treated as pending/failed and is never attached to a workspace.

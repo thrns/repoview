@@ -51,6 +51,19 @@ export async function authorizeViewerSession(shareId: string, rawSessionToken: s
     throw new ViewerAuthorizationError()
   }
 
+  if (repository.github_installation_id) {
+    const { data: installation, error: installationError } = await admin
+      .from('github_installations')
+      .select('status')
+      .eq('id', repository.github_installation_id)
+      .eq('workspace_id', share.workspace_id)
+      .maybeSingle()
+
+    if (installationError || !installation || installation.status !== 'active') {
+      throw new ViewerAuthorizationError()
+    }
+  }
+
   return {
     session,
     share,

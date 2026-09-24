@@ -63,6 +63,19 @@ export async function exchangeShareToken(rawToken: string, requestMetadata?: Par
     throw new ShareExchangeError('repository_unavailable')
   }
 
+  if (repository.github_installation_id) {
+    const { data: installation, error: installationError } = await admin
+      .from('github_installations')
+      .select('status')
+      .eq('id', repository.github_installation_id)
+      .eq('workspace_id', share.workspace_id)
+      .maybeSingle()
+
+    if (installationError || !installation || installation.status !== 'active') {
+      throw new ShareExchangeError('repository_unavailable')
+    }
+  }
+
   const metadata = sanitizeLinkOpenMetadata(requestMetadata)
   let viewer: Awaited<ReturnType<typeof findOrCreateViewer>>['viewer'] | null = null
   let resolvedViewerId: string | undefined
