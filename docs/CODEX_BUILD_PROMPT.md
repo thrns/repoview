@@ -401,6 +401,10 @@ At minimum implement these logical tables (names can be refined if justified):
 
 `repositories`
 - id uuid pk
+- workspace_id uuid
+- github_installation_id uuid
+- github_repository_id bigint
+- github_node_id text
 - github_owner text
 - github_repo text
 - default_branch text
@@ -408,7 +412,13 @@ At minimum implement these logical tables (names can be refined if justified):
 - default_rules jsonb
 - created_at timestamptz
 - updated_at timestamptz
-- unique(owner, repo)
+- unique(workspace_id, github_repository_id)
+
+Treat `github_repository_id` as the stable GitHub identity. Treat
+`github_owner` and `github_repo` as mutable current location metadata so
+renames and transfers update one existing RepoView row instead of creating a
+duplicate. Preserve the repository UUID referenced by shares during identity
+backfills.
 
 `shares`
 - id uuid pk

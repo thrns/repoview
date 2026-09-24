@@ -84,7 +84,7 @@ NOTIFICATION_TO_EMAIL=owner@example.com
 supabase db push
 ```
 
-The initial migration creates repositories, shares, viewer sessions, view events, notification deliveries, indexes, timestamps, and RLS-enabled tables. The follow-up migrations add generic/recipient share metadata, persistent anonymous viewers, repository events, file engagement, location/network/device/security fields, invalid/valid access attempts, and notification summaries. The tenancy migrations add profiles, workspaces, memberships, workspace-owned settings/installations, audit logs, explicit role policies, immutable tenant ownership, and backfill the existing owner data into one workspace. Authenticated dashboard flows use the cookie-authenticated Supabase server client so RLS applies; the service-role client is reserved for server-side viewer/session analytics and other explicitly scoped system operations.
+The initial migration creates repositories, shares, viewer sessions, view events, notification deliveries, indexes, timestamps, and RLS-enabled tables. The follow-up migrations add generic/recipient share metadata, persistent anonymous viewers, repository events, file engagement, location/network/device/security fields, invalid/valid access attempts, and notification summaries. The tenancy migrations add profiles, workspaces, memberships, workspace-owned settings/installations, audit logs, explicit role policies, immutable tenant ownership, and backfill the existing owner data into one workspace. The repository identity migration adds GitHub's stable repository and node IDs and replaces owner/name uniqueness with workspace-scoped repository identity. Authenticated dashboard flows use the cookie-authenticated Supabase server client so RLS applies; the service-role client is reserved for server-side viewer/session analytics and other explicitly scoped system operations.
 
 Database policy tests live in `supabase/tests/rls_workspace.test.sql` and run with:
 
@@ -96,11 +96,14 @@ pnpm test:db
 
 Create a GitHub App and install it on the repositories a workspace should expose. RepoView stores each installation and its GitHub account metadata in `github_installations`; each repository record points to exactly one installation row.
 
+RepoView identifies a repository by GitHub's stable numeric repository ID. The owner/name pair is retained as current display and API location metadata, so a rename or transfer updates the existing RepoView row and keeps its UUID and share URLs.
+
 - Contents: **Read-only**.
 - Webhooks and OAuth callback: not required for the manual connection flow.
 - Keep only the App ID and PEM private key in server environment configuration.
 - Register the installation metadata with `registerGitHubInstallation` from a server-side GitHub installation callback or provisioning flow.
 - The existing single-owner installation is migrated once with `GITHUB_APP_INSTALLATION_ID=... pnpm migrate:github-installation`; this variable is not part of RepoView runtime configuration.
+- Existing repository rows are then backfilled in place with `pnpm migrate:github-repository-identities`; this preserves repository UUIDs and all share references while capturing the current GitHub owner/name, repository ID, node ID, and default branch.
 - Keep the repository selected in each installation when least-privilege access is desired; RepoView lists repositories returned by that specific installation.
 
 The app fetches refs, recursive trees, and file contents on the server through Octokit. Visibility rules are applied before tree entries or file bytes are returned, and paths are checked again before direct file or asset fetches.

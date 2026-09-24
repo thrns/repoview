@@ -571,6 +571,10 @@ Any module importing a private key, service-role key, or SMTP password should us
 ```sql
 create table public.repositories (
   id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id),
+  github_installation_id uuid not null references public.github_installations(id),
+  github_repository_id bigint not null,
+  github_node_id text not null,
   github_owner text not null,
   github_repo text not null,
   default_branch text not null,
@@ -578,9 +582,16 @@ create table public.repositories (
   default_rules jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (github_owner, github_repo)
+  unique (workspace_id, github_repository_id)
 );
 ```
+
+`github_repository_id` is GitHub's stable external identity. `github_owner` and
+`github_repo` are mutable display/location metadata and are refreshed during
+repository synchronization. The identity migration temporarily allows the two
+GitHub identity columns to be null while the one-time backfill fetches current
+metadata; it updates rows in place so existing repository UUIDs and share
+references remain unchanged.
 
 `default_rules` example:
 
