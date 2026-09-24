@@ -1,9 +1,9 @@
-import { requireAdmin } from '@/lib/auth/require-admin'
+import { requireWorkspace } from '@/lib/auth/workspace'
 import { AdminShell } from '@/components/admin/admin-shell'
 
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const user = await requireAdmin()
-  return <AdminShell email={user.email ?? 'Owner'}>{children}</AdminShell>
+  const context = await requireWorkspace()
+  return <AdminShell email={context.user.email ?? 'Workspace member'}>{children}</AdminShell>
 }

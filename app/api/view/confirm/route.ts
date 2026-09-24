@@ -88,6 +88,7 @@ export async function POST(request: Request) {
     })
     .eq('id', viewer.session.id)
     .eq('share_id', internalShareId)
+    .eq('workspace_id', viewer.share.workspace_id)
     .is('confirmed_at', null)
     .select('id, share_id, confirmed_at')
     .maybeSingle()
@@ -104,12 +105,13 @@ export async function POST(request: Request) {
   // best-effort so an analytics write cannot make a valid viewer lose access.
   try {
     void Promise.resolve(admin.from('view_events').insert({
+      workspace_id: viewer.share.workspace_id,
       share_id: internalShareId,
       session_id: confirmedSession.id,
       event_type: 'view_confirmed',
       path: null,
       metadata: {},
-    })).catch(() => undefined)
+    } as never)).catch(() => undefined)
   } catch {
     // Best effort by design.
   }

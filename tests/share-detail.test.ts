@@ -2,11 +2,14 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 vi.mock('../lib/supabase/admin', () => ({ createSupabaseAdminClient: vi.fn() }))
+vi.mock('../lib/auth/workspace', () => ({ requireShareAccess: vi.fn() }))
 
 import { getShareDetail, ShareDetailNotFoundError } from '../lib/shares/detail'
 import { createSupabaseAdminClient } from '../lib/supabase/admin'
+import { requireShareAccess } from '../lib/auth/workspace'
 
 const getAdmin = vi.mocked(createSupabaseAdminClient)
+const getShareAccess = vi.mocked(requireShareAccess)
 
 function createAdminMock() {
   const share = {
@@ -103,6 +106,7 @@ describe('share detail data', () => {
   it('maps lifecycle, sessions, activity, and notification data', async () => {
     const { admin, share, sessions } = createAdminMock()
     getAdmin.mockReturnValue(admin as never)
+    getShareAccess.mockResolvedValue({ workspace: { id: 'workspace-1' }, share: { ...share, workspace_id: 'workspace-1' } } as never)
 
     const detail = await getShareDetail(share.id, new Date('2026-09-21T12:00:00.000Z'))
 
@@ -115,6 +119,15 @@ describe('share detail data', () => {
   it('rejects invalid IDs before querying storage', async () => {
     getAdmin.mockClear()
     await expect(getShareDetail('not-a-uuid')).rejects.toBeInstanceOf(ShareDetailNotFoundError)
+    expect(getAdmin).not.toHaveBeenCalled()
+  })
+
+  it('does not inspect a share from another workspace', async () => {
+    const { share } = createAdminMock()
+    getAdmin.mockClear()
+    getShareAccess.mockRejectedValueOnce(new Error('forbidden'))
+
+    await expect(getShareDetail(share.id)).rejects.toBeInstanceOf(ShareDetailNotFoundError)
     expect(getAdmin).not.toHaveBeenCalled()
   })
 })

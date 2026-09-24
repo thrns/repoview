@@ -35,6 +35,7 @@ describe('viewer view events', () => {
       sessionId: 'session-1',
       eventType: 'file_viewed',
       path: 'src/index.ts',
+      workspaceId: 'workspace-1',
       now: Date.parse('2026-09-22T00:00:10.000Z'),
     })).resolves.toEqual({ recorded: false })
     expect(insert).not.toHaveBeenCalled()
@@ -49,11 +50,13 @@ describe('viewer view events', () => {
       sessionId: 'session-1',
       eventType: 'markdown_viewed',
       path: 'README.md',
+      workspaceId: 'workspace-1',
       metadata: { route: 'root', preview: 'markdown' },
       now: Date.parse('2026-09-22T00:00:10.000Z'),
     })).resolves.toEqual({ recorded: true })
     expect(builder.eq).toHaveBeenCalledWith('path', 'README.md')
     expect(insert).toHaveBeenCalledWith({
+      workspace_id: 'workspace-1',
       share_id: 'share-1',
       session_id: 'session-1',
       event_type: 'markdown_viewed',

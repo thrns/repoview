@@ -1,27 +1,36 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
-vi.mock('../lib/auth/require-admin', () => ({ requireAdmin: vi.fn() }))
+vi.mock('../lib/auth/workspace', () => ({ requireWorkspaceAdmin: vi.fn() }))
+vi.mock('../lib/supabase/server', () => ({
+  createSupabaseServerClient: vi.fn(async () => ({
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    })),
+  })),
+}))
 vi.mock('../lib/env/server', () => ({ getServerEnv: vi.fn(() => ({ NOTIFICATION_TO_EMAIL: 'owner@example.com' })) }))
 vi.mock('../lib/notifications/smtp', () => ({ sendSmtpEmail: vi.fn() }))
 
 import { sendTestEmail } from '../app/(admin)/dashboard/settings/actions'
-import { requireAdmin } from '../lib/auth/require-admin'
+import { requireWorkspaceAdmin } from '../lib/auth/workspace'
 import { sendSmtpEmail } from '../lib/notifications/smtp'
 
-const requireAdminMock = vi.mocked(requireAdmin)
+const requireWorkspaceAdminMock = vi.mocked(requireWorkspaceAdmin)
 const sendEmail = vi.mocked(sendSmtpEmail)
 
 beforeEach(() => {
-  requireAdminMock.mockResolvedValue({ id: 'admin' } as never)
+  requireWorkspaceAdminMock.mockResolvedValue({ workspace: { id: 'workspace-1' } } as never)
   sendEmail.mockReset()
   sendEmail.mockResolvedValue({ messageId: 'message-1' } as never)
 })
 
 describe('send test email action', () => {
-  it('requires admin access and returns only a safe success result', async () => {
+  it('requires workspace admin access and returns only a safe success result', async () => {
     await expect(sendTestEmail()).resolves.toEqual({ sent: true })
-    expect(requireAdminMock).toHaveBeenCalledOnce()
+    expect(requireWorkspaceAdminMock).toHaveBeenCalledOnce()
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({
       to: 'owner@example.com',
       subject: 'RepoView: SMTP test email',
@@ -35,7 +44,7 @@ describe('send test email action', () => {
   })
 
   it('does not send when admin authorization fails', async () => {
-    requireAdminMock.mockRejectedValue(new Error('forbidden'))
+    requireWorkspaceAdminMock.mockRejectedValue(new Error('forbidden'))
 
     await expect(sendTestEmail()).rejects.toThrow('forbidden')
     expect(sendEmail).not.toHaveBeenCalled()

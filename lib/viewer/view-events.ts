@@ -13,6 +13,7 @@ export async function recordViewerViewEvent({
   eventType,
   path,
   metadata = {},
+  workspaceId,
   now = Date.now(),
 }: {
   shareId: string
@@ -20,11 +21,12 @@ export async function recordViewerViewEvent({
   eventType: ViewerViewEventType
   path: string | null
   metadata?: Record<string, Json>
+  workspaceId: string
   now?: number
 }) {
   const admin = createSupabaseAdminClient()
   const cutoff = new Date(now - VIEW_EVENT_DEDUPE_WINDOW_MS).toISOString()
-  const { data: recentEvent, error: lookupError } = await admin
+  const recentEventQuery = admin
     .from('view_events')
     .select('id')
     .eq('share_id', shareId)
@@ -33,7 +35,7 @@ export async function recordViewerViewEvent({
     .eq('path', path as string)
     .gte('created_at', cutoff)
     .limit(1)
-    .maybeSingle()
+  const { data: recentEvent, error: lookupError } = await recentEventQuery.eq('workspace_id', workspaceId).maybeSingle()
 
   if (lookupError) {
     throw lookupError
@@ -43,12 +45,13 @@ export async function recordViewerViewEvent({
   }
 
   const { error: insertError } = await admin.from('view_events').insert({
+    workspace_id: workspaceId,
     share_id: shareId,
     session_id: sessionId,
     event_type: eventType,
     path,
     metadata,
-  })
+  } as never)
 
   if (insertError) {
     throw insertError

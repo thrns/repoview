@@ -32,7 +32,7 @@ describe('viewer heartbeat route', () => {
   })
 
   it('updates last_seen_at without inserting an event', async () => {
-    requireSession.mockResolvedValue({ session: { id: sessionId } } as never)
+    requireSession.mockResolvedValue({ session: { id: sessionId }, share: { workspace_id: 'workspace-1' } } as never)
     const update = vi.fn().mockReturnThis()
     const eq = vi.fn().mockReturnThis()
     const select = vi.fn().mockReturnThis()

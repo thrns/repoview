@@ -17,6 +17,7 @@ export default async function ViewerHomePage({ params }: { params: Promise<{ sha
       after(() => recordViewerViewEvent({
         shareId: data.internalShareId,
         sessionId: data.sessionId,
+        workspaceId: data.workspaceId,
         eventType: 'markdown_viewed',
         path: readme.path,
         metadata: { route: 'root', preview: 'markdown' },

@@ -15,12 +15,14 @@ export const getViewerPageData = cache(async (shareIdentifier: string) => {
     ref: share.ref,
     repositoryRules: repository.default_rules,
     shareRules: share.rules,
+    workspaceId: repository.workspace_id,
   })
   const root = await loadAuthorizedViewerRoot({
     owner: repository.github_owner,
     repository: repository.github_repo,
     ref: share.ref,
     tree,
+    workspaceId: repository.workspace_id,
   })
 
   return {
@@ -29,6 +31,7 @@ export const getViewerPageData = cache(async (shareIdentifier: string) => {
     sessionId: session.id,
     repositoryOwner: repository.github_owner,
     repositorySlug: repository.github_repo,
+    workspaceId: repository.workspace_id,
     repositoryName: `${repository.github_owner}/${repository.github_repo}`,
     refName: share.ref,
     allowDownload: share.allow_download,

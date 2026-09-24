@@ -1,15 +1,18 @@
 import 'server-only'
 
-import { createSupabaseAdminClient } from '@/lib/supabase/admin'
-import type { VisibilityRules } from '@/lib/security/visibility'
-import type { Tables } from '@/lib/supabase/database.types'
+import { requireRepositoryAccess, requireWorkspace, requireWorkspaceAdmin, requireWorkspaceRole } from '../auth/workspace'
+import { createSupabaseAdminClient } from '../supabase/admin'
+import type { VisibilityRules } from '../security/visibility'
+import type { Tables } from '../supabase/database.types'
 
 export type RepositoryRecord = Tables<'repositories'>
 
 export async function listRegisteredRepositories(): Promise<RepositoryRecord[]> {
+  const { workspace } = await requireWorkspace()
   const { data, error } = await createSupabaseAdminClient()
     .from('repositories')
     .select('*')
+    .eq('workspace_id', workspace.id)
     .order('github_owner', { ascending: true })
     .order('github_repo', { ascending: true })
 
@@ -27,9 +30,11 @@ export async function saveRepositoryRecord(input: {
   enabled: boolean
   defaultRules?: VisibilityRules
 }) {
+  const { workspace } = await requireWorkspaceAdmin()
   const { error } = await createSupabaseAdminClient()
     .from('repositories')
     .upsert({
+      workspace_id: workspace.id,
       github_owner: input.githubOwner,
       github_repo: input.githubRepo,
       default_branch: input.defaultBranch,
@@ -40,7 +45,7 @@ export async function saveRepositoryRecord(input: {
           allowOnly: [...input.defaultRules.allowOnly],
         },
       } : {}),
-    }, { onConflict: 'github_owner,github_repo' })
+    }, { onConflict: 'workspace_id,github_owner,github_repo' })
 
   if (error) {
     throw new Error('RepoView could not save this repository record.')
@@ -48,6 +53,8 @@ export async function saveRepositoryRecord(input: {
 }
 
 export async function updateRepositoryVisibilityRules(id: string, rules: VisibilityRules) {
+  const access = await requireRepositoryAccess(id)
+  await requireWorkspaceRole(access.workspace.id, ['owner', 'admin'])
   const { error } = await createSupabaseAdminClient()
     .from('repositories')
     .update({
@@ -57,6 +64,7 @@ export async function updateRepositoryVisibilityRules(id: string, rules: Visibil
       },
     })
     .eq('id', id)
+    .eq('workspace_id', access.workspace.id)
 
   if (error) {
     throw new Error('RepoView could not update repository visibility rules.')
@@ -64,10 +72,13 @@ export async function updateRepositoryVisibilityRules(id: string, rules: Visibil
 }
 
 export async function setRepositoryEnabled(id: string, enabled: boolean) {
+  const access = await requireRepositoryAccess(id)
+  await requireWorkspaceRole(access.workspace.id, ['owner', 'admin'])
   const { error } = await createSupabaseAdminClient()
     .from('repositories')
     .update({ enabled })
     .eq('id', id)
+    .eq('workspace_id', access.workspace.id)
 
   if (error) {
     throw new Error('RepoView could not update this repository record.')

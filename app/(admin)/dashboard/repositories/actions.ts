@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
-import { requireAdmin } from '@/lib/auth/require-admin'
+import { requireRepositoryAccess, requireWorkspaceAdmin, requireWorkspaceRole } from '@/lib/auth/workspace'
 import { listInstallationRepositories } from '@/lib/github/repositories'
 import { getDefaultVisibilityRules, parseVisibilityRules } from '@/lib/security/visibility'
 import {
@@ -25,16 +25,21 @@ const bulkRepositoryInputSchema = z.object({
 })
 
 export async function setRepositoryEnabled(input: unknown) {
-  await requireAdmin()
+  const context = await requireWorkspaceAdmin()
   const parsed = repositoryInputSchema.parse(input)
 
   if (!parsed.enabled && parsed.repositoryId) {
+    const access = await requireRepositoryAccess(parsed.repositoryId)
+    await requireWorkspaceRole(context.workspace.id, ['owner', 'admin'])
+    if (access.workspace.id !== context.workspace.id) {
+      throw new Error('That repository is not available in the active workspace.')
+    }
     await setStoredRepositoryEnabled(parsed.repositoryId, false)
     revalidatePath('/dashboard/repositories')
     return
   }
 
-  const accessibleRepositories = await listInstallationRepositories()
+  const accessibleRepositories = await listInstallationRepositories(context.workspace.id)
   const repository = accessibleRepositories.find((candidate) =>
     candidate.owner === parsed.owner && candidate.name === parsed.repo,
   )
@@ -63,9 +68,9 @@ export async function setRepositoryEnabled(input: unknown) {
 }
 
 export async function setRepositoriesEnabled(input: unknown) {
-  await requireAdmin()
+  const context = await requireWorkspaceAdmin()
   const parsed = bulkRepositoryInputSchema.parse(input)
-  const accessibleRepositories = await listInstallationRepositories()
+  const accessibleRepositories = await listInstallationRepositories(context.workspace.id)
   const accessibleByFullName = new Map(
     accessibleRepositories.map((repository) => [repository.fullName, repository]),
   )
@@ -76,6 +81,10 @@ export async function setRepositoriesEnabled(input: unknown) {
 
   await Promise.all(parsed.repositories.map(async (entry) => {
     if (!entry.enabled && entry.repositoryId) {
+      const access = await requireRepositoryAccess(entry.repositoryId)
+      if (access.workspace.id !== context.workspace.id) {
+        throw new Error('That repository is not available in the active workspace.')
+      }
       await setStoredRepositoryEnabled(entry.repositoryId, false)
       return
     }
@@ -112,8 +121,9 @@ const visibilityRulesInputSchema = z.object({
 })
 
 export async function updateRepositoryRules(input: unknown) {
-  await requireAdmin()
   const parsed = visibilityRulesInputSchema.parse(input)
+  const access = await requireRepositoryAccess(parsed.repositoryId)
+  await requireWorkspaceRole(access.workspace.id, ['owner', 'admin'])
   const rules = parseVisibilityRules({ hidden: parsed.hidden, allowOnly: parsed.allowOnly })
   await updateRepositoryVisibilityRules(parsed.repositoryId, rules)
   revalidatePath('/dashboard/repositories')
@@ -126,9 +136,14 @@ const bulkVisibilityRulesInputSchema = z.object({
 })
 
 export async function updateRepositoriesRules(input: unknown) {
-  await requireAdmin()
   const parsed = bulkVisibilityRulesInputSchema.parse(input)
   const rules = parseVisibilityRules({ hidden: parsed.hidden, allowOnly: parsed.allowOnly })
+  const access = await Promise.all(parsed.repositoryIds.map((repositoryId) => requireRepositoryAccess(repositoryId)))
+  const workspaceIds = new Set(access.map((repository) => repository.workspace.id))
+  if (workspaceIds.size !== 1) {
+    throw new Error('Repositories must belong to the same workspace.')
+  }
+  await requireWorkspaceRole(access[0].workspace.id, ['owner', 'admin'])
   await Promise.all(parsed.repositoryIds.map((repositoryId) => updateRepositoryVisibilityRules(repositoryId, rules)))
   revalidatePath('/dashboard/repositories')
 }

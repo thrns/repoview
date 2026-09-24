@@ -21,11 +21,11 @@ export function generateViewerCode() {
   return `A${randomBytes(2).toString('hex').slice(0, 3).toUpperCase()}`
 }
 
-export async function findOrCreateViewer(rawViewerId?: string) {
+export async function findOrCreateViewer(rawViewerId: string | undefined, workspaceId: string) {
   const admin = createSupabaseAdminClient()
   const normalized = isViewerIdentity(rawViewerId) ? rawViewerId : generateViewerIdentity()
   const tokenHash = hashViewerIdentity(normalized)
-  const existing = await admin.from('viewers').select('*').eq('viewer_token_hash', tokenHash).maybeSingle()
+  const existing = await admin.from('viewers').select('*').eq('workspace_id', workspaceId).eq('viewer_token_hash', tokenHash).maybeSingle()
 
   if (existing.error) throw existing.error
   if (existing.data) {
@@ -33,6 +33,7 @@ export async function findOrCreateViewer(rawViewerId?: string) {
       .from('viewers')
       .update({ last_seen_at: new Date().toISOString() })
       .eq('id', existing.data.id)
+      .eq('workspace_id', workspaceId)
       .select('*')
       .single()
     if (error || !updated) throw error ?? new Error('Viewer identity could not be updated.')
@@ -41,6 +42,7 @@ export async function findOrCreateViewer(rawViewerId?: string) {
 
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const inserted = await admin.from('viewers').insert({
+      workspace_id: workspaceId,
       viewer_code: generateViewerCode(),
       viewer_token_hash: tokenHash,
     }).select('*').single()

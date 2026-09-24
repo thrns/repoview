@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { getGitHubInstallationClient } from './client'
+import { getGitHubInstallationClient, getGitHubInstallationClientForWorkspace } from './client'
 import { mapGitHubRepositoryError } from './repositories'
 
 export interface GitHubTreeEntry {
@@ -24,8 +24,11 @@ export async function loadRepositoryTree(
   owner: string,
   repo: string,
   ref: string,
+  workspaceId?: string,
 ): Promise<GitHubTreeEntry[]> {
-  const client = getGitHubInstallationClient()
+  const client = workspaceId
+    ? await getGitHubInstallationClientForWorkspace(workspaceId)
+    : getGitHubInstallationClient()
   let data: Awaited<ReturnType<typeof client.rest.git.getTree>>['data']
 
   try {

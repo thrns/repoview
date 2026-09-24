@@ -10,7 +10,3 @@ export function getServerEnv() {
   cachedServerEnv ??= parseServerEnv()
   return cachedServerEnv
 }
-
-export function getConfiguredAdminEmail() {
-  return process.env.ADMIN_EMAIL?.trim().toLowerCase() || undefined
-}

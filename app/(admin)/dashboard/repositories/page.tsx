@@ -4,13 +4,15 @@ import { listInstallationRepositories } from '@/lib/github/repositories'
 import { GitHubRepositoryError } from '@/lib/github/types'
 import { getSafeVisibilityRules } from '@/lib/security/visibility'
 import { listRegisteredRepositories } from '@/lib/repositories/registry'
+import { requireWorkspace } from '@/lib/auth/workspace'
 
 export const dynamic = 'force-dynamic'
 
 export default async function RepositoriesPage() {
   try {
+    const context = await requireWorkspace()
     const [githubRepositories, registeredRepositories] = await Promise.all([
-      listInstallationRepositories(),
+      listInstallationRepositories(context.workspace.id),
       listRegisteredRepositories(),
     ])
     const localByFullName = new Map(

@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { getGitHubInstallationClient } from './client'
+import { getGitHubInstallationClient, getGitHubInstallationClientForWorkspace } from './client'
 import {
   GitHubRepositoryError,
   type GitHubRepositoryBranch,
@@ -21,8 +21,10 @@ type GitHubRepositoryLike = {
   disabled: boolean
 }
 
-export async function listInstallationRepositories(): Promise<GitHubRepositorySummary[]> {
-  const client = getGitHubInstallationClient()
+export async function listInstallationRepositories(workspaceId?: string): Promise<GitHubRepositorySummary[]> {
+  const client = workspaceId
+    ? await getGitHubInstallationClientForWorkspace(workspaceId)
+    : getGitHubInstallationClient()
 
   try {
     const repositories = await client.paginate(
@@ -36,8 +38,10 @@ export async function listInstallationRepositories(): Promise<GitHubRepositorySu
   }
 }
 
-export async function getRepositoryMetadata(owner: string, repo: string): Promise<GitHubRepositorySummary> {
-  const client = getGitHubInstallationClient()
+export async function getRepositoryMetadata(owner: string, repo: string, workspaceId?: string): Promise<GitHubRepositorySummary> {
+  const client = workspaceId
+    ? await getGitHubInstallationClientForWorkspace(workspaceId)
+    : getGitHubInstallationClient()
 
   try {
     const { data } = await client.rest.repos.get({ owner, repo })
@@ -47,8 +51,10 @@ export async function getRepositoryMetadata(owner: string, repo: string): Promis
   }
 }
 
-export async function listRepositoryBranches(owner: string, repo: string): Promise<GitHubRepositoryBranch[]> {
-  const client = getGitHubInstallationClient()
+export async function listRepositoryBranches(owner: string, repo: string, workspaceId?: string): Promise<GitHubRepositoryBranch[]> {
+  const client = workspaceId
+    ? await getGitHubInstallationClientForWorkspace(workspaceId)
+    : getGitHubInstallationClient()
 
   try {
     const branches = await client.paginate(client.rest.repos.listBranches, {
@@ -67,8 +73,10 @@ export async function listRepositoryBranches(owner: string, repo: string): Promi
   }
 }
 
-export async function getRepositoryRef(owner: string, repo: string, ref: string): Promise<GitHubRepositoryRef> {
-  const client = getGitHubInstallationClient()
+export async function getRepositoryRef(owner: string, repo: string, ref: string, workspaceId?: string): Promise<GitHubRepositoryRef> {
+  const client = workspaceId
+    ? await getGitHubInstallationClientForWorkspace(workspaceId)
+    : getGitHubInstallationClient()
 
   try {
     const response = await client.rest.git.getRef({ owner, repo, ref: normalizeGitHubRef(ref) })

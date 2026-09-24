@@ -24,12 +24,7 @@ export async function GET(
   }
 
   try {
-    const asset = await loadRepositoryAsset(
-      viewer.repository.github_owner,
-      viewer.repository.github_repo,
-      responsePath,
-      viewer.share.ref,
-    )
+    const asset = await loadRepositoryAsset(viewer.repository.github_owner, viewer.repository.github_repo, responsePath, viewer.share.ref, viewer.repository.workspace_id)
 
     const headers = new Headers({
       'Cache-Control': 'private, no-store',

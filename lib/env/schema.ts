@@ -2,7 +2,6 @@ import { z } from 'zod'
 
 export const serverEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
-  ADMIN_EMAIL: z.string().email('ADMIN_EMAIL must be a valid email').optional(),
   GITHUB_APP_ID: z.coerce.number().int().positive('GITHUB_APP_ID must be a positive integer'),
   GITHUB_APP_INSTALLATION_ID: z.coerce.number().int().positive('GITHUB_APP_INSTALLATION_ID must be a positive integer'),
   GITHUB_APP_PRIVATE_KEY: z.string().min(1, 'GITHUB_APP_PRIVATE_KEY is required').transform((value) => value.replace(/\\n/g, '\n').trim()),

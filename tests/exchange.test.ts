@@ -31,6 +31,7 @@ function createAdminMock(repositoryEnabled = true) {
   const share = {
     id: '22222222-2222-4222-8222-222222222222',
     repository_id: '11111111-1111-4111-8111-111111111111',
+    workspace_id: '77777777-7777-4777-8777-777777777777',
     share_code: 'Ab3k9Qx2',
     token_hash: 'stored-hash',
     recipient_label: 'Interview',
@@ -51,6 +52,7 @@ function createAdminMock(repositoryEnabled = true) {
     github_repo: 'hello-world',
     default_branch: 'main',
     enabled: repositoryEnabled,
+    workspace_id: share.workspace_id,
     default_rules: {},
     created_at: '2026-09-21T00:00:00.000Z',
     updated_at: '2026-09-21T00:00:00.000Z',
@@ -119,6 +121,7 @@ describe('share token exchange', () => {
     }))
     expect(sessionInsert.mock.calls[0]?.[0]).not.toHaveProperty('rawSessionToken')
     expect(eventInsert).toHaveBeenCalledWith({
+      workspace_id: '77777777-7777-4777-8777-777777777777',
       share_id: '22222222-2222-4222-8222-222222222222',
       session_id: '33333333-3333-4333-8333-333333333333',
       event_type: 'link_opened',

@@ -7,8 +7,56 @@ type TableDefinition<Row extends Record<string, unknown>, Insert extends Record<
   Relationships: []
 }
 
+export type WorkspaceRole = 'owner' | 'admin' | 'member'
+
+type Profile = {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+type Workspace = {
+  id: string
+  name: string
+  slug: string
+  owner_id: string
+  created_at: string
+  updated_at: string
+}
+
+type WorkspaceMember = {
+  workspace_id: string
+  user_id: string
+  role: WorkspaceRole
+  created_at: string
+  updated_at: string
+}
+
+type NotificationSettings = {
+  id: string
+  workspace_id: string
+  notification_email: string | null
+  notify_on_view: boolean
+  created_at: string
+  updated_at: string
+}
+
+type GitHubInstallation = {
+  id: string
+  workspace_id: string
+  installation_id: number | null
+  label: string
+  uses_environment_credentials: boolean
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
 type Repository = {
   id: string
+  workspace_id: string
   github_owner: string
   github_repo: string
   default_branch: string
@@ -20,6 +68,7 @@ type Repository = {
 
 type Share = {
   id: string
+  workspace_id: string
   repository_id: string
   share_code: string
   token_hash: string
@@ -40,6 +89,7 @@ type Share = {
 
 type ShareRecipient = {
   share_id: string
+  workspace_id: string
   recipient_name: string | null
   company: string | null
   email: string | null
@@ -50,6 +100,7 @@ type ShareRecipient = {
 
 type Viewer = {
   id: string
+  workspace_id: string
   viewer_code: string
   viewer_token_hash: string
   first_seen_at: string
@@ -59,6 +110,7 @@ type Viewer = {
 type ViewerSession = {
   id: string
   share_id: string
+  workspace_id: string
   viewer_id: string | null
   session_token_hash: string
   first_seen_at: string
@@ -133,6 +185,7 @@ type ViewEvent = {
   id: number
   share_id: string
   session_id: string
+  workspace_id: string
   event_type: string
   path: string | null
   metadata: Json
@@ -148,6 +201,7 @@ type FileEngagement = {
   id: string
   share_id: string
   session_id: string
+  workspace_id: string
   viewer_id: string | null
   path: string
   content_kind: string | null
@@ -163,6 +217,7 @@ type FileEngagement = {
 type ShareAccessAttempt = {
   id: string
   share_id: string | null
+  workspace_id: string | null
   token_hash: string
   valid: boolean
   failure_reason: string | null
@@ -180,6 +235,7 @@ type NotificationDelivery = {
   id: string
   share_id: string
   session_id: string
+  workspace_id: string
   channel: string
   notification_kind: string
   status: string
@@ -192,16 +248,21 @@ type NotificationDelivery = {
 export interface Database {
   public: {
     Tables: {
-      repositories: TableDefinition<Repository, Partial<Omit<Repository, 'id' | 'created_at' | 'updated_at'>> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<Repository, 'id' | 'created_at'>>>
-      shares: TableDefinition<Share, Partial<Omit<Share, 'id' | 'created_at' | 'updated_at'>> & Pick<Share, 'repository_id' | 'token_hash' | 'ref'> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<Share, 'id' | 'created_at' | 'updated_at'>>>
-      share_recipients: TableDefinition<ShareRecipient, Partial<Omit<ShareRecipient, 'created_at' | 'updated_at'>> & Pick<ShareRecipient, 'share_id'> & { created_at?: string; updated_at?: string }, Partial<Omit<ShareRecipient, 'share_id' | 'created_at' | 'updated_at'>>>
-      viewers: TableDefinition<Viewer, Partial<Omit<Viewer, 'id' | 'first_seen_at' | 'last_seen_at'>> & Pick<Viewer, 'viewer_code' | 'viewer_token_hash'> & { id?: string; first_seen_at?: string; last_seen_at?: string }, Partial<Omit<Viewer, 'id' | 'viewer_token_hash'>>>
-      viewer_sessions: TableDefinition<ViewerSession, Partial<Omit<ViewerSession, 'id' | 'first_seen_at' | 'last_seen_at'>> & Pick<ViewerSession, 'share_id' | 'session_token_hash'> & { id?: string; first_seen_at?: string; last_seen_at?: string }, Partial<Omit<ViewerSession, 'id' | 'share_id' | 'session_token_hash'>>>
-      view_events: TableDefinition<ViewEvent, Partial<Omit<ViewEvent, 'id' | 'created_at'>> & Pick<ViewEvent, 'share_id' | 'session_id' | 'event_type'> & { id?: never; created_at?: string }, never>
-      repository_events: TableDefinition<RepositoryEvent, Partial<Omit<RepositoryEvent, 'id' | 'created_at'>> & Pick<RepositoryEvent, 'id' | 'share_id' | 'session_id' | 'event_type' | 'occurred_at'>, never>
-      file_engagement: TableDefinition<FileEngagement, Partial<Omit<FileEngagement, 'id' | 'first_viewed_at' | 'last_viewed_at'>> & Pick<FileEngagement, 'share_id' | 'session_id' | 'path'> & { id?: string; first_viewed_at?: string; last_viewed_at?: string }, Partial<Omit<FileEngagement, 'id' | 'share_id' | 'session_id' | 'path'>>>
+      profiles: TableDefinition<Profile, Partial<Omit<Profile, 'id' | 'created_at' | 'updated_at'>> & Pick<Profile, 'id'> & { created_at?: string; updated_at?: string }, Partial<Omit<Profile, 'id' | 'created_at'>>>
+      workspaces: TableDefinition<Workspace, Partial<Omit<Workspace, 'id' | 'created_at' | 'updated_at'>> & Pick<Workspace, 'name' | 'slug' | 'owner_id'> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<Workspace, 'id' | 'created_at'>>>
+      workspace_members: TableDefinition<WorkspaceMember, Partial<Omit<WorkspaceMember, 'created_at' | 'updated_at'>> & Pick<WorkspaceMember, 'workspace_id' | 'user_id'> & { created_at?: string; updated_at?: string }, Partial<Omit<WorkspaceMember, 'workspace_id' | 'user_id' | 'created_at'>>>
+      notification_settings: TableDefinition<NotificationSettings, Partial<Omit<NotificationSettings, 'id' | 'created_at' | 'updated_at'>> & Pick<NotificationSettings, 'workspace_id'> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<NotificationSettings, 'id' | 'workspace_id' | 'created_at'>>>
+      github_installations: TableDefinition<GitHubInstallation, Partial<Omit<GitHubInstallation, 'id' | 'created_at' | 'updated_at'>> & Pick<GitHubInstallation, 'workspace_id'> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<GitHubInstallation, 'id' | 'workspace_id' | 'created_at'>>>
+      repositories: TableDefinition<Repository, Partial<Omit<Repository, 'id' | 'created_at' | 'updated_at'>> & Pick<Repository, 'workspace_id' | 'github_owner' | 'github_repo' | 'default_branch'> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<Repository, 'id' | 'workspace_id' | 'created_at'>>>
+      shares: TableDefinition<Share, Partial<Omit<Share, 'id' | 'created_at' | 'updated_at'>> & Pick<Share, 'workspace_id' | 'repository_id' | 'token_hash' | 'ref'> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<Share, 'id' | 'workspace_id' | 'created_at'>>>
+      share_recipients: TableDefinition<ShareRecipient, Partial<Omit<ShareRecipient, 'created_at' | 'updated_at'>> & Pick<ShareRecipient, 'share_id' | 'workspace_id'> & { created_at?: string; updated_at?: string }, Partial<Omit<ShareRecipient, 'share_id' | 'workspace_id' | 'created_at'>>>
+      viewers: TableDefinition<Viewer, Partial<Omit<Viewer, 'id' | 'first_seen_at' | 'last_seen_at'>> & Pick<Viewer, 'workspace_id' | 'viewer_code' | 'viewer_token_hash'> & { id?: string; first_seen_at?: string; last_seen_at?: string }, Partial<Omit<Viewer, 'id' | 'workspace_id' | 'viewer_token_hash'>>>
+      viewer_sessions: TableDefinition<ViewerSession, Partial<Omit<ViewerSession, 'id' | 'first_seen_at' | 'last_seen_at'>> & Pick<ViewerSession, 'workspace_id' | 'share_id' | 'session_token_hash'> & { id?: string; first_seen_at?: string; last_seen_at?: string }, Partial<Omit<ViewerSession, 'id' | 'workspace_id' | 'share_id' | 'session_token_hash'>>>
+      view_events: TableDefinition<ViewEvent, Partial<Omit<ViewEvent, 'id' | 'created_at'>> & Pick<ViewEvent, 'workspace_id' | 'share_id' | 'session_id' | 'event_type'> & { id?: never; created_at?: string }, never>
+      repository_events: TableDefinition<RepositoryEvent, Partial<Omit<RepositoryEvent, 'id' | 'created_at'>> & Pick<RepositoryEvent, 'workspace_id' | 'id' | 'share_id' | 'session_id' | 'event_type' | 'occurred_at'>, never>
+      file_engagement: TableDefinition<FileEngagement, Partial<Omit<FileEngagement, 'id' | 'first_viewed_at' | 'last_viewed_at'>> & Pick<FileEngagement, 'workspace_id' | 'share_id' | 'session_id' | 'path'> & { id?: string; first_viewed_at?: string; last_viewed_at?: string }, Partial<Omit<FileEngagement, 'id' | 'workspace_id' | 'share_id' | 'session_id' | 'path'>>>
       share_access_attempts: TableDefinition<ShareAccessAttempt, Partial<Omit<ShareAccessAttempt, 'id' | 'created_at'>> & Pick<ShareAccessAttempt, 'token_hash' | 'valid'> & { id?: string; created_at?: string }, never>
-      notification_deliveries: TableDefinition<NotificationDelivery, Partial<Omit<NotificationDelivery, 'id' | 'created_at'>> & Pick<NotificationDelivery, 'share_id' | 'session_id' | 'status'> & { id?: string; created_at?: string }, Partial<Omit<NotificationDelivery, 'id' | 'created_at'>>>
+      notification_deliveries: TableDefinition<NotificationDelivery, Partial<Omit<NotificationDelivery, 'id' | 'created_at'>> & Pick<NotificationDelivery, 'workspace_id' | 'share_id' | 'session_id' | 'status'> & { id?: string; created_at?: string }, Partial<Omit<NotificationDelivery, 'id' | 'workspace_id' | 'created_at'>>>
     }
     Views: Record<string, never>
     Functions: Record<string, never>

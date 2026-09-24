@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 vi.mock('../lib/supabase/admin', () => ({ createSupabaseAdminClient: vi.fn() }))
+vi.mock('../lib/auth/workspace', () => ({ requireWorkspace: vi.fn(async () => ({ workspace: { id: 'workspace-1' } })) }))
 
 import { createSupabaseAdminClient } from '../lib/supabase/admin'
 import { getDashboardActivity } from '../lib/dashboard/activity'
@@ -11,6 +12,7 @@ const getAdmin = vi.mocked(createSupabaseAdminClient)
 function query(value: unknown) {
   const builder = {
     select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
     in: vi.fn().mockReturnThis(),

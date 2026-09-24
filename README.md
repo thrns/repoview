@@ -1,13 +1,13 @@
 # RepoView
 
-RepoView is a private, read-only source-sharing app. An owner signs in, registers a GitHub App-backed repository, creates a scoped share link, and receives a deduplicated email when a recipient meaningfully views the source.
+RepoView is a private, read-only source-sharing app. A workspace member signs in, registers a GitHub App-backed repository, creates a scoped share link, and receives a deduplicated email when a recipient meaningfully views the source.
 
 Recipients receive a short-lived session cookie after the secret-link exchange. The viewer exposes only the authorized repository tree, Markdown, source code, and protected image assets. Downloads remain disabled by default and are available only when the owner explicitly enables them.
 
 ## Architecture
 
 - `app/(auth)/login` provides Supabase email/password sign-in.
-- `app/(admin)/dashboard` is server-guarded owner UI for repositories, shares, activity, and SMTP settings.
+- `app/(admin)/dashboard` is server-guarded workspace UI for repositories, shares, activity, and SMTP settings.
 - `app/s/[token]` exchanges a one-time URL token for an HttpOnly viewer session, then redirects to a token-free viewer URL.
 - `app/view/[shareId]` renders the session-authorized repository root, tree, Markdown, code, and safe error states.
 - `app/api/view` confirms meaningful views, batches semantic engagement, updates heartbeats, and serves explicitly allowed downloads; `app/api/assets` serves authorized image bytes.
@@ -39,7 +39,7 @@ Fill in `.env` using the configuration below, apply the migrations, then start t
 pnpm dev
 ```
 
-Open [http://localhost:3000/login](http://localhost:3000/login). Create the owner account in Supabase Auth first; if `ADMIN_EMAIL` is set, the signed-in email must match it case-insensitively.
+Open [http://localhost:3000/login](http://localhost:3000/login). Each new Supabase Auth account receives a personal RepoView workspace automatically.
 
 ## Environment configuration
 
@@ -53,9 +53,6 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-
-# Admin
-ADMIN_EMAIL=owner@example.com
 
 # GitHub App
 GITHUB_APP_ID=123456
@@ -81,18 +78,18 @@ NOTIFICATION_TO_EMAIL=owner@example.com
 ## Supabase setup and migrations
 
 1. Create a Supabase project and enable email/password authentication.
-2. Create the owner in **Authentication → Users**.
+2. Create the initial account in **Authentication → Users** (or use the sign-up flow).
 3. Apply the SQL files in `supabase/migrations/` in filename order using the Supabase SQL editor or the Supabase CLI:
 
 ```bash
 supabase db push
 ```
 
-The initial migration creates repositories, shares, viewer sessions, view events, notification deliveries, indexes, timestamps, and RLS-enabled tables. The follow-up migrations add generic/recipient share metadata, persistent anonymous viewers, repository events, file engagement, location/network/device/security fields, invalid/valid access attempts, and notification summaries. RepoView uses the server-only service-role client only after its admin/viewer authorization checks.
+The initial migration creates repositories, shares, viewer sessions, view events, notification deliveries, indexes, timestamps, and RLS-enabled tables. The follow-up migrations add generic/recipient share metadata, persistent anonymous viewers, repository events, file engagement, location/network/device/security fields, invalid/valid access attempts, and notification summaries. The tenancy migration adds profiles, workspaces, memberships, workspace-owned settings/installations, and backfills the existing owner data into one workspace. Authenticated customer flows resolve workspace membership before resource access; the service-role client is reserved for server-side viewer/session analytics and other explicitly scoped operations.
 
 ## GitHub App setup
 
-Create a GitHub App for the owner or organization and install it on the repositories RepoView should expose.
+Create a GitHub App for the workspace owner or organization and install it on the repositories RepoView should expose.
 
 - Contents: **Read-only**.
 - Webhooks and OAuth callback: not required for this v1 flow.

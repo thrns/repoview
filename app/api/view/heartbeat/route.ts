@@ -43,6 +43,7 @@ export async function POST(request: Request) {
     .update(update)
     .eq('id', viewer.session.id)
     .eq('share_id', internalShareId)
+    .eq('workspace_id', viewer.share.workspace_id)
     .select('id')
     .maybeSingle()
 

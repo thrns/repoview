@@ -15,8 +15,8 @@ const loadAsset = vi.mocked(loadRepositoryAsset)
 const isAllowed = vi.mocked(isPathAllowedForShare)
 
 const viewer = {
-  repository: { github_owner: 'octocat', github_repo: 'hello-world', default_rules: {} },
-  share: { ref: 'main', rules: {} },
+  repository: { github_owner: 'octocat', github_repo: 'hello-world', workspace_id: 'workspace-1', default_rules: {} },
+  share: { workspace_id: 'workspace-1', ref: 'main', rules: {} },
 } as never
 
 describe('protected Markdown asset route', () => {
@@ -32,7 +32,7 @@ describe('protected Markdown asset route', () => {
     expect(response.headers.get('cache-control')).toBe('private, no-store')
     expect(response.headers.get('x-content-type-options')).toBe('nosniff')
     expect(await response.text()).toBe('png!')
-    expect(loadAsset).toHaveBeenCalledWith('octocat', 'hello-world', 'docs/diagram.png', 'main')
+    expect(loadAsset).toHaveBeenCalledWith('octocat', 'hello-world', 'docs/diagram.png', 'main', 'workspace-1')
   })
 
   it('returns not found for unauthorized or hidden paths without fetching bytes', async () => {

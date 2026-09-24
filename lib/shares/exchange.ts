@@ -41,11 +41,11 @@ export async function exchangeShareToken(rawToken: string, requestMetadata?: Par
     throw new ShareExchangeError('invalid')
   }
   if (share.revoked_at) {
-    void recordInvalidAttempt(admin, hashShareToken(normalizedToken), 'revoked', sanitizeLinkOpenMetadata(requestMetadata), share.id)
+    void recordInvalidAttempt(admin, hashShareToken(normalizedToken), 'revoked', sanitizeLinkOpenMetadata(requestMetadata), share.id, share.workspace_id)
     throw new ShareExchangeError('revoked')
   }
   if (share.expires_at && new Date(share.expires_at).getTime() <= Date.now()) {
-    void recordInvalidAttempt(admin, hashShareToken(normalizedToken), 'expired', sanitizeLinkOpenMetadata(requestMetadata), share.id)
+    void recordInvalidAttempt(admin, hashShareToken(normalizedToken), 'expired', sanitizeLinkOpenMetadata(requestMetadata), share.id, share.workspace_id)
     throw new ShareExchangeError('expired')
   }
   if (!share.ref.trim()) {
@@ -56,6 +56,7 @@ export async function exchangeShareToken(rawToken: string, requestMetadata?: Par
     .from('repositories')
     .select('*')
     .eq('id', share.repository_id)
+    .eq('workspace_id', share.workspace_id)
     .maybeSingle()
 
   if (repositoryError || !repository || !repository.enabled) {
@@ -66,7 +67,7 @@ export async function exchangeShareToken(rawToken: string, requestMetadata?: Par
   let viewer: Awaited<ReturnType<typeof findOrCreateViewer>>['viewer'] | null = null
   let resolvedViewerId: string | undefined
   try {
-    const identity = await findOrCreateViewer(rawViewerId)
+    const identity = await findOrCreateViewer(rawViewerId, share.workspace_id)
     viewer = identity.viewer
     resolvedViewerId = identity.rawViewerId
   } catch {
@@ -86,6 +87,7 @@ export async function exchangeShareToken(rawToken: string, requestMetadata?: Par
         .from('viewer_sessions')
         .select('id')
         .eq('share_id', share.id)
+        .eq('workspace_id', share.workspace_id)
         .eq('viewer_id', viewer.id)
         .not('confirmed_at', 'is', null)
       previousVisitCount = previousSessions?.length ?? 0
@@ -97,6 +99,7 @@ export async function exchangeShareToken(rawToken: string, requestMetadata?: Par
   const { data: session, error: sessionError } = await admin
     .from('viewer_sessions')
     .insert({
+      workspace_id: share.workspace_id,
       share_id: share.id,
       session_token_hash: hashViewerSessionToken(rawSessionToken),
       referrer_host: metadata.referrerHost,
@@ -156,6 +159,7 @@ export async function exchangeShareToken(rawToken: string, requestMetadata?: Par
   // an event-table outage never prevents an otherwise valid repository view.
   try {
     void Promise.resolve(admin.from('view_events').insert({
+      workspace_id: share.workspace_id,
       share_id: share.id,
       session_id: session.id,
       event_type: 'link_opened',
@@ -167,6 +171,7 @@ export async function exchangeShareToken(rawToken: string, requestMetadata?: Par
   }
 
   void Promise.resolve(admin.from('share_access_attempts').insert({
+    workspace_id: share.workspace_id,
     share_id: share.id,
     token_hash: hashShareToken(normalizedToken),
     valid: true,
@@ -179,7 +184,7 @@ export async function exchangeShareToken(rawToken: string, requestMetadata?: Par
     is_probable_bot: metadata.isProbableBot,
   })).then(() => undefined).catch(() => undefined)
 
-  void annotateSessionSecurity({ admin, shareId: share.id, sessionId: session.id, viewerId: viewer?.id ?? null, networkKeyHash, deviceProfileHash }).catch(() => undefined)
+  void annotateSessionSecurity({ admin, workspaceId: share.workspace_id, shareId: share.id, sessionId: session.id, viewerId: viewer?.id ?? null, networkKeyHash, deviceProfileHash }).catch(() => undefined)
 
   return {
     shareId: share.id,
@@ -191,8 +196,8 @@ export async function exchangeShareToken(rawToken: string, requestMetadata?: Par
   }
 }
 
-async function annotateSessionSecurity({ admin, shareId, sessionId, viewerId, networkKeyHash, deviceProfileHash }: { admin: ReturnType<typeof createSupabaseAdminClient>; shareId: string; sessionId: string; viewerId: string | null; networkKeyHash: string | null; deviceProfileHash: string | null }) {
-  const { data: previousSessions } = await admin.from('viewer_sessions').select('id, viewer_id, network_key_hash, device_profile_hash, last_seen_at').eq('share_id', shareId).neq('id', sessionId).order('last_seen_at', { ascending: false }).limit(25)
+async function annotateSessionSecurity({ admin, workspaceId, shareId, sessionId, viewerId, networkKeyHash, deviceProfileHash }: { admin: ReturnType<typeof createSupabaseAdminClient>; workspaceId: string; shareId: string; sessionId: string; viewerId: string | null; networkKeyHash: string | null; deviceProfileHash: string | null }) {
+  const { data: previousSessions } = await admin.from('viewer_sessions').select('id, viewer_id, network_key_hash, device_profile_hash, last_seen_at').eq('share_id', shareId).eq('workspace_id', workspaceId).neq('id', sessionId).order('last_seen_at', { ascending: false }).limit(25)
   const sessions = previousSessions ?? []
   const otherViewer = Boolean(viewerId && sessions.some((session) => session.viewer_id && session.viewer_id !== viewerId))
   const newNetwork = Boolean(networkKeyHash && sessions.some((session) => session.network_key_hash && session.network_key_hash !== networkKeyHash))
@@ -206,12 +211,13 @@ async function annotateSessionSecurity({ admin, shareId, sessionId, viewerId, ne
     ...(concurrent > 1 ? { concurrent_sessions: concurrent } : {}),
   }
   if (Object.keys(signals).length === 0) return
-  await admin.from('viewer_sessions').update({ security_signals: signals }).eq('id', sessionId).eq('share_id', shareId)
+  await admin.from('viewer_sessions').update({ security_signals: signals }).eq('id', sessionId).eq('share_id', shareId).eq('workspace_id', workspaceId)
 }
 
-async function recordInvalidAttempt(admin: ReturnType<typeof createSupabaseAdminClient>, tokenHash: string, reason: string, metadata: LinkOpenMetadata, shareId?: string) {
+async function recordInvalidAttempt(admin: ReturnType<typeof createSupabaseAdminClient>, tokenHash: string, reason: string, metadata: LinkOpenMetadata, shareId?: string, workspaceId?: string) {
   try {
     await admin.from('share_access_attempts').insert({
+      workspace_id: workspaceId ?? null,
       token_hash: tokenHash,
       valid: false,
       failure_reason: reason,

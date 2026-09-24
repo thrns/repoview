@@ -265,7 +265,7 @@ Supabase email/password auth
         ↓
 server verifies authenticated user
         ↓
-optional ADMIN_EMAIL equality check
+server resolves the user's workspace membership and role
         ↓
 dashboard
 ```
@@ -720,11 +720,11 @@ Do not add anonymous browser policies for share access.
 
 The public viewer talks to Next.js route/server code, which validates the share session and then uses server-side DB access.
 
-For the admin:
+For authenticated workspace users:
 - use Supabase SSR Auth to verify the user;
-- admin server actions/handlers can either query through user-scoped RLS or use the server-only service client after a strict `requireAdmin()` check.
-
-The second pattern is simpler for a single-owner deployment, but the authorization check must always happen before the service-role client is used.
+- resolve workspace membership and role separately;
+- use resource helpers such as `requireRepositoryAccess()` and `requireShareAccess()` before accepting browser-supplied IDs;
+- if a server-only service client is needed for viewer analytics, pass only workspace IDs derived from an authorized share/session.
 
 ---
 
@@ -1595,9 +1595,6 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-
-# Admin
-ADMIN_EMAIL=
 
 # GitHub App
 GITHUB_APP_ID=

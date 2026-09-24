@@ -41,7 +41,7 @@ export function LoginForm() {
   return (
     <Card className="login-card">
       <CardHeader className="login-card-header">
-        <div className="login-form-meta">Owner sign-in</div>
+        <div className="login-form-meta">Workspace sign-in</div>
         <CardTitle className="login-card-title">Sign in to RepoView</CardTitle>
         <CardDescription className="login-card-description">Manage private repository shares and view activity.</CardDescription>
       </CardHeader>
@@ -68,7 +68,7 @@ export function LoginForm() {
           <Button type="submit" size="large" className="login-submit-button w-full" loading={isSubmitting} iconRight={<ArrowRight className="size-4" aria-hidden="true" />}>
             Sign in
           </Button>
-          <p className="login-form-note">Owner account only.</p>
+          <p className="login-form-note">Your workspace determines the repositories and shares you can access.</p>
           <p className="login-form-note">Need an account? <Link href="/signup">Create one</Link></p>
         </form>
       </CardContent>

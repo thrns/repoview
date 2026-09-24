@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
+import { requireWorkspace } from '@/lib/auth/workspace'
 import type { Json } from '@/lib/supabase/database.types'
 
 export type ViewerDashboardItem = {
@@ -53,14 +54,15 @@ export type ViewerDetailData = {
 }
 
 export async function listViewerDashboardItems(): Promise<ViewerDashboardItem[]> {
+  const { workspace } = await requireWorkspace()
   const admin = createSupabaseAdminClient()
   const [{ data: viewers, error: viewersError }, { data: sessions, error: sessionsError }, { data: shares, error: sharesError }, { data: recipients, error: recipientsError }, { data: repositories, error: repositoriesError }, { data: engagement, error: engagementError }] = await Promise.all([
-    admin.from('viewers').select('*').order('last_seen_at', { ascending: false }),
-    admin.from('viewer_sessions').select('*').not('confirmed_at', 'is', null),
-    admin.from('shares').select('*'),
-    admin.from('share_recipients').select('*'),
-    admin.from('repositories').select('*'),
-    admin.from('file_engagement').select('viewer_id, path, active_ms'),
+    admin.from('viewers').select('*').eq('workspace_id', workspace.id).order('last_seen_at', { ascending: false }),
+    admin.from('viewer_sessions').select('*').eq('workspace_id', workspace.id).not('confirmed_at', 'is', null),
+    admin.from('shares').select('*').eq('workspace_id', workspace.id),
+    admin.from('share_recipients').select('*').eq('workspace_id', workspace.id),
+    admin.from('repositories').select('*').eq('workspace_id', workspace.id),
+    admin.from('file_engagement').select('viewer_id, path, active_ms').eq('workspace_id', workspace.id),
   ])
   if (viewersError || sessionsError || sharesError || recipientsError || repositoriesError || engagementError) throw new Error('RepoView viewers could not be loaded.')
 
@@ -105,16 +107,17 @@ export async function listViewerDashboardItems(): Promise<ViewerDashboardItem[]>
 }
 
 export async function getViewerDetail(viewerId: string): Promise<ViewerDetailData> {
+  const { workspace } = await requireWorkspace()
   const admin = createSupabaseAdminClient()
-  const { data: viewer, error: viewerError } = await admin.from('viewers').select('*').eq('id', viewerId).maybeSingle()
+  const { data: viewer, error: viewerError } = await admin.from('viewers').select('*').eq('id', viewerId).eq('workspace_id', workspace.id).maybeSingle()
   if (viewerError || !viewer) throw new Error('Viewer not found.')
   const [{ data: sessions, error: sessionsError }, { data: shares, error: sharesError }, { data: recipients, error: recipientsError }, { data: repositories, error: repositoriesError }, { data: events, error: eventsError }, { data: engagements, error: engagementError }] = await Promise.all([
-    admin.from('viewer_sessions').select('*').eq('viewer_id', viewerId).order('first_seen_at', { ascending: false }),
-    admin.from('shares').select('*'),
-    admin.from('share_recipients').select('*'),
-    admin.from('repositories').select('*'),
-    admin.from('view_events').select('*').in('session_id', await getSessionIds(admin, viewerId)).order('created_at', { ascending: true }),
-    admin.from('file_engagement').select('*').eq('viewer_id', viewerId).order('last_viewed_at', { ascending: false }),
+    admin.from('viewer_sessions').select('*').eq('viewer_id', viewerId).eq('workspace_id', workspace.id).order('first_seen_at', { ascending: false }),
+    admin.from('shares').select('*').eq('workspace_id', workspace.id),
+    admin.from('share_recipients').select('*').eq('workspace_id', workspace.id),
+    admin.from('repositories').select('*').eq('workspace_id', workspace.id),
+    admin.from('view_events').select('*').eq('workspace_id', workspace.id).in('session_id', await getSessionIds(admin, viewerId, workspace.id)).order('created_at', { ascending: true }),
+    admin.from('file_engagement').select('*').eq('viewer_id', viewerId).eq('workspace_id', workspace.id).order('last_viewed_at', { ascending: false }),
   ])
   if (sessionsError || sharesError || recipientsError || repositoriesError || eventsError || engagementError) throw new Error('Viewer detail could not be loaded.')
 
@@ -168,8 +171,8 @@ export async function getViewerDetail(viewerId: string): Promise<ViewerDetailDat
   }
 }
 
-async function getSessionIds(admin: ReturnType<typeof createSupabaseAdminClient>, viewerId: string) {
-  const { data } = await admin.from('viewer_sessions').select('id').eq('viewer_id', viewerId)
+async function getSessionIds(admin: ReturnType<typeof createSupabaseAdminClient>, viewerId: string, workspaceId: string) {
+  const { data } = await admin.from('viewer_sessions').select('id').eq('viewer_id', viewerId).eq('workspace_id', workspaceId)
   return (data ?? []).map((row) => row.id)
 }
 

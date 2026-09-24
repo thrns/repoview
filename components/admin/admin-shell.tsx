@@ -46,7 +46,7 @@ function AccountFooter({ email, avatarLabel, pathname, onLogout, className }: { 
             <div className="truncate text-xs font-medium leading-4" title={email}>{email}</div>
             <div className="mt-0.5 flex items-center gap-1.5 text-[11px] leading-4 text-foreground-muted">
               <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
-              <span>Owner account</span>
+              <span>Workspace member</span>
             </div>
           </div>
         </div>

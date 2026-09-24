@@ -42,11 +42,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ shar
       viewer.repository.github_repo,
       requestedPath,
       viewer.share.ref,
+      viewer.repository.workspace_id,
     )
 
     after(() => recordViewerViewEvent({
       shareId: viewer.share.id,
       sessionId: viewer.session.id,
+      workspaceId: viewer.share.workspace_id,
       eventType: file.kind === 'text' && detectViewerLanguage(file.path) === 'markdown' ? 'markdown_viewed' : 'file_viewed',
       path: file.path,
       metadata: { route: 'client-file', preview: file.kind },

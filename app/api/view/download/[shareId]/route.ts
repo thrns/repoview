@@ -15,7 +15,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ shar
   try { viewer = await requireViewerSession(shareId) } catch { return new NextResponse(null, { status: 404 }) }
   if (!viewer.share.allow_download || !isPathAllowedForShare(path, viewer.repository.default_rules, viewer.share.rules)) return new NextResponse(null, { status: 404 })
   try {
-    const file = await loadRepositoryFile(viewer.repository.github_owner, viewer.repository.github_repo, path, viewer.share.ref)
+    const file = await loadRepositoryFile(viewer.repository.github_owner, viewer.repository.github_repo, path, viewer.share.ref, viewer.repository.workspace_id)
     if (file.kind !== 'text') return new NextResponse(null, { status: 404 })
     return new NextResponse(file.content, { headers: { 'Cache-Control': 'private, no-store', 'Content-Type': 'text/plain; charset=utf-8', 'Content-Disposition': `attachment; filename="${path.split('/').at(-1) || 'download.txt'}"` } })
   } catch { return new NextResponse(null, { status: 404 }) }

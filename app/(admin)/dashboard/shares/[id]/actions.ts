@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
-import { requireAdmin } from '../../../../../lib/auth/require-admin'
+import { requireShareAccess, requireWorkspaceRole } from '../../../../../lib/auth/workspace'
 import { getPublicEnv } from '../../../../../lib/env/public'
 import { createSupabaseAdminClient } from '../../../../../lib/supabase/admin'
 import { generateShareToken, hashShareToken } from '../../../../../lib/security/tokens'
@@ -15,12 +15,14 @@ const expiryInputSchema = z.object({
 })
 
 export async function revokeShare(input: unknown) {
-  await requireAdmin()
   const shareId = shareIdSchema.parse(input)
-  const { data, error } = await createSupabaseAdminClient()
+  const access = await requireShareAccess(shareId)
+  await requireWorkspaceRole(access.workspace.id, ['owner', 'admin'])
+  const query = createSupabaseAdminClient()
     .from('shares')
     .update({ revoked_at: new Date().toISOString() })
     .eq('id', shareId)
+  const { data, error } = await query.eq('workspace_id', access.workspace.id)
     .is('revoked_at', null)
     .select('id')
     .maybeSingle()
@@ -35,17 +37,19 @@ export async function revokeShare(input: unknown) {
 }
 
 export async function updateShareExpiry(input: unknown) {
-  await requireAdmin()
   const parsed = expiryInputSchema.parse(input)
+  const access = await requireShareAccess(parsed.shareId)
+  await requireWorkspaceRole(access.workspace.id, ['owner', 'admin'])
 
   if (parsed.expiresAt && new Date(parsed.expiresAt).getTime() <= Date.now()) {
     throw new Error('Expiry must be in the future.')
   }
 
-  const { data, error } = await createSupabaseAdminClient()
+  const query = createSupabaseAdminClient()
     .from('shares')
     .update({ expires_at: parsed.expiresAt })
     .eq('id', parsed.shareId)
+  const { data, error } = await query.eq('workspace_id', access.workspace.id)
     .select('id')
     .maybeSingle()
 
@@ -59,16 +63,18 @@ export async function updateShareExpiry(input: unknown) {
 }
 
 export async function rotateShare(input: unknown) {
-  await requireAdmin()
   const shareId = shareIdSchema.parse(input)
+  const access = await requireShareAccess(shareId)
+  await requireWorkspaceRole(access.workspace.id, ['owner', 'admin'])
   const rawToken = generateShareToken()
-  const { data, error } = await createSupabaseAdminClient()
+  const query = createSupabaseAdminClient()
     .from('shares')
     .update({
       token_hash: hashShareToken(rawToken),
       revoked_at: null,
     })
     .eq('id', shareId)
+  const { data, error } = await query.eq('workspace_id', access.workspace.id)
     .select('id')
     .maybeSingle()
 

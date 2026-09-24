@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 
-import { requireAdmin } from '@/lib/auth/require-admin'
+import { requireRepositoryAccess, requireWorkspaceRole } from '@/lib/auth/workspace'
 import { getPublicEnv } from '@/lib/env/public'
 import { getRepositoryRef } from '@/lib/github/repositories'
 import { parseVisibilityRules } from '@/lib/security/visibility'
@@ -28,20 +28,24 @@ const shareFormInputSchema = z.object({
 })
 
 export async function validateShareForm(input: unknown) {
-  await requireAdmin()
   const parsed = shareFormInputSchema.parse(input)
+  const repositoryAccess = await requireRepositoryAccess(parsed.repositoryId)
+  await requireWorkspaceRole(repositoryAccess.workspace.id, ['owner', 'admin'])
   const repositories = await listRegisteredRepositories()
   const repository = repositories.find((candidate) => candidate.id === parsed.repositoryId)
 
   if (!repository || !repository.enabled) {
     throw new Error('Choose an enabled repository before creating a share.')
   }
+  if (repository.workspace_id !== repositoryAccess.workspace.id) {
+    throw new Error('That repository is not available in the active workspace.')
+  }
 
   if (parsed.expiresAt && new Date(parsed.expiresAt).getTime() <= Date.now()) {
     throw new Error('Expiry must be in the future.')
   }
 
-  const repositoryRef = await getRepositoryRef(repository.github_owner, repository.github_repo, parsed.ref)
+  const repositoryRef = await getRepositoryRef(repository.github_owner, repository.github_repo, parsed.ref, repositoryAccess.workspace.id)
   const rules = parseVisibilityRules({ hidden: parsed.hidden, allowOnly: parsed.allowOnly })
   const recipientLabel = parsed.recipientName || parsed.recipientLabel || parsed.company || ''
 
@@ -66,20 +70,24 @@ export async function validateShareForm(input: unknown) {
 }
 
 export async function createShare(input: unknown) {
-  const user = await requireAdmin()
   const parsed = shareFormInputSchema.parse(input)
+  const repositoryAccess = await requireRepositoryAccess(parsed.repositoryId)
+  await requireWorkspaceRole(repositoryAccess.workspace.id, ['owner', 'admin'])
   const repositories = await listRegisteredRepositories()
   const repository = repositories.find((candidate) => candidate.id === parsed.repositoryId)
 
   if (!repository || !repository.enabled) {
     throw new Error('Choose an enabled repository before creating a share.')
   }
+  if (repository.workspace_id !== repositoryAccess.workspace.id) {
+    throw new Error('That repository is not available in the active workspace.')
+  }
 
   if (parsed.expiresAt && new Date(parsed.expiresAt).getTime() <= Date.now()) {
     throw new Error('Expiry must be in the future.')
   }
 
-  const repositoryRef = await getRepositoryRef(repository.github_owner, repository.github_repo, parsed.ref)
+  const repositoryRef = await getRepositoryRef(repository.github_owner, repository.github_repo, parsed.ref, repositoryAccess.workspace.id)
   const rules = parseVisibilityRules({ hidden: parsed.hidden, allowOnly: parsed.allowOnly })
   const recipientLabel = parsed.recipientName || parsed.recipientLabel || parsed.company || null
   const rawToken = generateShareToken()
@@ -102,7 +110,8 @@ export async function createShare(input: unknown) {
         allowOnly: [...rules.allowOnly],
       },
       note: parsed.note || null,
-      created_by: user.id,
+      workspace_id: repositoryAccess.workspace.id,
+      created_by: repositoryAccess.user.id,
     })
     .select('id, share_code')
     .single()
@@ -113,6 +122,7 @@ export async function createShare(input: unknown) {
 
   if (parsed.shareType === 'recipient' || parsed.recipientName || parsed.company || parsed.email || parsed.roleNotes) {
     const { error: recipientError } = await createSupabaseAdminClient().from('share_recipients').insert({
+      workspace_id: repositoryAccess.workspace.id,
       share_id: data.id,
       recipient_name: parsed.recipientName || null,
       company: parsed.company || null,

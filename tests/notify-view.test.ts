@@ -18,7 +18,7 @@ const input = {
   sessionId: '33333333-3333-4333-8333-333333333333',
   confirmedAt: '2026-09-22T00:00:00.000Z',
   now: new Date('2026-09-22T00:00:01.000Z'),
-  share: { recipient_label: 'Interview', ref: 'heads/main', notify_on_view: true },
+  share: { workspace_id: '11111111-1111-4111-8111-111111111111', recipient_label: 'Interview', ref: 'heads/main', notify_on_view: true },
   repository: { github_owner: 'octocat', github_repo: 'hello-world' },
   session: { browser: 'Chrome', os: 'macOS', device_type: 'desktop', country: 'CA', is_probable_bot: false },
 }
@@ -33,6 +33,11 @@ function createAdminMock(claim: object | null) {
   const admin = {
     from(table: string) {
       if (table === 'viewer_sessions') return { update, eq, is, select, maybeSingle }
+      if (table === 'notification_settings') return {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: { notification_email: null, notify_on_view: true }, error: null }),
+      }
       return { insert: deliveryInsert }
     },
   }

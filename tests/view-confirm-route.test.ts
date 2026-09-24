@@ -66,7 +66,7 @@ describe('view confirmation route', () => {
   })
 
   it('atomically confirms once and inserts view_confirmed', async () => {
-    requireSession.mockResolvedValue({ session: { id: sessionId } } as never)
+    requireSession.mockResolvedValue({ session: { id: sessionId }, share: { workspace_id: 'workspace-1' } } as never)
     const { admin, update, eq, is, select, eventInsert } = createAdminMock({ id: sessionId, share_id: shareId, confirmed_at: '2026-09-22T00:00:00.000Z' })
     getAdmin.mockReturnValue(admin as never)
 
@@ -83,6 +83,7 @@ describe('view confirmation route', () => {
     expect(is).toHaveBeenCalledWith('confirmed_at', null)
     expect(select).toHaveBeenCalledWith('id, share_id, confirmed_at')
     expect(eventInsert).toHaveBeenCalledWith({
+      workspace_id: 'workspace-1',
       share_id: shareId,
       session_id: sessionId,
       event_type: 'view_confirmed',
@@ -93,7 +94,7 @@ describe('view confirmation route', () => {
   })
 
   it('keeps viewer confirmation successful when SMTP notification fails', async () => {
-    requireSession.mockResolvedValue({ session: { id: sessionId } } as never)
+    requireSession.mockResolvedValue({ session: { id: sessionId }, share: { workspace_id: 'workspace-1' } } as never)
     notifyViewer.mockRejectedValue(new Error('SMTP provider unavailable'))
     const { admin } = createAdminMock({ id: sessionId, share_id: shareId, confirmed_at: '2026-09-22T00:00:00.000Z' })
     getAdmin.mockReturnValue(admin as never)
@@ -105,7 +106,7 @@ describe('view confirmation route', () => {
   })
 
   it('treats an already-confirmed session as an idempotent no-op', async () => {
-    requireSession.mockResolvedValue({ session: { id: sessionId } } as never)
+    requireSession.mockResolvedValue({ session: { id: sessionId }, share: { workspace_id: 'workspace-1' } } as never)
     const { admin, eventInsert } = createAdminMock(null)
     getAdmin.mockReturnValue(admin as never)
 

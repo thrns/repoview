@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { createSupabaseAdminClient } from '../supabase/admin'
+import { requireShareAccess } from '../auth/workspace'
 import type { Json } from '../supabase/database.types'
 import { getShareStatus, type ShareDashboardItem } from './dashboard'
 
@@ -55,22 +56,21 @@ export async function getShareDetail(id: string, now = new Date()): Promise<Shar
     throw new ShareDetailNotFoundError()
   }
 
-  const admin = createSupabaseAdminClient()
-  const { data: share, error: shareError } = await admin
-    .from('shares')
-    .select('*')
-    .eq('id', id)
-    .maybeSingle()
-
-  if (shareError || !share) {
+  let access: Awaited<ReturnType<typeof requireShareAccess>>
+  try {
+    access = await requireShareAccess(id)
+  } catch {
     throw new ShareDetailNotFoundError()
   }
 
+  const admin = createSupabaseAdminClient()
+  const { share, workspace } = access
+
   const [{ data: repository, error: repositoryError }, { data: sessions, error: sessionsError }, { data: events, error: eventsError }, { data: notifications, error: notificationsError }] = await Promise.all([
-    admin.from('repositories').select('*').eq('id', share.repository_id).maybeSingle(),
-    admin.from('viewer_sessions').select('*').eq('share_id', id).order('last_seen_at', { ascending: false }),
-    admin.from('view_events').select('*').eq('share_id', id).order('created_at', { ascending: false }).limit(100),
-    admin.from('notification_deliveries').select('*').eq('share_id', id).order('created_at', { ascending: false }).limit(50),
+    admin.from('repositories').select('*').eq('id', share.repository_id).eq('workspace_id', workspace.id).maybeSingle(),
+    admin.from('viewer_sessions').select('*').eq('share_id', id).eq('workspace_id', workspace.id).order('last_seen_at', { ascending: false }),
+    admin.from('view_events').select('*').eq('share_id', id).eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(100),
+    admin.from('notification_deliveries').select('*').eq('share_id', id).eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(50),
   ])
 
   if (repositoryError || sessionsError || eventsError || notificationsError) {

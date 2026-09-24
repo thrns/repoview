@@ -32,12 +32,13 @@ export async function recordViewerAnalytics({
   if (maxDirectoryDepth > numberValue(viewer.session.max_directory_depth)) update.max_directory_depth = maxDirectoryDepth
 
   if (Object.keys(update).length > 0) {
-    const { error } = await admin.from('viewer_sessions').update(update as never).eq('id', viewer.session.id).eq('share_id', internalShareId)
+    const { error } = await admin.from('viewer_sessions').update(update as never).eq('id', viewer.session.id).eq('share_id', internalShareId).eq('workspace_id', viewer.share.workspace_id)
     if (error) throw error
   }
 
   if (events.length > 0) {
     const rows = events.map((event) => ({
+      workspace_id: viewer.share.workspace_id,
       share_id: internalShareId,
       session_id: viewer.session.id,
       event_type: event.eventType,
@@ -51,7 +52,7 @@ export async function recordViewerAnalytics({
     const { error } = await admin.from('view_events').insert(rows)
     if (error) throw error
 
-    await updateFileEngagement(admin, internalShareId, viewer.session.id, viewer.session.viewer_id, events, now)
+    await updateFileEngagement(admin, internalShareId, viewer.session.id, viewer.session.viewer_id, viewer.share.workspace_id, events, now)
   }
 
   if (session?.ended) {
@@ -144,7 +145,7 @@ function sanitizeClientContext(input: ViewerClientContext): ViewerClientContext 
   }
 }
 
-async function updateFileEngagement(admin: ReturnType<typeof createSupabaseAdminClient>, shareId: string, sessionId: string, viewerId: string | null, events: ViewerAnalyticsEvent[], now: string) {
+async function updateFileEngagement(admin: ReturnType<typeof createSupabaseAdminClient>, shareId: string, sessionId: string, viewerId: string | null, workspaceId: string, events: ViewerAnalyticsEvent[], now: string) {
   const fileEvents = events.filter((event) => event.path && ['file_opened', 'file_viewed', 'markdown_viewed', 'mermaid_viewed', 'image_viewed', 'raw_file_viewed', 'scroll_depth'].includes(event.eventType))
   const grouped = new Map<string, ViewerAnalyticsEvent[]>()
   for (const event of fileEvents) {
@@ -153,7 +154,7 @@ async function updateFileEngagement(admin: ReturnType<typeof createSupabaseAdmin
   }
 
   for (const [path, pathEvents] of grouped) {
-    const { data: existing, error: lookupError } = await admin.from('file_engagement').select('*').eq('session_id', sessionId).eq('path', path).maybeSingle()
+    const { data: existing, error: lookupError } = await admin.from('file_engagement').select('*').eq('session_id', sessionId).eq('workspace_id', workspaceId).eq('path', path).maybeSingle()
     if (lookupError) throw lookupError
     const scrollPercent = Math.max(0, ...pathEvents.map((event) => typeof event.metadata?.percent === 'number' ? event.metadata.percent : 0))
     const activeDwellMs = pathEvents.reduce((total, event) => total + (typeof event.metadata?.active_ms === 'number' ? Math.max(0, event.metadata.active_ms) : typeof event.metadata?.dwell_ms === 'number' ? Math.max(0, event.metadata.dwell_ms) : 0), 0)
@@ -163,6 +164,7 @@ async function updateFileEngagement(admin: ReturnType<typeof createSupabaseAdmin
     const firstViewOrder = pathEvents.map((event) => event.clientSequence).filter((value): value is number => typeof value === 'number').sort((left, right) => left - right)[0] ?? null
     if (!existing) {
       const { error } = await admin.from('file_engagement').insert({
+        workspace_id: workspaceId,
         share_id: shareId,
         session_id: sessionId,
         viewer_id: viewerId,
@@ -186,7 +188,7 @@ async function updateFileEngagement(admin: ReturnType<typeof createSupabaseAdmin
       idle_ms: Number(existing.idle_ms ?? 0) + idleDwellMs,
       max_scroll_percent: Math.max(Number(existing.max_scroll_percent) || 0, scrollPercent),
       content_kind: typeof contentKind === 'string' ? contentKind : existing.content_kind,
-    }).eq('id', existing.id)
+    }).eq('id', existing.id).eq('workspace_id', workspaceId).eq('session_id', sessionId)
     if (error) throw error
   }
 }

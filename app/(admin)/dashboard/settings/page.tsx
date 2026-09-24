@@ -2,17 +2,20 @@ import { Mail } from 'lucide-react'
 
 import { SendTestEmailForm } from '@/components/admin/send-test-email-form'
 import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui'
+import { requireWorkspace } from '@/lib/auth/workspace'
 
 export const dynamic = 'force-dynamic'
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  await requireWorkspace()
+
   return (
     <section className="mx-auto w-full max-w-5xl space-y-8 px-6 py-10 lg:px-10 lg:py-14">
       <header className="space-y-3">
         <Badge variant="outline">Workspace settings</Badge>
         <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">Settings</h1>
         <p className="max-w-2xl text-sm leading-6 text-foreground-muted">
-          Validate the owner notification channel without exposing SMTP credentials to the browser.
+          Validate the workspace notification channel without exposing SMTP credentials to the browser.
         </p>
       </header>
 

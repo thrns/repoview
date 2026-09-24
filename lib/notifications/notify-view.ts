@@ -12,6 +12,7 @@ type NotifyConfirmedViewerInput = {
   confirmedAt: string
   now?: Date
   share: {
+    workspace_id: string
     recipient_label: string | null
     ref: string
     notify_on_view: boolean
@@ -48,12 +49,17 @@ export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): 
   }
 
   const admin = createSupabaseAdminClient()
+  const notificationSettings = await getNotificationSettings(admin, input.share.workspace_id)
+  if (notificationSettings && !notificationSettings.notify_on_view) {
+    return { status: 'disabled' }
+  }
   const attemptedAt = (input.now ?? new Date()).toISOString()
-  const { data: claim, error: claimError } = await admin
+  const claimQuery = admin
     .from('viewer_sessions')
     .update({ notified_at: attemptedAt })
     .eq('id', input.sessionId)
     .eq('share_id', input.shareId)
+  const { data: claim, error: claimError } = await claimQuery.eq('workspace_id', input.share.workspace_id)
     .is('notified_at', null)
     .select('id')
     .maybeSingle()
@@ -65,7 +71,7 @@ export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): 
     return { status: 'already-attempted' }
   }
 
-  const visitContext = await getVisitContext(admin, input.shareId, input.sessionId, input.session.viewer_id)
+  const visitContext = await getVisitContext(admin, input.shareId, input.sessionId, input.session.viewer_id, input.share.workspace_id)
   const viewerLabel = visitContext.viewerCode ? `Anonymous Viewer #${visitContext.viewerCode}` : input.share.recipient_label ?? 'Anonymous Viewer'
   const email = buildViewNotificationEmail({
     recipientLabel: input.share.recipient_label,
@@ -87,9 +93,8 @@ export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): 
 
   let status: 'sent' | 'failed' = 'sent'
   try {
-    const { NOTIFICATION_TO_EMAIL } = getServerEnv()
     await sendSmtpEmail({
-      to: NOTIFICATION_TO_EMAIL,
+      to: notificationSettings?.notification_email ?? getServerEnv().NOTIFICATION_TO_EMAIL,
       subject: email.subject,
       text: email.text,
       html: email.html,
@@ -99,6 +104,7 @@ export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): 
   }
 
   const { error: deliveryError } = await admin.from('notification_deliveries').insert({
+    workspace_id: input.share.workspace_id,
     share_id: input.shareId,
     session_id: input.sessionId,
     channel: 'email',
@@ -107,7 +113,7 @@ export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): 
     payload: { viewer_label: viewerLabel, visit_count: visitContext.visitCount },
     error_text: status === 'failed' ? 'SMTP delivery failed.' : null,
     sent_at: status === 'sent' ? attemptedAt : null,
-  })
+  } as never)
 
   if (deliveryError) {
     throw deliveryError
@@ -118,15 +124,21 @@ export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): 
 
 export async function notifySessionSummary({ shareId, sessionId, share, repository }: { shareId: string; sessionId: string; share: Record<string, unknown>; repository: Record<string, unknown> }) {
   const admin = createSupabaseAdminClient()
-  const { data: session, error: sessionError } = await admin.from('viewer_sessions').select('*').eq('id', sessionId).eq('share_id', shareId).maybeSingle()
+  const workspaceId = typeof share.workspace_id === 'string' ? share.workspace_id : undefined
+  if (!workspaceId) return { status: 'skipped' as const }
+  const notificationSettings = await getNotificationSettings(admin, workspaceId)
+  const sessionQuery = admin.from('viewer_sessions').select('*').eq('id', sessionId).eq('share_id', shareId)
+  const { data: session, error: sessionError } = await sessionQuery.eq('workspace_id', workspaceId).maybeSingle()
   if (sessionError || !session || !session.confirmed_at || session.is_probable_bot) return { status: 'skipped' as const }
   if (share.notify_on_view === false) return { status: 'disabled' as const }
+  if (notificationSettings && !notificationSettings.notify_on_view) return { status: 'disabled' as const }
 
   const endedAt = session.ended_at ?? session.last_seen_at
-  const { data: claim, error: claimError } = await admin.from('viewer_sessions')
+  const summaryClaimQuery = admin.from('viewer_sessions')
     .update({ session_summary_notified_at: new Date().toISOString() })
     .eq('id', sessionId)
     .eq('share_id', shareId)
+  const { data: claim, error: claimError } = await summaryClaimQuery.eq('workspace_id', workspaceId)
     .is('session_summary_notified_at', null)
     .select('id')
     .maybeSingle()
@@ -134,10 +146,10 @@ export async function notifySessionSummary({ shareId, sessionId, share, reposito
   if (!claim) return { status: 'already-attempted' as const }
 
   const [{ data: events }, { data: engagement }] = await Promise.all([
-    admin.from('view_events').select('event_type, path, created_at').eq('session_id', sessionId).order('created_at', { ascending: true }),
-    admin.from('file_engagement').select('path, active_ms, view_count').eq('session_id', sessionId).order('active_ms', { ascending: false }).limit(5),
+    admin.from('view_events').select('event_type, path, created_at').eq('session_id', sessionId).eq('workspace_id', workspaceId).order('created_at', { ascending: true }),
+    admin.from('file_engagement').select('path, active_ms, view_count').eq('session_id', sessionId).eq('workspace_id', workspaceId).order('active_ms', { ascending: false }).limit(5),
   ])
-  const visitContext = await getVisitContext(admin, shareId, sessionId, session.viewer_id)
+  const visitContext = await getVisitContext(admin, shareId, sessionId, session.viewer_id, workspaceId)
   const fileEvents = (events ?? []).filter((event) => event.path && ['file_opened', 'file_viewed', 'markdown_viewed', 'raw_file_viewed', 'image_viewed'].includes(event.event_type))
   const files = [...new Set(fileEvents.map((event) => event.path as string))]
   const directories = new Set((events ?? []).filter((event) => event.event_type === 'directory_opened' || event.event_type === 'directory_viewed').map((event) => event.path).filter(Boolean))
@@ -165,12 +177,12 @@ export async function notifySessionSummary({ shareId, sessionId, share, reposito
 
   let status: 'sent' | 'failed' = 'sent'
   try {
-    const { NOTIFICATION_TO_EMAIL } = getServerEnv()
-    await sendSmtpEmail({ to: NOTIFICATION_TO_EMAIL, subject: email.subject, text: email.text, html: email.html })
+    await sendSmtpEmail({ to: notificationSettings?.notification_email ?? getServerEnv().NOTIFICATION_TO_EMAIL, subject: email.subject, text: email.text, html: email.html })
   } catch {
     status = 'failed'
   }
   const { error: deliveryError } = await admin.from('notification_deliveries').insert({
+    workspace_id: workspaceId,
     share_id: shareId,
     session_id: sessionId,
     channel: 'email',
@@ -179,18 +191,28 @@ export async function notifySessionSummary({ shareId, sessionId, share, reposito
     error_text: status === 'failed' ? 'SMTP delivery failed.' : null,
     payload: { viewer_label: visitContext.viewerCode ? `Anonymous Viewer #${visitContext.viewerCode}` : 'Anonymous Viewer', files_viewed: files.length },
     sent_at: status === 'sent' ? new Date().toISOString() : null,
-  })
+  } as never)
   if (deliveryError) throw deliveryError
   return { status }
 }
 
-async function getVisitContext(admin: ReturnType<typeof createSupabaseAdminClient>, shareId: string, sessionId: string, viewerId?: string | null) {
+async function getNotificationSettings(admin: ReturnType<typeof createSupabaseAdminClient>, workspaceId: string) {
+  const { data, error } = await admin
+    .from('notification_settings')
+    .select('notification_email, notify_on_view')
+    .eq('workspace_id', workspaceId)
+    .maybeSingle()
+  if (error) throw error
+  return data
+}
+
+async function getVisitContext(admin: ReturnType<typeof createSupabaseAdminClient>, shareId: string, sessionId: string, viewerId: string | null | undefined, workspaceId: string) {
   if (!viewerId) return { viewerCode: null, visitCount: 1 }
   void sessionId
   try {
     const [{ data: viewer }, { data: sessions }] = await Promise.all([
-      admin.from('viewers').select('viewer_code').eq('id', viewerId).maybeSingle(),
-      admin.from('viewer_sessions').select('id').eq('share_id', shareId).eq('viewer_id', viewerId).not('confirmed_at', 'is', null),
+      admin.from('viewers').select('viewer_code').eq('id', viewerId).eq('workspace_id', workspaceId).maybeSingle(),
+      admin.from('viewer_sessions').select('id').eq('share_id', shareId).eq('workspace_id', workspaceId).eq('viewer_id', viewerId).not('confirmed_at', 'is', null),
     ])
     return { viewerCode: viewer?.viewer_code ?? null, visitCount: sessions?.length ?? 1 }
   } catch {

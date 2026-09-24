@@ -84,9 +84,9 @@ export function SignupForm() {
   return (
     <Card className="login-card">
       <CardHeader className="login-card-header">
-        <div className="login-form-meta">Owner sign-up</div>
+        <div className="login-form-meta">Workspace sign-up</div>
         <CardTitle className="login-card-title">Create your RepoView account</CardTitle>
-        <CardDescription className="login-card-description">Set up owner access for private repository shares and viewer activity.</CardDescription>
+        <CardDescription className="login-card-description">Create a personal workspace for private repository shares and viewer activity.</CardDescription>
       </CardHeader>
       <CardContent className="login-card-content">
         {isComplete ? (

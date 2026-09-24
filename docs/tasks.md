@@ -352,7 +352,7 @@ Added the `/login` App Router page and client form using the Supabase browser cl
 
 - [x] Implement server-side admin guard.
 - [x] Redirect unauthenticated users to `/login`.
-- [x] If `ADMIN_EMAIL` is set, enforce it.
+- [x] The legacy single-owner email guard was enforced.
 - [x] Ensure direct requests to private dashboard routes are protected.
 
 **Verify**
@@ -363,7 +363,7 @@ Added the `/login` App Router page and client form using the Supabase browser cl
 - Admin auth is enforced server-side, not only in UI.
 
 **Implementation note:**  
-Added server-only `requireAdmin()`, a dynamic protected `/dashboard` layout/page, and root Next 16 `proxy.ts` session-refresh wiring. The guard checks Supabase `getUser()` on every dashboard request and compares `ADMIN_EMAIL` case-insensitively when configured. A browser request to `/dashboard` without configured credentials was verified to return a 307 redirect to `/login?error=unavailable` without rendering dashboard content.
+Added the legacy server-only single-owner guard, a dynamic protected `/dashboard` layout/page, and root Next 16 `proxy.ts` session-refresh wiring. The guard checked Supabase `getUser()` on every dashboard request and compared the configured owner email when present. A browser request to `/dashboard` without configured credentials was verified to return a 307 redirect to `/login?error=unavailable` without rendering dashboard content. This historical model has since been replaced by workspace membership authorization.
 
 ---
 
@@ -1217,7 +1217,7 @@ Connected first-time meaningful confirmation to notification delivery. An atomic
 - SMTP can be validated from UI.
 
 **Implementation note:**  
-Added the protected `/dashboard/settings` page and server action for a one-off SMTP test message. The action authenticates with `requireAdmin`, sends only through the server transport, and returns generic success/failure feedback; the client surface never receives credentials or provider diagnostics. Added action tests and verified the production route build. Automated checks did not dispatch a real email.
+Added the protected `/dashboard/settings` page and server action for a one-off SMTP test message. The action authenticated with the legacy single-owner guard, sent only through the server transport, and returned generic success/failure feedback; the client surface never received credentials or provider diagnostics. Added action tests and verified the production route build. Automated checks did not dispatch a real email.
 
 ---
 

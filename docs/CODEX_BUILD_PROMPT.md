@@ -61,15 +61,14 @@ This is a Next.js **16.3.3** application. Do not copy stale Next.js 13/14/15 pat
 
 ## Required architecture
 
-### 1. Admin authentication
+### 1. Workspace authentication and authorization
 
-Use Supabase Auth for owner/admin login.
+Use Supabase Auth only to establish identity. Every account receives a personal workspace and owner membership.
 
-For v1 this is a single-owner application:
-- admin account is created manually in Supabase.
-- optional `ADMIN_EMAIL` environment variable can enforce the permitted admin email.
-- signup UI must not be publicly available.
 - `/dashboard/**` is private.
+- authorization resolves `user → workspace_members → workspace resources`;
+- use `requireUser()`, `requireWorkspaceMember()`, `requireWorkspaceRole()`, `requireRepositoryAccess()`, and `requireShareAccess()`;
+- do not use an email environment variable as customer authorization;
 - unauthenticated users are redirected to `/login`.
 
 Use the Supabase SSR pattern with:
@@ -491,8 +490,6 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-
-ADMIN_EMAIL=
 
 GITHUB_APP_ID=
 GITHUB_APP_INSTALLATION_ID=

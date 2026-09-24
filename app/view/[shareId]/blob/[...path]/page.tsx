@@ -30,10 +30,12 @@ export default async function ViewerFilePage({ params }: { params: Promise<{ sha
       data.repositorySlug,
       requestedPath,
       data.refName,
+      data.workspaceId,
     )
     after(() => recordViewerViewEvent({
       shareId: data.internalShareId,
       sessionId: data.sessionId,
+      workspaceId: data.workspaceId,
       eventType: file.kind === 'text' && detectViewerLanguage(file.path) === 'markdown' ? 'markdown_viewed' : 'file_viewed',
       path: file.path,
       metadata: { route: 'blob', preview: file.kind },
