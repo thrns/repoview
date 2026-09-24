@@ -102,6 +102,7 @@ export async function deleteAccountData({ user, confirmation }: { user: User; co
       'github_installations',
       'notification_settings',
       'audit_logs',
+      'quota_counters',
       'github_connection_transactions',
     ] as const) {
       await expectSuccess(admin.from(table).delete().in('workspace_id', workspaceIds))

@@ -2,6 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 vi.mock('../lib/supabase/admin', () => ({ createSupabaseAdminClient: vi.fn() }))
+vi.mock('../lib/security/quotas', () => ({
+  reserveQuota: vi.fn(async () => ({ scope: 'notification-emails-workspace-daily', workspaceId: 'workspace-1', subjectId: 'workspace', periodStart: '2026-09-24T00:00:00.000Z', increment: 1, resetAt: '2026-09-25T00:00:00.000Z' })),
+  releaseQuota: vi.fn(async () => undefined),
+  QuotaExceededError: class QuotaExceededError extends Error {},
+}))
 vi.mock('../lib/notifications/email-provider', async () => {
   class MockProviderError extends Error {
     readonly retryable: boolean

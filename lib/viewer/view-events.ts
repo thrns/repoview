@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { createSupabaseAdminClient } from '../supabase/admin'
+import { releaseQuota, reserveQuota } from '../security/quotas'
 import type { Json } from '../supabase/database.types'
 import type { ViewerAnalyticsMode } from './privacy'
 
@@ -53,17 +54,24 @@ export async function recordViewerViewEvent({
     return { recorded: false }
   }
 
-  const { error: insertError } = await admin.from('view_events').insert({
-    workspace_id: workspaceId,
-    share_id: shareId,
-    session_id: sessionId,
-    event_type: eventType,
-    path,
-    metadata: sanitizeViewEventMetadata(metadata),
-  } as never)
+  const reservations = []
+  try {
+    reservations.push(await reserveQuota('analytics-events-session', workspaceId, sessionId, 1, new Date(now), admin))
+    reservations.push(await reserveQuota('analytics-events-workspace-daily', workspaceId, 'workspace', 1, new Date(now), admin))
 
-  if (insertError) {
-    throw insertError
+    const { error: insertError } = await admin.from('view_events').insert({
+      workspace_id: workspaceId,
+      share_id: shareId,
+      session_id: sessionId,
+      event_type: eventType,
+      path,
+      metadata: sanitizeViewEventMetadata(metadata),
+    } as never)
+
+    if (insertError) throw insertError
+  } catch (error) {
+    await Promise.all(reservations.reverse().map((reservation) => releaseQuota(reservation, admin)))
+    throw error
   }
 
   return { recorded: true }

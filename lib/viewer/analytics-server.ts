@@ -4,6 +4,7 @@ import { after } from 'next/server'
 
 import { requireViewerSession } from '@/lib/auth/viewer-session'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
+import { releaseQuota, reserveQuota } from '@/lib/security/quotas'
 import type { ViewerAnalyticsEvent, ViewerClientContext, ViewerSessionSnapshot } from './analytics-types'
 
 export async function recordViewerAnalytics({
@@ -41,6 +42,8 @@ export async function recordViewerAnalytics({
   }
 
   if (collectOptionalAnalytics && events.length > 0) {
+    const reservations = []
+    let viewEventsInserted = false
     const rows = events.map((event) => ({
       workspace_id: viewer.share.workspace_id,
       share_id: internalShareId,
@@ -49,10 +52,21 @@ export async function recordViewerAnalytics({
       path: sanitizePath(event.path),
       metadata: sanitizeEventMetadata(event.metadata),
     }))
-    const { error } = await admin.from('view_events').insert(rows)
-    if (error) throw error
+    try {
+      reservations.push(await reserveQuota('analytics-events-session', viewer.share.workspace_id, viewer.session.id, events.length, new Date(now), admin))
+      reservations.push(await reserveQuota('analytics-events-workspace-daily', viewer.share.workspace_id, 'workspace', events.length, new Date(now), admin))
 
-    await updateFileEngagement(admin, internalShareId, viewer.session.id, viewer.session.viewer_id, viewer.share.workspace_id, events, now)
+      const { error } = await admin.from('view_events').insert(rows)
+      if (error) throw error
+      viewEventsInserted = true
+
+      await updateFileEngagement(admin, internalShareId, viewer.session.id, viewer.session.viewer_id, viewer.share.workspace_id, events, now)
+    } catch (error) {
+      if (!viewEventsInserted) {
+        await Promise.all(reservations.reverse().map((reservation) => releaseQuota(reservation, admin)))
+      }
+      throw error
+    }
   }
 
   if (collectOptionalAnalytics && session?.ended) {

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Alert, AlertDescription, AlertTitle, Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui'
 import type { Tables } from '@/lib/supabase/database.types'
 
-export type GitHubConnectionStatus = 'success' | 'pending' | 'denied' | 'cancelled' | 'error'
+export type GitHubConnectionStatus = 'success' | 'pending' | 'denied' | 'cancelled' | 'quota' | 'error'
 
 export function GitHubConnectionStatusAlert({ status }: { status?: string }) {
   if (!isConnectionStatus(status)) return null
@@ -29,6 +29,11 @@ export function GitHubConnectionStatusAlert({ status }: { status?: string }) {
       title: 'GitHub connection cancelled',
       message: 'No changes were made to this workspace.',
       className: 'border-border bg-muted/20',
+    },
+    quota: {
+      title: 'Workspace connection limit reached',
+      message: 'This workspace already has the maximum number of GitHub installations. Disconnect one before connecting another.',
+      className: 'border-warning/40 bg-warning/5',
     },
     error: {
       title: 'GitHub connection failed',
@@ -110,5 +115,5 @@ export function GitHubConnectionCard({
 }
 
 function isConnectionStatus(value: string | undefined): value is GitHubConnectionStatus {
-  return value === 'success' || value === 'pending' || value === 'denied' || value === 'cancelled' || value === 'error'
+  return value === 'success' || value === 'pending' || value === 'denied' || value === 'cancelled' || value === 'quota' || value === 'error'
 }

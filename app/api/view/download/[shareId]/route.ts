@@ -5,6 +5,7 @@ import { loadRepositoryFile } from '@/lib/github/contents'
 import { normalizeRepositoryPath } from '@/lib/security/path'
 import { isPathAllowedForShare } from '@/lib/security/visibility'
 import { checkPublicRateLimit, checkRateLimits, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../../lib/security/rate-limit'
+import { QuotaExceededError, QuotaUnavailableError, quotaResponse, quotaUnavailableResponse, reserveQuota } from '../../../../../lib/security/quotas'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,6 +31,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ shar
     return rateLimitUnavailableResponse()
   }
   if (!viewer.share.allow_download || !isPathAllowedForShare(path, viewer.repository.default_rules, viewer.share.rules)) return new NextResponse(null, { status: 404 })
+  try {
+    await reserveQuota('downloads-session', viewer.share.workspace_id, viewer.session.id)
+  } catch (error) {
+    if (error instanceof QuotaExceededError) return quotaResponse(error)
+    if (error instanceof QuotaUnavailableError) return quotaUnavailableResponse()
+    return new NextResponse(null, { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '30' } })
+  }
   try {
     const file = await loadRepositoryFile(
       viewer.accessibleRepository.owner,

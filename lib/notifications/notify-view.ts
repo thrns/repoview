@@ -37,6 +37,7 @@ type NotifyConfirmedViewerInput = {
 export type NotificationResult =
   | { status: 'disabled' | 'probable-bot' | 'already-attempted' | 'unconfigured' }
   | { status: 'queued'; deliveryId: string }
+  | { status: 'quota-exceeded'; message: string }
 
 export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): Promise<NotificationResult> {
   if (!input.share.notify_on_view) {
@@ -92,7 +93,8 @@ export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): 
     },
     payload: { viewer_label: viewerLabel, visit_count: visitContext.visitCount },
   })
-  return queued.status === 'queued' ? queued : { status: 'already-attempted' }
+  if (queued.status === 'queued' || queued.status === 'quota-exceeded') return queued
+  return { status: 'already-attempted' }
 }
 
 export async function notifySessionSummary({ shareId, sessionId, share, repository }: { shareId: string; sessionId: string; share: Record<string, unknown>; repository: Record<string, unknown> }) {
@@ -154,7 +156,8 @@ export async function notifySessionSummary({ shareId, sessionId, share, reposito
     },
     payload: { viewer_label: visitContext.viewerCode ? `Anonymous Viewer #${visitContext.viewerCode}` : 'Anonymous Viewer', files_viewed: files.length },
   })
-  return queued.status === 'queued' ? queued : { status: 'already-attempted' as const }
+  if (queued.status === 'queued' || queued.status === 'quota-exceeded') return queued
+  return { status: 'already-attempted' as const }
 }
 
 async function getNotificationSettings(admin: ReturnType<typeof createSupabaseAdminClient>, workspaceId: string) {

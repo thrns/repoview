@@ -6,6 +6,7 @@ import { VIEWER_ANALYTICS_EVENT_TYPES } from '@/lib/viewer/analytics-types'
 import { isGlobalPrivacyControl } from '@/lib/viewer/privacy-shared'
 import { checkPublicRateLimit, checkRateLimits, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../lib/security/rate-limit'
 import { requireViewerSession } from '../../../../lib/auth/viewer-session'
+import { QuotaExceededError, QuotaUnavailableError, quotaResponse, quotaUnavailableResponse } from '../../../../lib/security/quotas'
 
 const scalarSchema = z.union([z.string().max(512), z.number().finite(), z.boolean(), z.null()])
 const eventSchema = z.object({
@@ -67,7 +68,9 @@ export async function POST(request: Request) {
   try {
     const result = await recordViewerAnalytics(input, { gpcApplied: isGlobalPrivacyControl(request.headers.get('sec-gpc')) })
     return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } })
-  } catch {
+  } catch (error) {
+    if (error instanceof QuotaExceededError) return quotaResponse(error)
+    if (error instanceof QuotaUnavailableError) return quotaUnavailableResponse()
     return NextResponse.json({ error: 'unavailable' }, { status: 401, headers: { 'Cache-Control': 'no-store' } })
   }
 }

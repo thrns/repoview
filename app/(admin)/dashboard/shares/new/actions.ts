@@ -11,6 +11,7 @@ import { generateShareCode, generateShareToken, hashShareToken } from '@/lib/sec
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { listRegisteredRepositories } from '@/lib/repositories/registry'
 import { enforceAuthenticatedRateLimit } from '../../../../../lib/security/rate-limit'
+import { assertWorkspaceResourceQuota, releaseQuota, reserveQuota } from '../../../../../lib/security/quotas'
 
 const shareFormInputSchema = z.object({
   repositoryId: z.string().uuid(),
@@ -92,59 +93,69 @@ export async function createShare(input: unknown) {
     throw new Error('Expiry must be in the future.')
   }
 
-  const installationId = await getGitHubInstallationIdForRepository(repository.id, repositoryAccess.workspace.id, 'member')
-  const repositoryRef = await getRepositoryRef(repository.github_owner, repository.github_repo, parsed.ref, installationId)
-  const rules = parseVisibilityRules({ hidden: parsed.hidden, allowOnly: parsed.allowOnly })
-  const recipientLabel = parsed.recipientName || parsed.recipientLabel || parsed.company || null
-  const rawToken = generateShareToken()
-  const shareCode = generateShareCode()
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from('shares')
-    .insert({
-      repository_id: repository.id,
-      share_code: shareCode,
-      share_type: parsed.shareType,
-      token_hash: hashShareToken(rawToken),
-      recipient_label: recipientLabel,
-      commit_sha: repositoryRef.sha,
+  await assertWorkspaceResourceQuota('active-shares', repositoryAccess.workspace.id)
+  const dailyShareReservation = await reserveQuota('shares-created-daily', repositoryAccess.workspace.id, 'workspace')
+
+  let shareCreated = false
+  try {
+    const installationId = await getGitHubInstallationIdForRepository(repository.id, repositoryAccess.workspace.id, 'member')
+    const repositoryRef = await getRepositoryRef(repository.github_owner, repository.github_repo, parsed.ref, installationId)
+    const rules = parseVisibilityRules({ hidden: parsed.hidden, allowOnly: parsed.allowOnly })
+    const recipientLabel = parsed.recipientName || parsed.recipientLabel || parsed.company || null
+    const rawToken = generateShareToken()
+    const shareCode = generateShareCode()
+    const supabase = await createSupabaseServerClient()
+    const { data, error } = await supabase
+      .from('shares')
+      .insert({
+        repository_id: repository.id,
+        share_code: shareCode,
+        share_type: parsed.shareType,
+        token_hash: hashShareToken(rawToken),
+        recipient_label: recipientLabel,
+        commit_sha: repositoryRef.sha,
+        ref: repositoryRef.name,
+        expires_at: parsed.expiresAt,
+        notify_on_view: parsed.notifyOnView,
+        allow_download: parsed.allowDownload,
+        rules: {
+          hidden: [...rules.hidden],
+          allowOnly: [...rules.allowOnly],
+        },
+        note: parsed.note || null,
+        workspace_id: repositoryAccess.workspace.id,
+        created_by: repositoryAccess.user.id,
+      })
+      .select('id, share_code')
+      .single()
+
+    if (error || !data) {
+      throw new Error('RepoView could not create this share.')
+    }
+    shareCreated = true
+
+    if (parsed.shareType === 'recipient' || parsed.recipientName || parsed.company || parsed.email || parsed.roleNotes) {
+      const { error: recipientError } = await supabase.from('share_recipients').insert({
+        workspace_id: repositoryAccess.workspace.id,
+        share_id: data.id,
+        recipient_name: parsed.recipientName || null,
+        company: parsed.company || null,
+        email: parsed.email || null,
+        role_notes: parsed.roleNotes || null,
+      })
+      if (recipientError) throw new Error('RepoView could not save recipient details.')
+    }
+
+    const appUrl = getPublicEnv().NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
+    return {
+      shareId: data.id,
+      shareCode: data.share_code,
+      shareUrl: `${appUrl}/s/${rawToken}`,
+      repository: `${repository.github_owner}/${repository.github_repo}`,
       ref: repositoryRef.name,
-      expires_at: parsed.expiresAt,
-      notify_on_view: parsed.notifyOnView,
-      allow_download: parsed.allowDownload,
-      rules: {
-        hidden: [...rules.hidden],
-        allowOnly: [...rules.allowOnly],
-      },
-      note: parsed.note || null,
-      workspace_id: repositoryAccess.workspace.id,
-      created_by: repositoryAccess.user.id,
-    })
-    .select('id, share_code')
-    .single()
-
-  if (error || !data) {
-    throw new Error('RepoView could not create this share.')
-  }
-
-  if (parsed.shareType === 'recipient' || parsed.recipientName || parsed.company || parsed.email || parsed.roleNotes) {
-    const { error: recipientError } = await supabase.from('share_recipients').insert({
-      workspace_id: repositoryAccess.workspace.id,
-      share_id: data.id,
-      recipient_name: parsed.recipientName || null,
-      company: parsed.company || null,
-      email: parsed.email || null,
-      role_notes: parsed.roleNotes || null,
-    })
-    if (recipientError) throw new Error('RepoView could not save recipient details.')
-  }
-
-  const appUrl = getPublicEnv().NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
-  return {
-    shareId: data.id,
-    shareCode: data.share_code,
-    shareUrl: `${appUrl}/s/${rawToken}`,
-    repository: `${repository.github_owner}/${repository.github_repo}`,
-    ref: repositoryRef.name,
+    }
+  } catch (error) {
+    if (!shareCreated) await releaseQuota(dailyShareReservation)
+    throw error
   }
 }

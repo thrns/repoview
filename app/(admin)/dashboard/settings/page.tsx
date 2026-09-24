@@ -55,7 +55,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
           </SettingsSection>
 
           <SettingsSection id="github" icon={Github} title="GitHub" description="Manage the GitHub accounts and organizations that can provide private repositories.">
-            <SettingsGitHub installations={data.installations} canManage={canManageWorkspace} />
+            <SettingsGitHub installations={data.installations} canManage={canManageWorkspace} quotaUsage={data.quotaUsage} />
           </SettingsSection>
 
           <SettingsSection id="notifications" icon={Bell} title="Notifications" description="Choose where workspace activity alerts go and which events matter to you.">

@@ -33,10 +33,12 @@ application compilation scope; its adopted visual surface lives in
 - `lib/code/` owns language mapping, binary detection, and highlighting.
 - `lib/notifications/` separates email templates, provider adapters (`smtp`, `resend`, and `postmark`), and the durable notification delivery queue.
 - `lib/security/` owns token hashing, path normalization, visibility, and bot
-  signals, plus the database-backed application rate limiter. Rate limiting is
-  enforced again after viewer/workspace context is known; Vercel or another
-  edge firewall can add coarse volumetric limits without replacing these
-  application checks.
+  signals, plus the database-backed application rate limiter and tenant-scoped
+  cost quotas. Rate limiting protects request frequency; quotas separately cap
+  durable resources, daily work, analytics events, downloads, and notification
+  email. Both are enforced after viewer/workspace context is known where
+  possible; Vercel or another edge firewall can add coarse volumetric limits
+  without replacing these application checks.
 - `lib/supabase/` owns browser, SSR, and server-only admin clients.
 - `lib/viewer/` owns share loading, authorization, and view event operations.
 

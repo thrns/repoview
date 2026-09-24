@@ -8,6 +8,7 @@ import { createSupabaseAdminClient } from '../../../../lib/supabase/admin'
 import { checkPublicRateLimit, checkRateLimits, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../lib/security/rate-limit'
 import type { ViewerClientContext } from '../../../../lib/viewer/analytics-types'
 import { isGlobalPrivacyControl } from '../../../../lib/viewer/privacy-shared'
+import { recordViewerViewEvent } from '../../../../lib/viewer/view-events'
 
 const clientContextSchema = z.object({
   deviceType: z.enum(['desktop', 'mobile', 'tablet']).nullable().optional(),
@@ -90,14 +91,15 @@ export async function POST(request: Request) {
   // best-effort so an analytics write cannot make a valid viewer lose access.
   if (collectOptionalAnalytics) {
     try {
-      void Promise.resolve(admin.from('view_events').insert({
-        workspace_id: viewer.share.workspace_id,
-        share_id: internalShareId,
-        session_id: confirmedSession.id,
-        event_type: 'view_confirmed',
+      void recordViewerViewEvent({
+        workspaceId: viewer.share.workspace_id,
+        shareId: internalShareId,
+        sessionId: confirmedSession.id,
+        eventType: 'view_confirmed',
         path: null,
-        metadata: {},
-      } as never)).catch(() => undefined)
+        analyticsMode: 'optional',
+        gpcApplied: isGlobalPrivacyControl(request.headers.get('sec-gpc')),
+      }).catch(() => undefined)
     } catch {
       // Best effort by design.
     }

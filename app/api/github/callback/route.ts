@@ -6,6 +6,7 @@ import {
   markGitHubConnectionFinished,
 } from '@/lib/github/connection-flow'
 import { RateLimitExceededError, RateLimitUnavailableError, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../lib/security/rate-limit'
+import { QuotaExceededError } from '../../../../lib/security/quotas'
 
 export const runtime = 'nodejs'
 
@@ -35,6 +36,7 @@ export async function GET(request: Request) {
     if (isNextRedirectError(error)) throw error
     if (error instanceof RateLimitExceededError) return rateLimitResponse(error.decision)
     if (error instanceof RateLimitUnavailableError) return rateLimitUnavailableResponse()
+    if (error instanceof QuotaExceededError) return redirectToStatus(request, 'quota')
     const status = error instanceof GitHubConnectionError && error.code === 'denied' ? 'denied' : 'error'
     return redirectToStatus(request, status)
   }

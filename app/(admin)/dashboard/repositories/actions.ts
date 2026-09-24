@@ -8,6 +8,7 @@ import { listWorkspaceInstallationRepositories } from '@/lib/github/repositories
 import { getDefaultVisibilityRules, parseVisibilityRules } from '@/lib/security/visibility'
 import { findRegisteredRepository } from '@/lib/repositories/identity'
 import { enforceAuthenticatedRateLimit, enforceRateLimits } from '../../../../lib/security/rate-limit'
+import { assertWorkspaceResourceQuota } from '../../../../lib/security/quotas'
 import {
   listRegisteredRepositories,
   saveRepositoryRecord,
@@ -79,6 +80,16 @@ export async function setRepositoriesEnabled(input: unknown) {
   await enforceRateLimits('authenticated-repository-sync', [...new Set(parsed.repositories.map((entry) => entry.installationRecordId))].map((installationId) => ({ value: `installation:${installationId}` })))
   const accessibleRepositories = await listWorkspaceInstallationRepositories(context.workspace.id)
   const storedRepositories = await listRegisteredRepositories()
+  const additionalEnabledRepositories = parsed.repositories.reduce((count, entry) => {
+    if (!entry.enabled) return count
+    const existing = entry.repositoryId
+      ? storedRepositories.find((repository) => repository.id === entry.repositoryId)
+      : storedRepositories.find((repository) => repository.github_installation_id === entry.installationRecordId && repository.github_repository_id === entry.githubRepositoryId)
+    return count + (existing?.enabled ? 0 : 1)
+  }, 0)
+  if (additionalEnabledRepositories > 0) {
+    await assertWorkspaceResourceQuota('enabled-repositories', context.workspace.id, additionalEnabledRepositories)
+  }
   await Promise.all(parsed.repositories.map(async (entry) => {
     if (!entry.enabled && entry.repositoryId) {
       const access = await requireRepositoryAccess(entry.repositoryId)

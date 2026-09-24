@@ -3,6 +3,7 @@ import 'server-only'
 import { createSupabaseAdminClient } from '../supabase/admin'
 import type { Json } from '../supabase/database.types'
 import { sendTransactionalEmail, TransactionalEmailProviderError, type TransactionalEmail } from './email-provider'
+import { QuotaExceededError, releaseQuota, reserveQuota } from '../security/quotas'
 
 const MAX_ATTEMPTS = 5
 const PROCESSING_LEASE_MS = 5 * 60_000
@@ -22,11 +23,27 @@ export type QueueNotificationInput = {
 export type QueueNotificationResult =
   | { status: 'queued'; deliveryId: string }
   | { status: 'already-queued' }
+  | { status: 'quota-exceeded'; message: string }
 
 export async function queueNotificationDelivery(
   admin: ReturnType<typeof createSupabaseAdminClient>,
   input: QueueNotificationInput,
 ): Promise<QueueNotificationResult> {
+  let reservation
+  try {
+    reservation = await reserveQuota(
+      'notification-emails-workspace-daily',
+      input.workspaceId,
+      'workspace',
+      1,
+      new Date(),
+      admin,
+    )
+  } catch (error) {
+    if (error instanceof QuotaExceededError) return { status: 'quota-exceeded', message: error.message }
+    throw error
+  }
+
   const payload = {
     ...(isRecord(input.payload) ? input.payload : {}),
     email: input.email,
@@ -48,8 +65,15 @@ export async function queueNotificationDelivery(
     sent_at: null,
   } as never, { onConflict: 'idempotency_key', ignoreDuplicates: true }).select('id').maybeSingle()
 
-  if (error) throw error
-  return data ? { status: 'queued', deliveryId: data.id } : { status: 'already-queued' }
+  if (error) {
+    await releaseQuota(reservation, admin)
+    throw error
+  }
+  if (!data) {
+    await releaseQuota(reservation, admin)
+    return { status: 'already-queued' }
+  }
+  return { status: 'queued', deliveryId: data.id }
 }
 
 export type NotificationDispatchResult =

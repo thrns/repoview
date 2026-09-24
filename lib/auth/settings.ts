@@ -3,6 +3,7 @@ import 'server-only'
 import { requireWorkspace } from './workspace'
 import { createSupabaseServerClient } from '../supabase/server'
 import type { Tables } from '../supabase/database.types'
+import { getWorkspaceQuotaUsage, type WorkspaceQuotaUsage } from '../security/quotas'
 
 export type SettingsInstallation = {
   id: string
@@ -26,6 +27,7 @@ export type SettingsPageData = {
   profile: Tables<'profiles'> | null
   notificationSettings: Tables<'notification_settings'>
   installations: SettingsInstallation[]
+  quotaUsage: WorkspaceQuotaUsage
   emailVerified: boolean
   activity: SettingsActivity[]
 }
@@ -34,7 +36,7 @@ export async function getSettingsPageData(): Promise<SettingsPageData> {
   const context = await requireWorkspace()
   const supabase = await createSupabaseServerClient()
 
-  const [profileResult, notificationResult, installationsResult, repositoriesResult, auditResult] = await Promise.all([
+  const [profileResult, notificationResult, installationsResult, repositoriesResult, auditResult, quotaUsage] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', context.user.id).maybeSingle(),
     supabase.from('notification_settings').select('*').eq('workspace_id', context.workspace.id).maybeSingle(),
     supabase
@@ -54,6 +56,7 @@ export async function getSettingsPageData(): Promise<SettingsPageData> {
         .order('created_at', { ascending: false })
         .limit(4)
       : Promise.resolve({ data: [], error: null }),
+    getWorkspaceQuotaUsage(context.workspace.id),
   ])
 
   if (profileResult.error || notificationResult.error || installationsResult.error || repositoriesResult.error) {
@@ -98,6 +101,7 @@ export async function getSettingsPageData(): Promise<SettingsPageData> {
     profile: profileResult.data as Tables<'profiles'> | null,
     notificationSettings: notificationSettings as Tables<'notification_settings'>,
     installations,
+    quotaUsage,
     emailVerified: isEmailVerified(context.user),
     activity: activity.sort((left, right) => right.occurredAt.localeCompare(left.occurredAt)).slice(0, 4),
   }

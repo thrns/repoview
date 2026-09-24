@@ -6,6 +6,7 @@ import { findRegisteredRepository } from './identity'
 import { createSupabaseServerClient } from '../supabase/server'
 import type { VisibilityRules } from '../security/visibility'
 import type { Tables } from '../supabase/database.types'
+import { assertWorkspaceResourceQuota } from '../security/quotas'
 
 export type RepositoryRecord = Tables<'repositories'>
 
@@ -86,6 +87,19 @@ export async function saveRepositoryRecord(input: {
     throw new Error('RepoView could not verify the GitHub App installation for this workspace.')
   }
 
+  if (input.enabled) {
+    const existing = input.existingRepositoryId
+      ? await supabase
+        .from('repositories')
+        .select('enabled')
+        .eq('id', input.existingRepositoryId)
+        .eq('workspace_id', workspace.id)
+        .maybeSingle()
+      : { data: null, error: null }
+    if (existing.error) throw new Error('RepoView could not inspect this repository record.')
+    if (!existing.data?.enabled) await assertWorkspaceResourceQuota('enabled-repositories', workspace.id)
+  }
+
   const repositoryFields = {
     workspace_id: workspace.id,
     github_installation_id: input.githubInstallationId,
@@ -158,6 +172,7 @@ export async function updateRepositoryVisibilityRules(id: string, rules: Visibil
 export async function setRepositoryEnabled(id: string, enabled: boolean) {
   const access = await requireRepositoryAccess(id)
   await requireWorkspaceRole(access.workspace.id, ['owner', 'admin'])
+  if (enabled && !access.repository.enabled) await assertWorkspaceResourceQuota('enabled-repositories', access.workspace.id)
   const supabase = await createSupabaseServerClient()
   const { error } = await supabase
     .from('repositories')

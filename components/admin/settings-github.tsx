@@ -7,8 +7,9 @@ import { ArrowUpRight, CheckCircle2, Github, Link2Off, RefreshCw, ShieldAlert } 
 import { disconnectGitHubInstallation } from '@/app/(admin)/dashboard/settings/actions'
 import { Alert, AlertDescription, Badge, Button } from '@/components/ui'
 import type { SettingsInstallation } from '@/lib/auth/settings'
+import type { WorkspaceQuotaUsage } from '@/lib/security/quotas'
 
-export function SettingsGitHub({ installations, canManage }: { installations: SettingsInstallation[]; canManage: boolean }) {
+export function SettingsGitHub({ installations, canManage, quotaUsage }: { installations: SettingsInstallation[]; canManage: boolean; quotaUsage: WorkspaceQuotaUsage }) {
   const connected = installations.filter((installation) => installation.status !== 'deleted')
 
   return (
@@ -27,8 +28,21 @@ export function SettingsGitHub({ installations, canManage }: { installations: Se
       )}
       {installations.some((installation) => installation.status === 'deleted') ? <p className="text-xs text-foreground-muted">Disconnected installations remain listed in your account history, but cannot access repositories.</p> : null}
       {!canManage ? <p className="text-xs text-foreground-muted">Only workspace owners and admins can change GitHub connections.</p> : null}
+      <div className="rounded-md border border-border/70 bg-muted/15 p-4">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground-muted">Workspace capacity</p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <Capacity label="Enabled repositories" used={quotaUsage.enabledRepositories.used} limit={quotaUsage.enabledRepositories.limit} />
+          <Capacity label="Active shares" used={quotaUsage.activeShares.used} limit={quotaUsage.activeShares.limit} />
+          <Capacity label="Shares today" used={quotaUsage.sharesCreatedToday.used} limit={quotaUsage.sharesCreatedToday.limit} />
+        </div>
+        <p className="mt-3 text-xs leading-5 text-foreground-muted">These generous safeguards protect workspace reliability and are not billing limits.</p>
+      </div>
     </div>
   )
+}
+
+function Capacity({ label, used, limit }: { label: string; used: number; limit: number }) {
+  return <div><p className="text-xs text-foreground-muted">{label}</p><p className="mt-1 text-sm font-medium tabular-nums">{used.toLocaleString()} <span className="font-normal text-foreground-muted">/ {limit.toLocaleString()}</span></p></div>
 }
 
 function GitHubInstallationRow({ installation, canManage }: { installation: SettingsInstallation; canManage: boolean }) {

@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { requireWorkspaceAdmin } from '../auth/workspace'
 import { createSupabaseAdminClient } from '../supabase/admin'
 import type { Json, Tables } from '../supabase/database.types'
+import { assertWorkspaceResourceQuota } from '../security/quotas'
 
 const GitHubAccountLoginMaxLength = 100
 
@@ -51,7 +52,7 @@ export async function registerVerifiedGitHubInstallation(
 
   const { data: existing, error: lookupError } = await supabase
     .from('github_installations')
-    .select('id, workspace_id')
+    .select('id, workspace_id, status')
     .eq('github_installation_id', parsed.id)
     .maybeSingle()
 
@@ -61,6 +62,11 @@ export async function registerVerifiedGitHubInstallation(
 
   if (existing && existing.workspace_id !== workspace.id) {
     throw new Error('This GitHub App installation is already connected to another workspace.')
+  }
+
+  const shouldConsumeInstallationSlot = !existing || existing.status === 'deleted'
+  if (shouldConsumeInstallationSlot) {
+    await assertWorkspaceResourceQuota('github-installations', workspace.id, 1, supabase)
   }
 
   const query = existing

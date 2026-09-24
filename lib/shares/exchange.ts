@@ -9,6 +9,7 @@ import { generateViewerSessionToken, hashNetworkValue, hashShareToken, hashViewe
 import { findOrCreateViewer } from '../analytics/identity'
 import { createSupabaseAdminClient } from '../supabase/admin'
 import type { ViewerAnalyticsMode } from '../viewer/privacy'
+import { recordViewerViewEvent } from '../viewer/view-events'
 
 export const VIEWER_SESSION_COOKIE = 'repoview_viewer_session'
 
@@ -172,14 +173,15 @@ export async function exchangeShareToken(
   // records the security/access attempt below, but not an owner-facing event.
   if (collectOptionalAnalytics) {
     try {
-      void Promise.resolve(admin.from('view_events').insert({
-        workspace_id: share.workspace_id,
-        share_id: share.id,
-        session_id: session.id,
-        event_type: 'link_opened',
+      void recordViewerViewEvent({
+        workspaceId: share.workspace_id,
+        shareId: share.id,
+        sessionId: session.id,
+        eventType: 'link_opened',
         path: null,
         metadata: toLinkOpenEventMetadata(metadata, true),
-      })).catch(() => undefined)
+        analyticsMode: 'optional',
+      }).catch(() => undefined)
     } catch {
       // Best effort by design.
     }

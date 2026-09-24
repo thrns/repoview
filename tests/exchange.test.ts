@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 vi.mock('../lib/supabase/admin', () => ({
@@ -7,15 +7,22 @@ vi.mock('../lib/supabase/admin', () => ({
 vi.mock('../lib/analytics/identity', () => ({
   findOrCreateViewer: vi.fn(),
 }))
+vi.mock('../lib/viewer/view-events', () => ({ recordViewerViewEvent: vi.fn().mockResolvedValue({ recorded: true }) }))
 
 import { createSupabaseAdminClient } from '../lib/supabase/admin'
 import { findOrCreateViewer } from '../lib/analytics/identity'
 import { type LinkOpenMetadata } from '../lib/shares/link-open-metadata'
 import { exchangeShareToken, ShareExchangeError } from '../lib/shares/exchange'
+import { recordViewerViewEvent } from '../lib/viewer/view-events'
 
 const getAdmin = vi.mocked(createSupabaseAdminClient)
 const getViewer = vi.mocked(findOrCreateViewer)
+const recordViewEvent = vi.mocked(recordViewerViewEvent)
 const rawShareToken = 'share-token'
+
+beforeEach(() => {
+  recordViewEvent.mockClear()
+})
 
 beforeAll(() => {
   Object.assign(process.env, {
@@ -105,7 +112,7 @@ function createAdminMock(repositoryEnabled = true, workspaceStatus: 'active' | '
 
 describe('share token exchange', () => {
   it('stores only the viewer-session hash and records link_opened', async () => {
-    const { admin, sessionInsert, eventInsert } = createAdminMock()
+    const { admin, sessionInsert } = createAdminMock()
     getAdmin.mockReturnValue(admin as never)
     getViewer.mockResolvedValue({
       viewer: { id: 'viewer-1', viewer_code: 'A123', viewer_token_hash: 'hash', workspace_id: '77777777-7777-4777-8777-777777777777', first_seen_at: '2026-09-21T00:00:00.000Z', last_seen_at: '2026-09-21T00:00:00.000Z' },
@@ -142,23 +149,12 @@ describe('share token exchange', () => {
     expect(sessionInsert.mock.calls[0]?.[0]).toHaveProperty('ip_hash', expect.stringMatching(/^[a-f0-9]{64}$/))
     expect(sessionInsert.mock.calls[0]?.[0]).not.toHaveProperty('public_ip')
     expect(sessionInsert.mock.calls[0]?.[0]).not.toHaveProperty('rawSessionToken')
-    expect(eventInsert).toHaveBeenCalledWith({
-      workspace_id: '77777777-7777-4777-8777-777777777777',
-      share_id: '22222222-2222-4222-8222-222222222222',
-      session_id: '33333333-3333-4333-8333-333333333333',
-      event_type: 'link_opened',
-      path: null,
-      metadata: {
-        referrer_host: 'example.com',
-        fetch_site: 'cross-site',
-        prefetch: true,
-        browser: 'Chrome',
-        os: 'Windows',
-        device_type: 'desktop',
-        country: 'CA',
-        probable_bot: true,
-      },
-    })
+    expect(recordViewEvent).toHaveBeenCalledWith(expect.objectContaining({
+      workspaceId: '77777777-7777-4777-8777-777777777777',
+      shareId: '22222222-2222-4222-8222-222222222222',
+      sessionId: '33333333-3333-4333-8333-333333333333',
+      eventType: 'link_opened',
+    }))
   })
 
   it('defaults a new session to necessary-only analytics without a viewer identity', async () => {
@@ -172,6 +168,7 @@ describe('share token exchange', () => {
     expect(sessionInsert.mock.calls[0]?.[0]).not.toHaveProperty('viewer_id')
     expect(sessionInsert.mock.calls[0]?.[0]).not.toHaveProperty('browser')
     expect(eventInsert.mock.calls[0]?.[0]).toMatchObject({ valid: true })
+    expect(recordViewEvent).not.toHaveBeenCalled()
     expect(eventInsert.mock.calls[0]?.[0]).not.toMatchObject({ event_type: 'link_opened' })
   })
 

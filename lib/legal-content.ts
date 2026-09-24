@@ -563,6 +563,7 @@ RepoView follows data-minimization principles and is intended to use the followi
 | Salted IP hashes, coarse network/location metadata, and security indicators | **${RETENTION_DAYS.networkLocationMetadata} days from the event**, unless needed for an active investigation |
 | Share access attempts and security/abuse request logs | **${RETENTION_DAYS.shareAccessAttempts} days** unless needed for an active investigation |
 | Hashed application rate-limit counters | **${RETENTION_DAYS.rateLimitBuckets} days** |
+| Tenant-scoped quota counters used for abuse/cost control | **${RETENTION_DAYS.quotaCounters} days** |
 | Notification delivery logs | **${RETENTION_DAYS.notificationDeliveryLogs} days** |
 | Revoked/expired Share configuration and recipient labels | **${RETENTION_DAYS.revokedExpiredShareMetadata} days** from revocation or expiry; minimal references may remain until related analytics age out |
 | Owner account/configuration data | Until account deletion, then **${RETENTION_DAYS.deletedAccountsWorkspaces} days** from active systems |

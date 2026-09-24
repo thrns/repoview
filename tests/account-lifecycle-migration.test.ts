@@ -17,7 +17,7 @@ describe('account lifecycle hardening', () => {
   })
 
   it('cleans every workspace-owned data family before Auth deletion', () => {
-    for (const table of ['shares', 'notification_settings', 'github_installations', 'repositories', 'viewer_sessions', 'view_events', 'repository_events', 'file_engagement', 'share_access_attempts', 'share_recipients', 'notification_deliveries', 'audit_logs', 'workspace_members']) {
+    for (const table of ['shares', 'notification_settings', 'github_installations', 'repositories', 'viewer_sessions', 'view_events', 'repository_events', 'file_engagement', 'share_access_attempts', 'share_recipients', 'notification_deliveries', 'audit_logs', 'quota_counters', 'workspace_members']) {
       expect(deletion).toContain(table)
     }
     expect(deletion.indexOf("from('workspaces').update")).toBeLessThan(deletion.indexOf("admin.auth.admin.deleteUser"))

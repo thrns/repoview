@@ -299,6 +299,16 @@ type RateLimitBucket = {
   updated_at: string
 }
 
+type QuotaCounter = {
+  scope: string
+  workspace_id: string
+  subject_id: string
+  period_start: string
+  usage: number
+  created_at: string
+  updated_at: string
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -323,6 +333,7 @@ export interface Database {
       audit_logs: TableDefinition<AuditLog, Partial<Omit<AuditLog, 'id' | 'created_at'>> & Pick<AuditLog, 'workspace_id' | 'action' | 'resource_type'> & { id?: never; created_at?: string }, never>
       retention_cleanup_runs: TableDefinition<RetentionCleanupRun, Partial<Omit<RetentionCleanupRun, 'id' | 'started_at'>> & Pick<RetentionCleanupRun, 'job_name'> & { id?: string; status?: RetentionCleanupRun['status']; batch_limit?: number; rows_processed?: number; details?: Json; error?: string | null; started_at?: string; completed_at?: string | null }, Partial<Omit<RetentionCleanupRun, 'id' | 'job_name' | 'started_at'>>>
       rate_limit_buckets: TableDefinition<RateLimitBucket, Partial<Omit<RateLimitBucket, 'updated_at'>> & Pick<RateLimitBucket, 'key_hash' | 'scope' | 'window_started_at'> & { request_count?: number; updated_at?: string }, Partial<Omit<RateLimitBucket, 'key_hash'>>>
+      quota_counters: TableDefinition<QuotaCounter, Partial<Omit<QuotaCounter, 'created_at' | 'updated_at'>> & Pick<QuotaCounter, 'scope' | 'workspace_id' | 'subject_id' | 'period_start'> & { usage?: number; created_at?: string; updated_at?: string }, Partial<Omit<QuotaCounter, 'scope' | 'workspace_id' | 'subject_id' | 'period_start' | 'created_at'>>>
     }
     Views: Record<string, never>
     Functions: {
@@ -341,6 +352,14 @@ export interface Database {
       consume_rate_limit: {
         Args: { target_key_hash: string; target_scope: string; target_limit: number; target_window_seconds: number }
         Returns: Array<{ allowed: boolean; remaining: number; retry_after_seconds: number; reset_at: string }>
+      }
+      consume_workspace_quota: {
+        Args: { target_scope: string; target_workspace_id: string; target_subject_id: string; target_period_start: string; target_reset_at: string; target_increment: number; target_limit: number }
+        Returns: Array<{ allowed: boolean; usage: number; remaining: number; retry_after_seconds: number; reset_at: string }>
+      }
+      release_workspace_quota: {
+        Args: { target_scope: string; target_workspace_id: string; target_subject_id: string; target_period_start: string; target_increment: number }
+        Returns: undefined
       }
     }
     Enums: Record<string, never>

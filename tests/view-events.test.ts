@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 vi.mock('../lib/supabase/admin', () => ({ createSupabaseAdminClient: vi.fn() }))
+vi.mock('../lib/security/quotas', () => ({
+  reserveQuota: vi.fn(async () => ({ scope: 'analytics-events-session', workspaceId: 'workspace-1', subjectId: 'session-1', periodStart: '1970-01-01T00:00:00.000Z', increment: 1, resetAt: '2026-09-23T00:00:00.000Z' })),
+  releaseQuota: vi.fn(async () => undefined),
+}))
 
 import { createSupabaseAdminClient } from '../lib/supabase/admin'
 import { recordViewerViewEvent } from '../lib/viewer/view-events'

@@ -20,6 +20,7 @@ type RetentionTable =
   | 'repository_events'
   | 'repositories'
   | 'rate_limit_buckets'
+  | 'quota_counters'
   | 'retention_cleanup_runs'
   | 'share_access_attempts'
   | 'share_recipients'
@@ -67,6 +68,7 @@ const WORKSPACE_DATA_TABLES: Array<{ table: RetentionTable; column: string }> = 
   { table: 'github_installations', column: 'workspace_id' },
   { table: 'notification_settings', column: 'workspace_id' },
   { table: 'audit_logs', column: 'workspace_id' },
+  { table: 'quota_counters', column: 'workspace_id' },
   { table: 'workspace_members', column: 'workspace_id' },
 ]
 
@@ -94,6 +96,7 @@ export async function runRetentionCleanup({
     deletedAccountsWorkspaces: getRetentionCutoff(now, RETENTION_DAYS.deletedAccountsWorkspaces),
     securityAuditLogs: getRetentionCutoff(now, RETENTION_DAYS.securityAuditLogs),
     rateLimitBuckets: getRetentionCutoff(now, RETENTION_DAYS.rateLimitBuckets),
+    quotaCounters: getRetentionCutoff(now, RETENTION_DAYS.quotaCounters),
   }
   const analyticsRetentionGroups = await getAnalyticsRetentionGroups(admin)
 
@@ -105,6 +108,7 @@ export async function runRetentionCleanup({
   processed.shareAccessAttempts = await deleteOldRows(admin, 'share_access_attempts', 'created_at', cutoffs.shareAccessAttempts, batchSize, maxBatches)
   processed.securityAuditLogs = await deleteOldRows(admin, 'audit_logs', 'created_at', cutoffs.securityAuditLogs, batchSize, maxBatches)
   processed.rateLimitBuckets = await deleteOldRateLimitBuckets(admin, cutoffs.rateLimitBuckets, batchSize, maxBatches)
+  processed.quotaCounters = await deleteOldQuotaCounters(admin, cutoffs.quotaCounters, batchSize, maxBatches)
   processed.networkLocationMetadata = await scrubNetworkLocationMetadata(admin, cutoffs.networkLocationMetadata, referenceTime, batchSize, maxBatches)
   processed.viewerSessions = await deleteOldViewerSessions(admin, analyticsRetentionGroups, now, batchSize, maxBatches)
   processed.persistentViewerIdentifiers = await deleteOldViewerIdentifiers(admin, analyticsRetentionGroups, now, batchSize, maxBatches)
@@ -136,6 +140,35 @@ async function deleteOldRateLimitBuckets(admin: AdminClient, cutoff: Date, batch
     if (deleteError) throw deleteError
     processed += keys.length
     if (keys.length < batchSize) break
+  }
+  return processed
+}
+
+async function deleteOldQuotaCounters(admin: AdminClient, cutoff: Date, batchSize: number, maxBatches: number) {
+  let processed = 0
+  for (let batch = 0; batch < maxBatches; batch += 1) {
+    const { data, error } = await admin
+      .from('quota_counters')
+      .select('scope, workspace_id, subject_id, period_start')
+      .lt('updated_at', cutoff.toISOString())
+      .order('updated_at', { ascending: true })
+      .limit(batchSize)
+    if (error) throw error
+    const rows = (data ?? []) as Array<{ scope: string; workspace_id: string; subject_id: string; period_start: string }>
+    if (rows.length === 0) break
+
+    for (const row of rows) {
+      const { error: deleteError } = await admin
+        .from('quota_counters')
+        .delete()
+        .eq('scope', row.scope)
+        .eq('workspace_id', row.workspace_id)
+        .eq('subject_id', row.subject_id)
+        .eq('period_start', row.period_start)
+      if (deleteError) throw deleteError
+    }
+    processed += rows.length
+    if (rows.length < batchSize) break
   }
   return processed
 }
