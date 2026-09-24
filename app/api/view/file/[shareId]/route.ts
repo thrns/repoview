@@ -1,8 +1,7 @@
 import { after } from 'next/server'
 import { NextResponse } from 'next/server'
 
-import { requireViewerSession } from '@/lib/auth/viewer-session'
-import { getGitHubInstallationIdForRepository } from '@/lib/github/client'
+import { requireViewerRepositoryAccess } from '@/lib/auth/viewer-access'
 import { GitHubFileError, loadRepositoryFile } from '@/lib/github/contents'
 import { normalizeRepositoryPath } from '@/lib/security/path'
 import { isPathAllowedForShare } from '@/lib/security/visibility'
@@ -20,10 +19,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ shar
     return NextResponse.json({ error: 'invalid_path' }, { status: 400 })
   }
 
-  let viewer: Awaited<ReturnType<typeof requireViewerSession>>
+  let viewer: Awaited<ReturnType<typeof requireViewerRepositoryAccess>>
   const authStartedAt = performance.now()
   try {
-    viewer = await requireViewerSession(shareId)
+    viewer = await requireViewerRepositoryAccess(shareId)
   } catch {
     return fileResponse({ error: 'not_found' }, 404, {
       auth: performance.now() - authStartedAt,
@@ -38,13 +37,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ shar
 
   const githubStartedAt = performance.now()
   try {
-    const installationId = await getGitHubInstallationIdForRepository(viewer.repository.id, viewer.repository.workspace_id)
     const file = await loadRepositoryFile(
-      viewer.repository.github_owner,
-      viewer.repository.github_repo,
+      viewer.accessibleRepository.owner,
+      viewer.accessibleRepository.name,
       requestedPath,
       viewer.share.ref,
-      installationId,
+      viewer.installationId,
     )
 
     after(() => recordViewerViewEvent({

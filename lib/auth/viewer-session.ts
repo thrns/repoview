@@ -47,7 +47,16 @@ export async function authorizeViewerSession(shareId: string, rawSessionToken: s
   const { repository, viewer_sessions: sessions, ...share } = joinedShare as unknown as JoinedViewerShare
   const session = sessions[0]
 
-  if (!session || session.share_id !== share.id || share.revoked_at || (share.expires_at && new Date(share.expires_at).getTime() <= Date.now()) || !repository || !repository.enabled) {
+  if (
+    !session
+    || session.share_id !== share.id
+    || share.revoked_at
+    || (share.expires_at && new Date(share.expires_at).getTime() <= Date.now())
+    || !repository
+    || repository.id !== share.repository_id
+    || repository.workspace_id !== share.workspace_id
+    || !repository.enabled
+  ) {
     throw new ViewerAuthorizationError()
   }
 

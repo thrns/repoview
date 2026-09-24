@@ -1,27 +1,26 @@
 import 'server-only'
 
-import { cache } from 'react'
-
-import { requireViewerSession } from '@/lib/auth/viewer-session'
-import { getGitHubInstallationIdForRepository } from '@/lib/github/client'
+import { requireViewerRepositoryAccess } from '@/lib/auth/viewer-access'
 
 import { loadAuthorizedViewerRoot } from './root-loader'
 import { loadAuthorizedViewerTree } from './tree-loader'
 
-export const getViewerPageData = cache(async (shareIdentifier: string) => {
-  const { repository, share, session } = await requireViewerSession(shareIdentifier)
-  const installationId = await getGitHubInstallationIdForRepository(repository.id, repository.workspace_id)
+export async function getViewerPageData(shareIdentifier: string) {
+  // Do not memoize private repository content across authorization checks.
+  // Every page render starts with a fresh share, workspace, installation, and
+  // stable-repository access validation before loading tree or file data.
+  const { repository, share, session, installationId, accessibleRepository } = await requireViewerRepositoryAccess(shareIdentifier)
   const tree = await loadAuthorizedViewerTree({
-    owner: repository.github_owner,
-    repository: repository.github_repo,
+    owner: accessibleRepository.owner,
+    repository: accessibleRepository.name,
     ref: share.ref,
     repositoryRules: repository.default_rules,
     shareRules: share.rules,
     installationId,
   })
   const root = await loadAuthorizedViewerRoot({
-    owner: repository.github_owner,
-    repository: repository.github_repo,
+    owner: accessibleRepository.owner,
+    repository: accessibleRepository.name,
     ref: share.ref,
     tree,
     installationId,
@@ -31,11 +30,11 @@ export const getViewerPageData = cache(async (shareIdentifier: string) => {
     shareId: share.share_code ?? shareIdentifier,
     internalShareId: share.id,
     sessionId: session.id,
-    repositoryOwner: repository.github_owner,
-    repositorySlug: repository.github_repo,
+    repositoryOwner: accessibleRepository.owner,
+    repositorySlug: accessibleRepository.name,
     workspaceId: repository.workspace_id,
     installationId,
-    repositoryName: `${repository.github_owner}/${repository.github_repo}`,
+    repositoryName: accessibleRepository.fullName,
     refName: share.ref,
     allowDownload: share.allow_download,
     repositoryRules: repository.default_rules,
@@ -43,4 +42,4 @@ export const getViewerPageData = cache(async (shareIdentifier: string) => {
     tree,
     root,
   }
-})
+}

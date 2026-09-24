@@ -1,5 +1,4 @@
-import { requireViewerSession } from '../../../../../lib/auth/viewer-session'
-import { getGitHubInstallationIdForRepository } from '../../../../../lib/github/client'
+import { requireViewerRepositoryAccess } from '../../../../../lib/auth/viewer-access'
 import { loadRepositoryAsset } from '../../../../../lib/github/contents'
 import { normalizeRepositoryPath } from '../../../../../lib/security/path'
 import { isPathAllowedForShare } from '../../../../../lib/security/visibility'
@@ -13,9 +12,9 @@ export async function GET(
   const { shareId, path } = await params
   const responsePath = normalizeRepositoryPath(path.join('/'))
 
-  let viewer: Awaited<ReturnType<typeof requireViewerSession>>
+  let viewer: Awaited<ReturnType<typeof requireViewerRepositoryAccess>>
   try {
-    viewer = await requireViewerSession(shareId)
+    viewer = await requireViewerRepositoryAccess(shareId)
   } catch {
     return notFoundResponse()
   }
@@ -25,8 +24,13 @@ export async function GET(
   }
 
   try {
-    const installationId = await getGitHubInstallationIdForRepository(viewer.repository.id, viewer.repository.workspace_id)
-    const asset = await loadRepositoryAsset(viewer.repository.github_owner, viewer.repository.github_repo, responsePath, viewer.share.ref, installationId)
+    const asset = await loadRepositoryAsset(
+      viewer.accessibleRepository.owner,
+      viewer.accessibleRepository.name,
+      responsePath,
+      viewer.share.ref,
+      viewer.installationId,
+    )
 
     const headers = new Headers({
       'Cache-Control': 'private, no-store',
