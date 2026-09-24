@@ -2,7 +2,7 @@ import 'server-only'
 
 import type { User } from '@supabase/supabase-js'
 
-import { CURRENT_PRIVACY_VERSION, CURRENT_TERMS_VERSION } from '../legal-versions'
+import { getCurrentLegalVersions } from '../legal-versions'
 import { createSupabaseAdminClient } from '../supabase/admin'
 import { createSupabaseServerClient } from '../supabase/server'
 import type { Tables } from '../supabase/database.types'
@@ -49,7 +49,7 @@ async function loadOnboardingState(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   user: User,
 ): Promise<OnboardingState> {
-  const [profileResult, membershipResult] = await Promise.all([
+  const [profileResult, membershipResult, legalVersions] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
     supabase
       .from('workspace_members')
@@ -58,6 +58,7 @@ async function loadOnboardingState(
       .order('created_at', { ascending: true })
       .limit(1)
       .maybeSingle(),
+    getCurrentLegalVersions(supabase),
   ])
 
   if (profileResult.error || membershipResult.error) {
@@ -108,8 +109,8 @@ async function loadOnboardingState(
   const emailVerified = isLegacyComplete || isEmailVerified(user)
   const profileComplete = isLegacyComplete || Boolean(
     profile?.profile_completed_at
-      && profile.terms_version_accepted === CURRENT_TERMS_VERSION
-      && profile.privacy_version_acknowledged === CURRENT_PRIVACY_VERSION,
+      && profile.terms_version_accepted === legalVersions.terms
+      && profile.privacy_version_acknowledged === legalVersions.privacy,
   )
   const hasActiveInstallation = installations.some((installation) => installation.status === 'active')
   const hasSuspendedInstallation = installations.some((installation) => installation.status === 'suspended')

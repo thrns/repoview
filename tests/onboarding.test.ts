@@ -53,6 +53,10 @@ type StateFixtures = {
 function configureState({ profile = completedProfile, installations = [], repositories = [], shares = [], pending = [] }: StateFixtures = {}) {
   const server = {
     auth: { getUser: vi.fn().mockResolvedValue({ data: { user }, error: null }) },
+    rpc: vi.fn().mockResolvedValue({
+      data: [{ terms_version: '2026-09-23', privacy_version: '2026-09-24' }],
+      error: null,
+    }),
     from(table: string) {
       if (table === 'profiles') return queryResult(profile)
       if (table === 'workspace_members') return queryResult(membership)
@@ -92,5 +96,10 @@ describe('onboarding state', () => {
 
     configureState({ installations: [{ status: 'active' }], repositories: [{ id: 'repo-1', enabled: true }], shares: [{ id: 'share-1' }] })
     await expect(getOnboardingState()).resolves.toMatchObject({ step: 'complete', isComplete: true })
+  })
+
+  it('advances past the profile checkpoint when the database legal versions match', async () => {
+    configureState({ installations: [] })
+    await expect(getOnboardingState()).resolves.toMatchObject({ step: 'github', isComplete: false })
   })
 })

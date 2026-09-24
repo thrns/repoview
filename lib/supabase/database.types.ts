@@ -359,6 +359,10 @@ export interface Database {
     }
     Views: Record<string, never>
     Functions: {
+      current_legal_versions: {
+        Args: Record<string, never>
+        Returns: Array<{ terms_version: string; privacy_version: string }>
+      }
       claim_github_connection_installation: {
         Args: { target_state_hash: string; target_user_id: string; target_installation_id: number }
         Returns: GitHubConnectionTransaction[]
