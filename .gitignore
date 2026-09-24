@@ -1,0 +1,34 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+
+# build and coverage output
+dist/
+build/
+coverage/
+
+# local environment files
+.env
+.env.*
+!.env.example
+
+# Vercel
+.vercel/
+
+# TypeScript and tooling caches
+*.tsbuildinfo
+.turbo/
+.cache/
+
+# generated application data
+.velite/
+__registry__/
+
+# local/editor/OS files
+.DS_Store
+*.log
+*.pem
