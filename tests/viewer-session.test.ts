@@ -59,6 +59,7 @@ function createAdminMock(overrides: {
   const share = {
     id: shareId,
     repository_id: repositoryId,
+    workspace_id: 'workspace-1',
     share_code: 'Ab3k9Qx2',
     token_hash: 'share-hash',
     recipient_label: 'Interview',
@@ -75,6 +76,7 @@ function createAdminMock(overrides: {
   }
   const repository = {
     id: repositoryId,
+    workspace_id: 'workspace-1',
     github_owner: 'octocat',
     github_repo: 'hello-world',
     default_branch: 'main',
