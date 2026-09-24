@@ -56,7 +56,6 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # GitHub App
 GITHUB_APP_ID=123456
-GITHUB_APP_INSTALLATION_ID=12345678
 GITHUB_APP_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
 
 # Token hashing; use independent random values of at least 32 characters
@@ -85,16 +84,24 @@ NOTIFICATION_TO_EMAIL=owner@example.com
 supabase db push
 ```
 
-The initial migration creates repositories, shares, viewer sessions, view events, notification deliveries, indexes, timestamps, and RLS-enabled tables. The follow-up migrations add generic/recipient share metadata, persistent anonymous viewers, repository events, file engagement, location/network/device/security fields, invalid/valid access attempts, and notification summaries. The tenancy migration adds profiles, workspaces, memberships, workspace-owned settings/installations, and backfills the existing owner data into one workspace. Authenticated customer flows resolve workspace membership before resource access; the service-role client is reserved for server-side viewer/session analytics and other explicitly scoped operations.
+The initial migration creates repositories, shares, viewer sessions, view events, notification deliveries, indexes, timestamps, and RLS-enabled tables. The follow-up migrations add generic/recipient share metadata, persistent anonymous viewers, repository events, file engagement, location/network/device/security fields, invalid/valid access attempts, and notification summaries. The tenancy migrations add profiles, workspaces, memberships, workspace-owned settings/installations, audit logs, explicit role policies, immutable tenant ownership, and backfill the existing owner data into one workspace. Authenticated dashboard flows use the cookie-authenticated Supabase server client so RLS applies; the service-role client is reserved for server-side viewer/session analytics and other explicitly scoped system operations.
+
+Database policy tests live in `supabase/tests/rls_workspace.test.sql` and run with:
+
+```bash
+pnpm test:db
+```
 
 ## GitHub App setup
 
-Create a GitHub App for the workspace owner or organization and install it on the repositories RepoView should expose.
+Create a GitHub App and install it on the repositories a workspace should expose. RepoView stores each installation and its GitHub account metadata in `github_installations`; each repository record points to exactly one installation row.
 
 - Contents: **Read-only**.
-- Webhooks and OAuth callback: not required for this v1 flow.
-- Copy the App ID, installation ID, and PEM private key into `.env`.
-- Keep the repository selected in the installation; RepoView only lists repositories accessible to that installation.
+- Webhooks and OAuth callback: not required for the manual connection flow.
+- Keep only the App ID and PEM private key in server environment configuration.
+- Register the installation metadata with `registerGitHubInstallation` from a server-side GitHub installation callback or provisioning flow.
+- The existing single-owner installation is migrated once with `GITHUB_APP_INSTALLATION_ID=... pnpm migrate:github-installation`; this variable is not part of RepoView runtime configuration.
+- Keep the repository selected in each installation when least-privilege access is desired; RepoView lists repositories returned by that specific installation.
 
 The app fetches refs, recursive trees, and file contents on the server through Octokit. Visibility rules are applied before tree entries or file bytes are returned, and paths are checked again before direct file or asset fetches.
 

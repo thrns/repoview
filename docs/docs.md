@@ -724,7 +724,10 @@ For authenticated workspace users:
 - use Supabase SSR Auth to verify the user;
 - resolve workspace membership and role separately;
 - use resource helpers such as `requireRepositoryAccess()` and `requireShareAccess()` before accepting browser-supplied IDs;
-- if a server-only service client is needed for viewer analytics, pass only workspace IDs derived from an authorized share/session.
+- use the authenticated Supabase SSR server client for ordinary dashboard reads and writes so database RLS remains an independent isolation boundary;
+- if a server-only service client is needed for viewer analytics, pass only workspace IDs derived from an authorized share/session and keep that path out of dashboard loaders and mutations.
+
+The direct cross-tenant policy suite is `supabase/tests/rls_workspace.test.sql`; run it with `pnpm test:db` in an environment with the Supabase CLI.
 
 ---
 
@@ -864,8 +867,14 @@ Install the app on **selected repositories only**.
 
 Server holds:
 - `GITHUB_APP_ID`
-- `GITHUB_APP_INSTALLATION_ID`
 - `GITHUB_APP_PRIVATE_KEY`
+
+Installation IDs and GitHub account metadata are workspace-owned rows in
+`github_installations`. Every `repositories` row references one installation
+row, and server code verifies that the installation row belongs to the current
+workspace before creating an Octokit client. A legacy `GITHUB_APP_INSTALLATION_ID`
+may be supplied only to the one-time migration command; it is not a runtime
+environment variable.
 
 Use GitHub App JWT auth to create installation access tokens through a maintained Octokit auth package or a correct implementation. Installation tokens are short-lived; GitHub's docs state they expire after one hour.
 
@@ -1598,7 +1607,6 @@ SUPABASE_SERVICE_ROLE_KEY=
 
 # GitHub App
 GITHUB_APP_ID=
-GITHUB_APP_INSTALLATION_ID=
 GITHUB_APP_PRIVATE_KEY=
 
 # Token hashing
@@ -1757,7 +1765,7 @@ Suggested:
 - Name: RepoView
 - Homepage URL: `https://code.thrn.im`
 - Webhook: not required for v1 unless used for cache invalidation
-- OAuth callback: not required if RepoView is single-owner and installation ID is configured manually
+- OAuth callback: optional; any callback/webhook must persist installation metadata server-side
 
 Repository permissions:
 - Contents: Read-only
@@ -1765,14 +1773,19 @@ Repository permissions:
 Install:
 - Only on selected repositories.
 
-Collect:
-- App ID
+Collect per connected workspace:
 - Installation ID
-- Private key
+- GitHub account ID, login, and type
+- Repository selection and granted permissions
 
-Put values into Vercel secrets.
+Keep only the App ID and private key in Vercel secrets. Store installation
+metadata in `github_installations`; link every repository to its installation
+row. Run the one-time legacy migration command with the old installation ID
+before removing that value from deployment secrets.
 
-If later supporting multiple RepoView owners, installation IDs should become per-owner database data. v1 is intentionally single-owner.
+The client accepts an installation ID only after server-side workspace and
+repository authorization. Multiple workspaces can therefore connect separate
+GitHub users or organizations without sharing installation access.
 
 ---
 
