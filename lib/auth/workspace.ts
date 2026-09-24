@@ -70,7 +70,7 @@ export async function requireWorkspaceMember(workspaceId: string): Promise<Works
     .eq('id', workspaceId)
     .maybeSingle()
 
-  if (workspaceError || !workspace) {
+  if (workspaceError || !workspace || (workspace.status !== undefined && workspace.status !== 'active')) {
     throw new AuthorizationError('forbidden')
   }
 
@@ -155,7 +155,7 @@ export async function requireWorkspace(options: { roles?: WorkspaceRole[] } = {}
       .eq('id', membership.workspace_id)
       .maybeSingle()
 
-    if (workspaceResult.error || !workspaceResult.data) {
+    if (workspaceResult.error || !workspaceResult.data || (workspaceResult.data.status !== undefined && workspaceResult.data.status !== 'active')) {
       throw new AuthorizationError('forbidden', 'The workspace is unavailable.')
     }
 

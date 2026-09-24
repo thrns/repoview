@@ -6,6 +6,10 @@ const page = readFileSync('app/(admin)/dashboard/settings/page.tsx', 'utf8')
 const migration = readFileSync('supabase/migrations/20260924150000_settings_preferences.sql', 'utf8')
 const destinationMigration = readFileSync('supabase/migrations/20260924160000_workspace_notification_destinations.sql', 'utf8')
 const envSchema = readFileSync('lib/env/schema.ts', 'utf8')
+const deletionMigration = readFileSync('supabase/migrations/20260924200000_account_lifecycle.sql', 'utf8')
+const deletionRoute = readFileSync('app/api/account/delete/route.ts', 'utf8')
+const accountSettings = readFileSync('components/admin/settings-account.tsx', 'utf8')
+const deletionConfirmation = readFileSync('lib/account/deletion-shared.ts', 'utf8')
 
 describe('public settings surface', () => {
   it('keeps settings focused on account, access, notifications, and privacy', () => {
@@ -30,5 +34,19 @@ describe('public settings surface', () => {
     }
     expect(destinationMigration).toContain('users.email_confirmed_at is not null')
     expect(envSchema).not.toContain('NOTIFICATION_TO_EMAIL')
+  })
+
+  it('exposes account export and a destructive confirmation flow instead of a mailto request', () => {
+    expect(accountSettings).toContain('/api/account/delete')
+    expect(accountSettings).toContain('Permanently delete')
+    expect(deletionConfirmation).toContain('DELETE')
+    expect(accountSettings).not.toContain('mailto:')
+    expect(deletionRoute).toContain('deleteAccountData')
+  })
+
+  it('adds a fail-closed workspace lifecycle for account cleanup', () => {
+    expect(deletionMigration).toContain("status in ('active', 'deleting', 'deleted')")
+    expect(deletionMigration).toContain('deletion_started_at')
+    expect(deletionMigration).toContain("status in ('deleting', 'deleted')")
   })
 })

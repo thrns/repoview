@@ -46,6 +46,14 @@ export async function exchangeShareToken(
     void recordInvalidAttempt(admin, hashShareToken(normalizedToken), 'invalid', sanitizeLinkOpenMetadata(requestMetadata))
     throw new ShareExchangeError('invalid')
   }
+  const { data: workspace, error: workspaceError } = await admin
+    .from('workspaces')
+    .select('status')
+    .eq('id', share.workspace_id)
+    .maybeSingle()
+  if (workspaceError || workspace?.status !== 'active') {
+    throw new ShareExchangeError('repository_unavailable')
+  }
   if (share.revoked_at) {
     void recordInvalidAttempt(admin, hashShareToken(normalizedToken), 'revoked', sanitizeLinkOpenMetadata(requestMetadata), share.id, share.workspace_id)
     throw new ShareExchangeError('revoked')

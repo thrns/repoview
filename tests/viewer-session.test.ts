@@ -37,6 +37,7 @@ function createAdminMock(overrides: {
   revokedAt?: string | null
   expiresAt?: string | null
   repositoryEnabled?: boolean
+  workspaceStatus?: 'active' | 'deleting' | 'deleted'
 } = {}) {
   const session = {
     id: sessionId,
@@ -86,7 +87,14 @@ function createAdminMock(overrides: {
   }
   const joinedShare = { ...share, repository, viewer_sessions: [session] }
   const admin = {
-    from() {
+    from(table: string) {
+      if (table === 'workspaces') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: { status: overrides.workspaceStatus ?? 'active' }, error: null }),
+        }
+      }
       return {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
@@ -124,6 +132,7 @@ describe('viewer session authorization', () => {
     { label: 'revoked share', token: 'raw-session-token', shareId, overrides: { revokedAt: '2026-09-21T01:00:00.000Z' } },
     { label: 'expired share', token: 'raw-session-token', shareId, overrides: { expiresAt: '2020-01-01T00:00:00.000Z' } },
     { label: 'disabled repository', token: 'raw-session-token', shareId, overrides: { repositoryEnabled: false } },
+    { label: 'deleting workspace', token: 'raw-session-token', shareId, overrides: { workspaceStatus: 'deleting' as const } },
   ])('denies $label', async ({ token, shareId: effectiveShareId, overrides }) => {
     getAdmin.mockReturnValue(createAdminMock(overrides) as never)
 

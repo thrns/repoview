@@ -34,7 +34,7 @@ beforeAll(() => {
   })
 })
 
-function createAdminMock(repositoryEnabled = true) {
+function createAdminMock(repositoryEnabled = true, workspaceStatus: 'active' | 'deleting' | 'deleted' = 'active') {
   const share = {
     id: '22222222-2222-4222-8222-222222222222',
     repository_id: '11111111-1111-4111-8111-111111111111',
@@ -84,6 +84,13 @@ function createAdminMock(repositoryEnabled = true) {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
           maybeSingle: vi.fn().mockResolvedValue({ data: repository, error: null }),
+        }
+      }
+      if (table === 'workspaces') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: { status: workspaceStatus }, error: null }),
         }
       }
       if (table === 'viewer_sessions') {
@@ -176,6 +183,14 @@ describe('share token exchange', () => {
       code: 'repository_unavailable',
     })
     await expect(exchangeShareToken(rawShareToken)).rejects.toBeInstanceOf(ShareExchangeError)
+    expect(sessionInsert).not.toHaveBeenCalled()
+  })
+
+  it('rejects a share as soon as its workspace enters deletion state', async () => {
+    const { admin, sessionInsert } = createAdminMock(true, 'deleting')
+    getAdmin.mockReturnValue(admin as never)
+
+    await expect(exchangeShareToken(rawShareToken)).rejects.toMatchObject({ code: 'repository_unavailable' })
     expect(sessionInsert).not.toHaveBeenCalled()
   })
 

@@ -42,7 +42,7 @@ function createRlsClient() {
           }
           if (table === 'workspaces') {
             return filters.id === workspaceA
-              ? { data: { id: workspaceA, name: 'A', slug: 'a', owner_id: user.id }, error: null }
+              ? { data: { id: workspaceA, name: 'A', slug: 'a', owner_id: user.id, status: 'active' }, error: null }
               : { data: null, error: null }
           }
           if (table === 'repositories') {

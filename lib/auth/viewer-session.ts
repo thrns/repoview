@@ -47,11 +47,19 @@ export async function authorizeViewerSession(shareId: string, rawSessionToken: s
   const { repository, viewer_sessions: sessions, ...share } = joinedShare as unknown as JoinedViewerShare
   const session = sessions[0]
 
+  const { data: workspace, error: workspaceError } = await admin
+    .from('workspaces')
+    .select('status')
+    .eq('id', share.workspace_id)
+    .maybeSingle()
+
   if (
     !session
     || session.share_id !== share.id
     || share.revoked_at
     || (share.expires_at && new Date(share.expires_at).getTime() <= Date.now())
+    || workspaceError
+    || (workspace?.status !== undefined && workspace.status !== 'active')
     || !repository
     || repository.id !== share.repository_id
     || repository.workspace_id !== share.workspace_id

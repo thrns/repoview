@@ -402,6 +402,8 @@ Depending on the features used, RepoView may process:
 
 RepoView does not ask for or need an Owner's GitHub password. When GitHub authorization is used, access is limited by the permissions granted through GitHub.
 
+Owners can download an account export from Settings. The export includes their account profile, workspace memberships, workspace configuration, repository and share metadata, share recipient metadata, notification settings, connected GitHub installation metadata, relevant analytics, and account activity. It does not include passwords, provider credentials, private keys, bearer tokens, or raw session-token verifiers.
+
 ## 4. Information collected from Viewers
 
 ### 4.1 Pseudonymous identifiers and sessions
@@ -583,6 +585,8 @@ Depending on where a person lives and which law applies, they may have rights to
 - exercise other rights provided by local law.
 
 To make a request, email **tharunpranav.ubc@gmail.com** with enough information to identify the relevant share/session without sending unnecessary sensitive information.
+
+Owners can start account deletion from Settings after a recent authentication and explicit confirmation. RepoView disables the Owner's workspace and public shares before cleanup begins, stops workspace notifications, disconnects GitHub installations, and deletes the account's workspace metadata, recipient data, and associated analytics. If cleanup is interrupted, the workspace remains disabled and its shares remain unavailable until cleanup can safely complete. Where retention is required for security, legal, or rights-protection reasons, the limited retained information described in this Policy may be kept for that purpose and then deleted under the applicable retention schedule.
 
 Because Viewers are normally pseudonymous, RepoView may need a Viewer identifier, share URL/token reference, approximate date/time of access, or other limited information to locate responsive records. RepoView will not collect substantially more identifying information merely to satisfy a request when the request can be handled another way.
 

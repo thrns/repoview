@@ -29,6 +29,9 @@ type Workspace = {
   slug: string
   owner_id: string
   is_personal: boolean
+  status: 'active' | 'deleting' | 'deleted'
+  deletion_started_at: string | null
+  deletion_completed_at: string | null
   created_at: string
   updated_at: string
 }
