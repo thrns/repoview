@@ -24,6 +24,9 @@ coverage/
 .turbo/
 .cache/
 
+# Supabase local project metadata
+supabase/.temp/
+
 # generated application data
 .velite/
 __registry__/
