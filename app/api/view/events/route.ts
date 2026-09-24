@@ -4,6 +4,8 @@ import { z } from 'zod'
 import { recordViewerAnalytics } from '@/lib/viewer/analytics-server'
 import { VIEWER_ANALYTICS_EVENT_TYPES } from '@/lib/viewer/analytics-types'
 import { isGlobalPrivacyControl } from '@/lib/viewer/privacy-shared'
+import { checkPublicRateLimit, checkRateLimits, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../lib/security/rate-limit'
+import { requireViewerSession } from '../../../../lib/auth/viewer-session'
 
 const scalarSchema = z.union([z.string().max(512), z.number().finite(), z.boolean(), z.null()])
 const eventSchema = z.object({
@@ -36,6 +38,30 @@ export async function POST(request: Request) {
     input = requestSchema.parse(await request.json())
   } catch {
     return NextResponse.json({ error: 'invalid_request' }, { status: 400, headers: { 'Cache-Control': 'no-store' } })
+  }
+
+  try {
+    const decision = await checkPublicRateLimit(request, 'public-analytics-events')
+    if (decision) return rateLimitResponse(decision)
+  } catch {
+    return rateLimitUnavailableResponse()
+  }
+
+  let viewer: Awaited<ReturnType<typeof requireViewerSession>>
+  try {
+    viewer = await requireViewerSession(input.shareId)
+  } catch {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: { 'Cache-Control': 'no-store' } })
+  }
+
+  try {
+    const decision = await checkRateLimits('public-analytics-events', [
+      { value: `session:${viewer.session.id}` },
+      { value: `share:${viewer.share.id}` },
+    ])
+    if (decision) return rateLimitResponse(decision)
+  } catch {
+    return rateLimitUnavailableResponse()
   }
 
   try {

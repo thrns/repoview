@@ -10,6 +10,7 @@ import { getGitHubAppInstallation, GITHUB_API_BASE_URL, GITHUB_COMMON_HEADERS } 
 import { registerVerifiedGitHubInstallation } from './installations'
 import { listInstallationRepositories } from './repositories'
 import type { Tables } from '../supabase/database.types'
+import { enforceAuthenticatedRateLimit } from '../security/rate-limit'
 
 const CONNECTION_TTL_MS = 10 * 60 * 1000
 const STATE_BYTES = 32
@@ -30,6 +31,7 @@ export class GitHubConnectionError extends Error {
 
 export async function createGitHubInstallationUrl(returnPath = '/dashboard/settings') {
   const { workspace, user } = await requireWorkspaceAdmin()
+  await enforceAuthenticatedRateLimit('authenticated-github-connect', workspace.id, user.id)
   const env = getServerEnv()
   const state = randomBytes(STATE_BYTES).toString('base64url')
   const codeVerifier = randomBytes(STATE_BYTES).toString('base64url')
@@ -62,6 +64,7 @@ export async function createGitHubInstallationUrl(returnPath = '/dashboard/setti
 
 export async function beginGitHubAuthorization(state: string, installationId: number) {
   const { workspace, user } = await requireWorkspaceAdmin()
+  await enforceAuthenticatedRateLimit('authenticated-github-connect', workspace.id, user.id)
   assertState(state)
   assertInstallationId(installationId)
 
@@ -82,6 +85,7 @@ export async function beginGitHubAuthorization(state: string, installationId: nu
 
 export async function markGitHubConnectionPending(state: string) {
   const { workspace, user } = await requireWorkspaceAdmin()
+  await enforceAuthenticatedRateLimit('authenticated-github-connect', workspace.id, user.id)
   assertState(state)
   const admin = createSupabaseAdminClient()
   const { data, error } = await admin
@@ -101,6 +105,7 @@ export async function markGitHubConnectionPending(state: string) {
 
 export async function markGitHubConnectionFinished(state: string, status: 'cancelled' | 'failed') {
   const { workspace, user } = await requireWorkspaceAdmin()
+  await enforceAuthenticatedRateLimit('authenticated-github-connect', workspace.id, user.id)
   assertState(state)
   const admin = createSupabaseAdminClient()
   const { data: finished, error } = await admin
@@ -120,6 +125,7 @@ export async function markGitHubConnectionFinished(state: string, status: 'cance
 
 export async function completeGitHubConnection(state: string, code: string): Promise<GitHubConnectionResult> {
   const { workspace, user } = await requireWorkspaceAdmin()
+  await enforceAuthenticatedRateLimit('authenticated-github-connect', workspace.id, user.id)
   assertState(state)
   if (!code || code.length > 512) throw new GitHubConnectionError('upstream')
 

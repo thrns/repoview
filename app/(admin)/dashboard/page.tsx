@@ -4,6 +4,8 @@ import { DashboardOverviewView } from '@/components/admin/dashboard-overview'
 import { Badge, Card, CardContent } from '@/components/ui'
 import { getOnboardingLabel, getOnboardingState } from '@/lib/auth/onboarding'
 import { getDashboardOverview } from '@/lib/dashboard/overview'
+import { requireWorkspace } from '@/lib/auth/workspace'
+import { enforceAuthenticatedRateLimit } from '../../../lib/security/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,6 +13,9 @@ export default async function DashboardPage() {
   try {
     const onboarding = await getOnboardingState()
     if (!onboarding.isComplete) return <DashboardOnboardingState step={onboarding.step} hasPendingGitHubConnection={onboarding.hasPendingGitHubConnection} />
+
+    const context = await requireWorkspace()
+    await enforceAuthenticatedRateLimit('authenticated-dashboard-analytics', context.workspace.id, context.user.id)
 
     return (
       <DashboardOverviewView data={await getDashboardOverview()} />

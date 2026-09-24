@@ -5,6 +5,7 @@ import { requireViewerSession } from '../../../../lib/auth/viewer-session'
 import { dispatchNotificationDelivery } from '../../../../lib/notifications/delivery'
 import { notifyConfirmedViewer } from '../../../../lib/notifications/notify-view'
 import { createSupabaseAdminClient } from '../../../../lib/supabase/admin'
+import { checkPublicRateLimit, checkRateLimits, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../lib/security/rate-limit'
 import type { ViewerClientContext } from '../../../../lib/viewer/analytics-types'
 import { isGlobalPrivacyControl } from '../../../../lib/viewer/privacy-shared'
 
@@ -27,11 +28,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid_request' }, { status: 400, headers: { 'Cache-Control': 'no-store' } })
   }
 
+  try {
+    const decision = await checkPublicRateLimit(request, 'public-viewer-confirm')
+    if (decision) return rateLimitResponse(decision)
+  } catch {
+    return rateLimitUnavailableResponse()
+  }
+
   let viewer: Awaited<ReturnType<typeof requireViewerSession>>
   try {
     viewer = await requireViewerSession(parsedRequest.shareId)
   } catch {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: { 'Cache-Control': 'no-store' } })
+  }
+
+  try {
+    const decision = await checkRateLimits('public-viewer-confirm', [
+      { value: `session:${viewer.session.id}` },
+      { value: `share:${viewer.share.id}` },
+    ])
+    if (decision) return rateLimitResponse(decision)
+  } catch {
+    return rateLimitUnavailableResponse()
   }
 
   const internalShareId = viewer.share?.id ?? parsedRequest.shareId

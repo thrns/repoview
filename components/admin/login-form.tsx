@@ -7,7 +7,6 @@ import { ArrowRight, Eye, EyeOff } from 'lucide-react'
 
 import { GoogleAuthButton } from '@/components/admin/google-auth-button'
 import { Alert, AlertDescription, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label } from '@/components/ui'
-import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 export function LoginForm() {
   const router = useRouter()
@@ -23,9 +22,12 @@ export function LoginForm() {
     setIsSubmitting(true)
 
     try {
-      const supabase = createSupabaseBrowserClient()
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-      if (signInError) {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      if (!response.ok) {
         setError('The email or password is incorrect. Check your credentials and try again.')
         return
       }

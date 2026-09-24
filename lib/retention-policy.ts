@@ -9,6 +9,7 @@ export const RETENTION_DAYS = {
   revokedExpiredShareMetadata: 30,
   deletedAccountsWorkspaces: 30,
   securityAuditLogs: 90,
+  rateLimitBuckets: 2,
 } as const
 
 export const ANALYTICS_RETENTION_OPTIONS = [30, 90, 180] as const

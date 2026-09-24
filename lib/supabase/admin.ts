@@ -2,9 +2,9 @@ import 'server-only'
 
 import { createClient } from '@supabase/supabase-js'
 
-import { getPublicEnv } from '@/lib/env/public'
-import { getServerEnv } from '@/lib/env/server'
-import type { Database } from '@/lib/supabase/database.types'
+import { getPublicEnv } from '../env/public'
+import { getServerEnv } from '../env/server'
+import type { Database } from './database.types'
 
 export function createSupabaseAdminClient() {
   const publicEnv = getPublicEnv()

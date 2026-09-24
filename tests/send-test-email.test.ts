@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 vi.mock('../lib/auth/workspace', () => ({ requireWorkspaceAdmin: vi.fn() }))
+vi.mock('../lib/security/rate-limit', () => ({ enforceAuthenticatedRateLimit: vi.fn(async () => undefined) }))
 vi.mock('../lib/supabase/server', () => ({
   createSupabaseServerClient: vi.fn(async () => ({
     from: vi.fn(() => ({
@@ -22,7 +23,7 @@ const requireWorkspaceAdminMock = vi.mocked(requireWorkspaceAdmin)
 const sendEmail = vi.mocked(sendTransactionalEmail)
 
 beforeEach(() => {
-  requireWorkspaceAdminMock.mockResolvedValue({ workspace: { id: 'workspace-1' } } as never)
+  requireWorkspaceAdminMock.mockResolvedValue({ user: { id: 'user-1' }, workspace: { id: 'workspace-1' } } as never)
   sendEmail.mockReset()
   sendEmail.mockResolvedValue({ messageId: 'message-1' } as never)
 })

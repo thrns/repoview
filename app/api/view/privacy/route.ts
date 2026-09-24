@@ -8,6 +8,7 @@ import { findOrCreateViewer } from '../../../../lib/analytics/identity'
 import { saveViewerPrivacyPreference } from '../../../../lib/viewer/privacy'
 import { isGlobalPrivacyControl, isViewerAnalyticsMode, VIEWER_PRIVACY_PREFERENCE_COOKIE as PRIVACY_COOKIE, VIEWER_PRIVACY_PREFERENCE_MAX_AGE as PRIVACY_COOKIE_MAX_AGE, type ViewerAnalyticsMode } from '../../../../lib/viewer/privacy-shared'
 import { createSupabaseAdminClient } from '../../../../lib/supabase/admin'
+import { checkPublicRateLimit, checkRateLimits, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../lib/security/rate-limit'
 
 const requestSchema = z.object({
   shareId: z.string().uuid().or(z.string().regex(/^[A-Za-z0-9_-]{8}$/)),
@@ -17,6 +18,13 @@ const requestSchema = z.object({
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
+  try {
+    const decision = await checkPublicRateLimit(request, 'public-viewer-privacy')
+    if (decision) return rateLimitResponse(decision)
+  } catch {
+    return rateLimitUnavailableResponse()
+  }
+
   let viewer: Awaited<ReturnType<typeof requireViewerSession>>
   try {
     const shareId = new URL(request.url).searchParams.get('shareId')
@@ -39,11 +47,27 @@ export async function POST(request: Request) {
     return json({ error: 'invalid_request' }, 400)
   }
 
+  try {
+    const decision = await checkPublicRateLimit(request, 'public-viewer-privacy')
+    if (decision) return rateLimitResponse(decision)
+  } catch {
+    return rateLimitUnavailableResponse()
+  }
+
   let viewer: Awaited<ReturnType<typeof requireViewerSession>>
   try {
     viewer = await requireViewerSession(input.shareId)
   } catch {
     return json({ error: 'unauthorized' }, 401)
+  }
+
+  try {
+    const decision = await checkRateLimits('public-viewer-privacy', [
+      { value: `session:${viewer.session.id}` },
+    ])
+    if (decision) return rateLimitResponse(decision)
+  } catch {
+    return rateLimitUnavailableResponse()
   }
 
   const requestGpc = isGlobalPrivacyControl(request.headers.get('sec-gpc'))

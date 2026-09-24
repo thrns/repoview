@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { getLinkOpenMetadata } from '@/lib/shares/link-open-metadata'
 import { exchangeShareToken, ShareExchangeError, VIEWER_SESSION_COOKIE } from '@/lib/shares/exchange'
 import { VIEWER_ID_COOKIE } from '../../../lib/analytics/constants'
+import { checkPublicRateLimit, getPublicShareRateLimitKey, rateLimitResponse, rateLimitUnavailableResponse } from '../../../lib/security/rate-limit'
 import {
   findViewerPrivacyPreference,
 } from '../../../lib/viewer/privacy'
@@ -12,6 +13,13 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params
+
+  try {
+    const decision = await checkPublicRateLimit(request, 'public-share-open', [getPublicShareRateLimitKey(token)])
+    if (decision) return rateLimitResponse(decision)
+  } catch {
+    return rateLimitUnavailableResponse()
+  }
 
   try {
     const rawPreferenceToken = request.cookies?.get(VIEWER_PRIVACY_PREFERENCE_COOKIE)?.value

@@ -19,6 +19,7 @@ type RetentionTable =
   | 'notification_settings'
   | 'repository_events'
   | 'repositories'
+  | 'rate_limit_buckets'
   | 'retention_cleanup_runs'
   | 'share_access_attempts'
   | 'share_recipients'
@@ -92,6 +93,7 @@ export async function runRetentionCleanup({
     revokedExpiredShareMetadata: getRetentionCutoff(now, RETENTION_DAYS.revokedExpiredShareMetadata),
     deletedAccountsWorkspaces: getRetentionCutoff(now, RETENTION_DAYS.deletedAccountsWorkspaces),
     securityAuditLogs: getRetentionCutoff(now, RETENTION_DAYS.securityAuditLogs),
+    rateLimitBuckets: getRetentionCutoff(now, RETENTION_DAYS.rateLimitBuckets),
   }
   const analyticsRetentionGroups = await getAnalyticsRetentionGroups(admin)
 
@@ -102,6 +104,7 @@ export async function runRetentionCleanup({
   processed.notificationDeliveryLogs = await deleteOldRows(admin, 'notification_deliveries', 'created_at', cutoffs.notificationDeliveryLogs, batchSize, maxBatches)
   processed.shareAccessAttempts = await deleteOldRows(admin, 'share_access_attempts', 'created_at', cutoffs.shareAccessAttempts, batchSize, maxBatches)
   processed.securityAuditLogs = await deleteOldRows(admin, 'audit_logs', 'created_at', cutoffs.securityAuditLogs, batchSize, maxBatches)
+  processed.rateLimitBuckets = await deleteOldRateLimitBuckets(admin, cutoffs.rateLimitBuckets, batchSize, maxBatches)
   processed.networkLocationMetadata = await scrubNetworkLocationMetadata(admin, cutoffs.networkLocationMetadata, referenceTime, batchSize, maxBatches)
   processed.viewerSessions = await deleteOldViewerSessions(admin, analyticsRetentionGroups, now, batchSize, maxBatches)
   processed.persistentViewerIdentifiers = await deleteOldViewerIdentifiers(admin, analyticsRetentionGroups, now, batchSize, maxBatches)
@@ -115,6 +118,26 @@ export async function runRetentionCleanup({
     processed,
     totalProcessed,
   }
+}
+
+async function deleteOldRateLimitBuckets(admin: AdminClient, cutoff: Date, batchSize: number, maxBatches: number) {
+  let processed = 0
+  for (let batch = 0; batch < maxBatches; batch += 1) {
+    const { data, error } = await admin
+      .from('rate_limit_buckets')
+      .select('key_hash')
+      .lt('updated_at', cutoff.toISOString())
+      .order('updated_at', { ascending: true })
+      .limit(batchSize)
+    if (error) throw error
+    const keys = ((data ?? []) as Array<{ key_hash?: string }>).flatMap((row) => row.key_hash ? [row.key_hash] : [])
+    if (keys.length === 0) break
+    const { error: deleteError } = await admin.from('rate_limit_buckets').delete().in('key_hash', keys)
+    if (deleteError) throw deleteError
+    processed += keys.length
+    if (keys.length < batchSize) break
+  }
+  return processed
 }
 
 async function deleteOldRows(admin: AdminClient, table: RetentionTable, column: string, cutoff: Date, batchSize: number, maxBatches: number) {

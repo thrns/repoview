@@ -9,12 +9,14 @@ import { getSafeVisibilityRules } from '@/lib/security/visibility'
 import { listRegisteredRepositories, syncRegisteredRepositoryMetadata } from '@/lib/repositories/registry'
 import { findRegisteredRepository } from '@/lib/repositories/identity'
 import { requireWorkspace } from '@/lib/auth/workspace'
+import { enforceAuthenticatedRateLimit } from '../../../../lib/security/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
 export default async function RepositoriesPage({ searchParams }: { searchParams?: Promise<{ github?: string | string[]; onboarding?: string | string[] }> }) {
   try {
     const context = await requireWorkspace()
+    await enforceAuthenticatedRateLimit('authenticated-repository-sync', context.workspace.id, context.user.id)
     const params = await searchParams
     const [githubRepositories, registeredRepositories] = await Promise.all([
       listWorkspaceInstallationRepositories(context.workspace.id),

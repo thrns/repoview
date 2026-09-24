@@ -291,6 +291,14 @@ type RetentionCleanupRun = {
   completed_at: string | null
 }
 
+type RateLimitBucket = {
+  key_hash: string
+  scope: string
+  window_started_at: string
+  request_count: number
+  updated_at: string
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -314,6 +322,7 @@ export interface Database {
       notification_deliveries: TableDefinition<NotificationDelivery, Partial<Omit<NotificationDelivery, 'id' | 'created_at'>> & Pick<NotificationDelivery, 'workspace_id' | 'share_id' | 'session_id' | 'status' | 'recipient'> & { id?: string; created_at?: string }, Partial<Omit<NotificationDelivery, 'id' | 'workspace_id' | 'created_at'>>>
       audit_logs: TableDefinition<AuditLog, Partial<Omit<AuditLog, 'id' | 'created_at'>> & Pick<AuditLog, 'workspace_id' | 'action' | 'resource_type'> & { id?: never; created_at?: string }, never>
       retention_cleanup_runs: TableDefinition<RetentionCleanupRun, Partial<Omit<RetentionCleanupRun, 'id' | 'started_at'>> & Pick<RetentionCleanupRun, 'job_name'> & { id?: string; status?: RetentionCleanupRun['status']; batch_limit?: number; rows_processed?: number; details?: Json; error?: string | null; started_at?: string; completed_at?: string | null }, Partial<Omit<RetentionCleanupRun, 'id' | 'job_name' | 'started_at'>>>
+      rate_limit_buckets: TableDefinition<RateLimitBucket, Partial<Omit<RateLimitBucket, 'updated_at'>> & Pick<RateLimitBucket, 'key_hash' | 'scope' | 'window_started_at'> & { request_count?: number; updated_at?: string }, Partial<Omit<RateLimitBucket, 'key_hash'>>>
     }
     Views: Record<string, never>
     Functions: {
@@ -328,6 +337,10 @@ export interface Database {
       complete_profile: {
         Args: { target_full_name: string }
         Returns: Profile[]
+      }
+      consume_rate_limit: {
+        Args: { target_key_hash: string; target_scope: string; target_limit: number; target_window_seconds: number }
+        Returns: Array<{ allowed: boolean; remaining: number; retry_after_seconds: number; reset_at: string }>
       }
     }
     Enums: Record<string, never>

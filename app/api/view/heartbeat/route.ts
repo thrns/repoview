@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { requireViewerSession } from '../../../../lib/auth/viewer-session'
 import { createSupabaseAdminClient } from '../../../../lib/supabase/admin'
 import { isGlobalPrivacyControl } from '../../../../lib/viewer/privacy-shared'
+import { checkPublicRateLimit, checkRateLimits, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../lib/security/rate-limit'
 
 const heartbeatRequestSchema = z.object({
   shareId: z.string().uuid().or(z.string().regex(/^[A-Za-z0-9_-]{8}$/)),
@@ -19,11 +20,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid_request' }, { status: 400, headers: { 'Cache-Control': 'no-store' } })
   }
 
+  try {
+    const decision = await checkPublicRateLimit(request, 'public-viewer-heartbeat')
+    if (decision) return rateLimitResponse(decision)
+  } catch {
+    return rateLimitUnavailableResponse()
+  }
+
   let viewer: Awaited<ReturnType<typeof requireViewerSession>>
   try {
     viewer = await requireViewerSession(parsedRequest.shareId)
   } catch {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: { 'Cache-Control': 'no-store' } })
+  }
+
+  try {
+    const decision = await checkRateLimits('public-viewer-heartbeat', [
+      { value: `session:${viewer.session.id}` },
+    ])
+    if (decision) return rateLimitResponse(decision)
+  } catch {
+    return rateLimitUnavailableResponse()
   }
 
   const internalShareId = viewer.share?.id ?? parsedRequest.shareId

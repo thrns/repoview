@@ -3,7 +3,6 @@
 import { useState } from 'react'
 
 import { Alert, AlertDescription, Button } from '@/components/ui'
-import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 interface GoogleAuthButtonProps {
   label?: string
@@ -19,17 +18,7 @@ export function GoogleAuthButton({ label = 'Sign in with Google', redirectPath =
     setIsSubmitting(true)
 
     try {
-      const supabase = createSupabaseBrowserClient()
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectPath)}`,
-        },
-      })
-
-      if (oauthError) {
-        setError('Google sign-in is unavailable right now. Please try again or use email.')
-      }
+      window.location.assign(`/api/auth/google?next=${encodeURIComponent(redirectPath)}`)
     } catch {
       setError('Google sign-in is unavailable right now. Please try again or use email.')
     } finally {

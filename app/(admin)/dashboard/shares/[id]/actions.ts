@@ -7,6 +7,7 @@ import { requireShareAccess, requireWorkspaceRole } from '../../../../../lib/aut
 import { getPublicEnv } from '../../../../../lib/env/public'
 import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
 import { generateShareToken, hashShareToken } from '../../../../../lib/security/tokens'
+import { enforceAuthenticatedRateLimit } from '../../../../../lib/security/rate-limit'
 
 const shareIdSchema = z.string().uuid()
 const expiryInputSchema = z.object({
@@ -18,6 +19,7 @@ export async function revokeShare(input: unknown) {
   const shareId = shareIdSchema.parse(input)
   const access = await requireShareAccess(shareId)
   await requireWorkspaceRole(access.workspace.id, ['owner', 'admin'])
+  await enforceAuthenticatedRateLimit('authenticated-share-rotate', access.workspace.id, access.user.id)
   const supabase = await createSupabaseServerClient()
   const query = supabase
     .from('shares')
@@ -41,6 +43,7 @@ export async function updateShareExpiry(input: unknown) {
   const parsed = expiryInputSchema.parse(input)
   const access = await requireShareAccess(parsed.shareId)
   await requireWorkspaceRole(access.workspace.id, ['owner', 'admin'])
+  await enforceAuthenticatedRateLimit('authenticated-share-rotate', access.workspace.id, access.user.id)
 
   if (parsed.expiresAt && new Date(parsed.expiresAt).getTime() <= Date.now()) {
     throw new Error('Expiry must be in the future.')
@@ -68,6 +71,7 @@ export async function rotateShare(input: unknown) {
   const shareId = shareIdSchema.parse(input)
   const access = await requireShareAccess(shareId)
   await requireWorkspaceRole(access.workspace.id, ['owner', 'admin'])
+  await enforceAuthenticatedRateLimit('authenticated-share-rotate', access.workspace.id, access.user.id)
   const rawToken = generateShareToken()
   const supabase = await createSupabaseServerClient()
   const query = supabase

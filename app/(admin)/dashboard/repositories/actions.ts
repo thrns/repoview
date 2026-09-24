@@ -7,6 +7,7 @@ import { requireRepositoryAccess, requireWorkspaceAdmin, requireWorkspaceRole } 
 import { listWorkspaceInstallationRepositories } from '@/lib/github/repositories'
 import { getDefaultVisibilityRules, parseVisibilityRules } from '@/lib/security/visibility'
 import { findRegisteredRepository } from '@/lib/repositories/identity'
+import { enforceAuthenticatedRateLimit, enforceRateLimits } from '../../../../lib/security/rate-limit'
 import {
   listRegisteredRepositories,
   saveRepositoryRecord,
@@ -30,7 +31,9 @@ const bulkRepositoryInputSchema = z.object({
 
 export async function setRepositoryEnabled(input: unknown) {
   const context = await requireWorkspaceAdmin()
+  await enforceAuthenticatedRateLimit('authenticated-repository-sync', context.workspace.id, context.user.id)
   const parsed = repositoryInputSchema.parse(input)
+  await enforceRateLimits('authenticated-repository-sync', [{ value: `installation:${parsed.installationRecordId}` }])
 
   if (!parsed.enabled && parsed.repositoryId) {
     const access = await requireRepositoryAccess(parsed.repositoryId)
@@ -71,7 +74,9 @@ export async function setRepositoryEnabled(input: unknown) {
 
 export async function setRepositoriesEnabled(input: unknown) {
   const context = await requireWorkspaceAdmin()
+  await enforceAuthenticatedRateLimit('authenticated-repository-sync', context.workspace.id, context.user.id)
   const parsed = bulkRepositoryInputSchema.parse(input)
+  await enforceRateLimits('authenticated-repository-sync', [...new Set(parsed.repositories.map((entry) => entry.installationRecordId))].map((installationId) => ({ value: `installation:${installationId}` })))
   const accessibleRepositories = await listWorkspaceInstallationRepositories(context.workspace.id)
   const storedRepositories = await listRegisteredRepositories()
   await Promise.all(parsed.repositories.map(async (entry) => {

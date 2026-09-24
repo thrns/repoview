@@ -7,7 +7,6 @@ import { ArrowRight, Eye, EyeOff } from 'lucide-react'
 
 import { GoogleAuthButton } from '@/components/admin/google-auth-button'
 import { Alert, AlertDescription, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label } from '@/components/ui'
-import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 export function SignupForm() {
   const router = useRouter()
@@ -50,24 +49,20 @@ export function SignupForm() {
     setIsComplete(false)
 
     try {
-      const supabase = createSupabaseBrowserClient()
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: {
-          data: {
-            full_name: normalizedFullName,
-          },
-            emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
-        },
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ fullName: normalizedFullName, email: email.trim(), password }),
       })
 
-      if (signUpError) {
-        setError(formatSignupError(signUpError.message))
+      if (!response.ok) {
+        const result = await response.json().catch(() => null) as { error?: string } | null
+        setError(formatSignupError(result?.error ?? 'signup_failed'))
         return
       }
 
-      if (data.session) {
+      const result = await response.json() as { authenticated?: boolean }
+      if (result.authenticated) {
         router.replace('/dashboard')
         router.refresh()
         return
@@ -151,7 +146,7 @@ function formatSignupError(message: string) {
     return 'Choose a stronger password and try again.'
   }
 
-  if (normalizedMessage.includes('rate limit')) {
+  if (normalizedMessage.includes('rate limit') || normalizedMessage.includes('rate_limited')) {
     return 'Too many sign-up attempts. Please wait a moment and try again.'
   }
 

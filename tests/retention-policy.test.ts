@@ -24,5 +24,6 @@ describe('retention policy', () => {
     expect(PRIVACY_MARKDOWN).toContain(`${RETENTION_DAYS.networkLocationMetadata} days`)
     expect(PRIVACY_MARKDOWN).toContain(`${RETENTION_DAYS.notificationDeliveryLogs} days`)
     expect(PRIVACY_MARKDOWN).toContain(`${RETENTION_DAYS.revokedExpiredShareMetadata} days`)
+    expect(PRIVACY_MARKDOWN).toContain(`${RETENTION_DAYS.rateLimitBuckets} days`)
   })
 })

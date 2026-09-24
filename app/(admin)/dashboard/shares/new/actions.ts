@@ -10,6 +10,7 @@ import { parseVisibilityRules } from '@/lib/security/visibility'
 import { generateShareCode, generateShareToken, hashShareToken } from '@/lib/security/tokens'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { listRegisteredRepositories } from '@/lib/repositories/registry'
+import { enforceAuthenticatedRateLimit } from '../../../../../lib/security/rate-limit'
 
 const shareFormInputSchema = z.object({
   repositoryId: z.string().uuid(),
@@ -32,6 +33,7 @@ export async function validateShareForm(input: unknown) {
   const parsed = shareFormInputSchema.parse(input)
   const repositoryAccess = await requireRepositoryAccess(parsed.repositoryId)
   await requireWorkspaceRole(repositoryAccess.workspace.id, ['owner', 'admin'])
+  await enforceAuthenticatedRateLimit('authenticated-share-create', repositoryAccess.workspace.id, repositoryAccess.user.id)
   const repositories = await listRegisteredRepositories()
   const repository = repositories.find((candidate) => candidate.id === parsed.repositoryId)
 
@@ -75,6 +77,7 @@ export async function createShare(input: unknown) {
   const parsed = shareFormInputSchema.parse(input)
   const repositoryAccess = await requireRepositoryAccess(parsed.repositoryId)
   await requireWorkspaceRole(repositoryAccess.workspace.id, ['owner', 'admin'])
+  await enforceAuthenticatedRateLimit('authenticated-share-create', repositoryAccess.workspace.id, repositoryAccess.user.id)
   const repositories = await listRegisteredRepositories()
   const repository = repositories.find((candidate) => candidate.id === parsed.repositoryId)
 

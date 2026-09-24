@@ -4,6 +4,7 @@ vi.mock('server-only', () => ({}))
 vi.mock('../lib/auth/workspace', () => ({
   requireWorkspaceAdmin: vi.fn(),
 }))
+vi.mock('../lib/security/rate-limit', () => ({ enforceAuthenticatedRateLimit: vi.fn(async () => undefined) }))
 vi.mock('../lib/supabase/admin', () => ({
   createSupabaseAdminClient: vi.fn(),
 }))

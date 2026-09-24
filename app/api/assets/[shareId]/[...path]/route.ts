@@ -2,21 +2,38 @@ import { requireViewerRepositoryAccess } from '../../../../../lib/auth/viewer-ac
 import { loadRepositoryAsset } from '../../../../../lib/github/contents'
 import { normalizeRepositoryPath } from '../../../../../lib/security/path'
 import { isPathAllowedForShare } from '../../../../../lib/security/visibility'
+import { checkPublicRateLimit, checkRateLimits, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../../lib/security/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ shareId: string; path: string[] }> },
 ) {
   const { shareId, path } = await params
   const responsePath = normalizeRepositoryPath(path.join('/'))
+
+  try {
+    const decision = await checkPublicRateLimit(request, 'public-asset')
+    if (decision) return rateLimitResponse(decision)
+  } catch {
+    return rateLimitUnavailableResponse()
+  }
 
   let viewer: Awaited<ReturnType<typeof requireViewerRepositoryAccess>>
   try {
     viewer = await requireViewerRepositoryAccess(shareId)
   } catch {
     return notFoundResponse()
+  }
+
+  try {
+    const decision = await checkRateLimits('public-asset', [
+      { value: `session:${viewer.session.id}` },
+    ])
+    if (decision) return rateLimitResponse(decision)
+  } catch {
+    return rateLimitUnavailableResponse()
   }
 
   if (!responsePath || !isPathAllowedForShare(responsePath, viewer.repository.default_rules, viewer.share.rules)) {

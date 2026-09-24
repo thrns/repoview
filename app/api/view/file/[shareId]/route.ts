@@ -8,6 +8,7 @@ import { isPathAllowedForShare } from '@/lib/security/visibility'
 import { detectViewerLanguage } from '@/lib/viewer/language'
 import { recordViewerViewEvent } from '@/lib/viewer/view-events'
 import { isGlobalPrivacyControl } from '../../../../../lib/viewer/privacy-shared'
+import { checkPublicRateLimit, checkRateLimits, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../../lib/security/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,6 +19,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ shar
 
   if (!requestedPath) {
     return NextResponse.json({ error: 'invalid_path' }, { status: 400 })
+  }
+
+  try {
+    const decision = await checkPublicRateLimit(request, 'public-asset')
+    if (decision) return rateLimitResponse(decision)
+  } catch {
+    return rateLimitUnavailableResponse()
   }
 
   let viewer: Awaited<ReturnType<typeof requireViewerRepositoryAccess>>
@@ -31,6 +39,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ shar
     })
   }
   const authMs = performance.now() - authStartedAt
+
+  try {
+    const decision = await checkRateLimits('public-asset', [
+      { value: `session:${viewer.session.id}` },
+    ])
+    if (decision) return rateLimitResponse(decision)
+  } catch {
+    return rateLimitUnavailableResponse()
+  }
 
   if (!isPathAllowedForShare(requestedPath, viewer.repository.default_rules, viewer.share.rules)) {
     return fileResponse({ error: 'not_found' }, 404, { auth: authMs, total: performance.now() - requestStartedAt })

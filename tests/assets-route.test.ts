@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 vi.mock('../lib/auth/viewer-access', () => ({ requireViewerRepositoryAccess: vi.fn() }))
+vi.mock('../lib/security/rate-limit', () => ({ checkPublicRateLimit: vi.fn(async () => null), checkRateLimits: vi.fn(async () => null), getRequestIp: vi.fn(() => null), rateLimitResponse: vi.fn(), rateLimitUnavailableResponse: vi.fn() }))
 vi.mock('../lib/github/contents', () => ({ loadRepositoryAsset: vi.fn() }))
 vi.mock('../lib/security/visibility', () => ({ isPathAllowedForShare: vi.fn() }))
 
@@ -16,7 +17,8 @@ const isAllowed = vi.mocked(isPathAllowedForShare)
 
 const viewer = {
   repository: { id: 'repository-1', github_owner: 'octocat', github_repo: 'hello-world', workspace_id: 'workspace-1', default_rules: {}, github_installation_id: 'installation-record-1' },
-  share: { workspace_id: 'workspace-1', ref: 'main', rules: {} },
+  share: { id: 'share-123', workspace_id: 'workspace-1', ref: 'main', rules: {} },
+  session: { id: 'session-123' },
   installationId: 5678,
   accessibleRepository: { owner: 'octocat', name: 'hello-world', fullName: 'octocat/hello-world' },
 } as never

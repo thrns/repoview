@@ -4,6 +4,7 @@ import { requireViewerRepositoryAccess } from '@/lib/auth/viewer-access'
 import { loadRepositoryFile } from '@/lib/github/contents'
 import { normalizeRepositoryPath } from '@/lib/security/path'
 import { isPathAllowedForShare } from '@/lib/security/visibility'
+import { checkPublicRateLimit, checkRateLimits, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../../lib/security/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,8 +12,23 @@ export async function GET(request: Request, { params }: { params: Promise<{ shar
   const { shareId } = await params
   const path = normalizeRepositoryPath(new URL(request.url).searchParams.get('path'))
   if (!path) return new NextResponse(null, { status: 400 })
+  try {
+    const decision = await checkPublicRateLimit(request, 'public-download')
+    if (decision) return rateLimitResponse(decision)
+  } catch {
+    return rateLimitUnavailableResponse()
+  }
   let viewer: Awaited<ReturnType<typeof requireViewerRepositoryAccess>>
   try { viewer = await requireViewerRepositoryAccess(shareId) } catch { return new NextResponse(null, { status: 404 }) }
+  try {
+    const decision = await checkRateLimits('public-download', [
+      { value: `session:${viewer.session.id}` },
+      { value: `share:${viewer.share.id}` },
+    ])
+    if (decision) return rateLimitResponse(decision)
+  } catch {
+    return rateLimitUnavailableResponse()
+  }
   if (!viewer.share.allow_download || !isPathAllowedForShare(path, viewer.repository.default_rules, viewer.share.rules)) return new NextResponse(null, { status: 404 })
   try {
     const file = await loadRepositoryFile(

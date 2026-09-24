@@ -7,6 +7,7 @@ import { requireWorkspace, requireWorkspaceAdmin } from '../../../../lib/auth/wo
 import { getServerEnv } from '../../../../lib/env/server'
 import { sendTransactionalEmail } from '../../../../lib/notifications/email-provider'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
+import { enforceAuthenticatedRateLimit, enforceRateLimits } from '../../../../lib/security/rate-limit'
 
 const profileSchema = z.object({
   fullName: z.string().trim().min(1).max(100),
@@ -98,6 +99,8 @@ export async function updateNotificationSettings(input: {
 export async function disconnectGitHubInstallation(installationId: string) {
   const parsedInstallationId = uuidSchema.parse(installationId)
   const context = await requireWorkspaceAdmin()
+  await enforceAuthenticatedRateLimit('authenticated-github-connect', context.workspace.id, context.user.id)
+  await enforceRateLimits('authenticated-github-connect', [{ value: `installation:${parsedInstallationId}` }])
   const supabase = await createSupabaseServerClient()
   const { data: installation, error: installationLookupError } = await supabase
     .from('github_installations')
@@ -149,7 +152,8 @@ export async function disconnectGitHubInstallation(installationId: string) {
 }
 
 export async function sendTestEmail() {
-  await requireWorkspaceAdmin()
+  const context = await requireWorkspaceAdmin()
+  await enforceAuthenticatedRateLimit('authenticated-test-email', context.workspace.id, context.user.id)
 
   try {
     const env = getServerEnv()

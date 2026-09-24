@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 
+vi.mock('server-only', () => ({}))
 vi.mock('../lib/auth/workspace', () => ({
-  requireShareAccess: vi.fn(async () => ({ workspace: { id: 'workspace-1' }, share: {} })),
+  requireShareAccess: vi.fn(async () => ({ user: { id: 'user-1' }, workspace: { id: 'workspace-1' }, share: {} })),
   requireWorkspaceRole: vi.fn(async () => undefined),
 }))
+vi.mock('../lib/security/rate-limit', () => ({ enforceAuthenticatedRateLimit: vi.fn(async () => undefined) }))
 vi.mock('../lib/supabase/server', () => ({ createSupabaseServerClient: vi.fn() }))
 vi.mock('../lib/security/tokens', () => ({ generateShareToken: vi.fn(() => 'new-raw-token'), hashShareToken: vi.fn(() => 'new-token-hash') }))
 vi.mock('../lib/env/public', () => ({ getPublicEnv: vi.fn(() => ({ NEXT_PUBLIC_APP_URL: 'https://code.thrn.im/' })) }))
