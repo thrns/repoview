@@ -53,6 +53,10 @@ export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): 
   if (notificationSettings && !notificationSettings.notify_on_view) {
     return { status: 'disabled' }
   }
+  const visitContext = await getVisitContext(admin, input.shareId, input.sessionId, input.session.viewer_id, input.share.workspace_id)
+  if (visitContext.visitCount > 1 && notificationSettings && !notificationSettings.notify_on_returning_view) {
+    return { status: 'disabled' }
+  }
   const attemptedAt = (input.now ?? new Date()).toISOString()
   const claimQuery = admin
     .from('viewer_sessions')
@@ -71,7 +75,6 @@ export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): 
     return { status: 'already-attempted' }
   }
 
-  const visitContext = await getVisitContext(admin, input.shareId, input.sessionId, input.session.viewer_id, input.share.workspace_id)
   const viewerLabel = visitContext.viewerCode ? `Anonymous Viewer #${visitContext.viewerCode}` : input.share.recipient_label ?? 'Anonymous Viewer'
   const email = buildViewNotificationEmail({
     recipientLabel: input.share.recipient_label,
@@ -131,7 +134,7 @@ export async function notifySessionSummary({ shareId, sessionId, share, reposito
   const { data: session, error: sessionError } = await sessionQuery.eq('workspace_id', workspaceId).maybeSingle()
   if (sessionError || !session || !session.confirmed_at || session.is_probable_bot) return { status: 'skipped' as const }
   if (share.notify_on_view === false) return { status: 'disabled' as const }
-  if (notificationSettings && !notificationSettings.notify_on_view) return { status: 'disabled' as const }
+  if (notificationSettings?.notify_on_session_summary === false) return { status: 'disabled' as const }
 
   const endedAt = session.ended_at ?? session.last_seen_at
   const summaryClaimQuery = admin.from('viewer_sessions')
@@ -199,7 +202,7 @@ export async function notifySessionSummary({ shareId, sessionId, share, reposito
 async function getNotificationSettings(admin: ReturnType<typeof createSupabaseAdminClient>, workspaceId: string) {
   const { data, error } = await admin
     .from('notification_settings')
-    .select('notification_email, notify_on_view')
+    .select('notification_email, notify_on_view, notify_on_returning_view, notify_on_session_summary')
     .eq('workspace_id', workspaceId)
     .maybeSingle()
   if (error) throw error
