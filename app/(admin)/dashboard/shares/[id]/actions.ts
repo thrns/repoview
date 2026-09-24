@@ -8,6 +8,7 @@ import { getPublicEnv } from '../../../../../lib/env/public'
 import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
 import { generateShareToken, hashShareToken } from '../../../../../lib/security/tokens'
 import { enforceAuthenticatedRateLimit } from '../../../../../lib/security/rate-limit'
+import { AUDIT_ACTIONS, recordAuditLogBestEffort } from '../../../../../lib/audit-log'
 
 const shareIdSchema = z.string().uuid()
 const expiryInputSchema = z.object({
@@ -33,6 +34,14 @@ export async function revokeShare(input: unknown) {
   if (error || !data) {
     throw new Error('This share is already revoked or could not be found.')
   }
+
+  await recordAuditLogBestEffort({
+    workspaceId: access.workspace.id,
+    actorUserId: access.user.id,
+    action: AUDIT_ACTIONS.shareRevoked,
+    resourceType: 'share',
+    resourceId: shareId,
+  })
 
   revalidatePath('/dashboard/shares')
   revalidatePath(`/dashboard/shares/${shareId}`)
@@ -62,6 +71,15 @@ export async function updateShareExpiry(input: unknown) {
     throw new Error('This share could not be updated.')
   }
 
+  await recordAuditLogBestEffort({
+    workspaceId: access.workspace.id,
+    actorUserId: access.user.id,
+    action: AUDIT_ACTIONS.shareExpiryChanged,
+    resourceType: 'share',
+    resourceId: parsed.shareId,
+    metadata: { expires_at: parsed.expiresAt },
+  })
+
   revalidatePath('/dashboard/shares')
   revalidatePath(`/dashboard/shares/${parsed.shareId}`)
   return { updated: true as const, expiresAt: parsed.expiresAt }
@@ -88,6 +106,15 @@ export async function rotateShare(input: unknown) {
   if (error || !data) {
     throw new Error('This share could not be rotated.')
   }
+
+  await recordAuditLogBestEffort({
+    workspaceId: access.workspace.id,
+    actorUserId: access.user.id,
+    action: AUDIT_ACTIONS.shareRotated,
+    resourceType: 'share',
+    resourceId: shareId,
+    metadata: { token_rotated: true },
+  })
 
   revalidatePath('/dashboard/shares')
   revalidatePath(`/dashboard/shares/${shareId}`)

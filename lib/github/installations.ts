@@ -6,6 +6,7 @@ import { requireWorkspaceAdmin } from '../auth/workspace'
 import { createSupabaseAdminClient } from '../supabase/admin'
 import type { Json, Tables } from '../supabase/database.types'
 import { assertWorkspaceResourceQuota } from '../security/quotas'
+import { AUDIT_ACTIONS, recordAuditLogBestEffort } from '../audit-log'
 
 const GitHubAccountLoginMaxLength = 100
 
@@ -33,7 +34,7 @@ export async function registerVerifiedGitHubInstallation(
   input: unknown,
 ): Promise<Tables<'github_installations'>> {
   const parsed = verifiedInstallationSchema.parse(input)
-  const { workspace } = await requireWorkspaceAdmin()
+  const { workspace, user } = await requireWorkspaceAdmin()
   if (workspace.id !== workspaceId) {
     throw new Error('The GitHub App installation workspace is not authorized.')
   }
@@ -77,6 +78,20 @@ export async function registerVerifiedGitHubInstallation(
   if (error || !data) {
     throw new Error('RepoView could not save the GitHub App installation.')
   }
+
+  await recordAuditLogBestEffort({
+    workspaceId: workspace.id,
+    actorUserId: user.id,
+    action: AUDIT_ACTIONS.githubInstallationConnected,
+    resourceType: 'github_installation',
+    resourceId: data.id,
+    metadata: {
+      account: parsed.account.login,
+      account_type: parsed.account.type,
+      repository_selection: parsed.repository_selection,
+      reconnected: existing?.status === 'deleted',
+    },
+  }, supabase)
 
   return data
 }

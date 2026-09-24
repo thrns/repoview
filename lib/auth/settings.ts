@@ -2,7 +2,7 @@ import 'server-only'
 
 import { requireWorkspace } from './workspace'
 import { createSupabaseServerClient } from '../supabase/server'
-import type { Tables } from '../supabase/database.types'
+import type { Json, Tables } from '../supabase/database.types'
 import { getWorkspaceQuotaUsage, type WorkspaceQuotaUsage } from '../security/quotas'
 
 export type SettingsInstallation = {
@@ -51,7 +51,7 @@ export async function getSettingsPageData(): Promise<SettingsPageData> {
     context.membership.role === 'owner' || context.membership.role === 'admin'
       ? supabase
         .from('audit_logs')
-        .select('action, resource_type, created_at')
+        .select('action, resource_type, resource_id, metadata, actor_user_id, created_at')
         .eq('workspace_id', context.workspace.id)
         .order('created_at', { ascending: false })
         .limit(4)
@@ -91,7 +91,7 @@ export async function getSettingsPageData(): Promise<SettingsPageData> {
   for (const item of auditResult.data ?? []) {
     activity.push({
       label: formatActivityLabel(item.action, item.resource_type),
-      detail: 'Workspace activity',
+      detail: formatActivityDetail(item.resource_type, item.metadata),
       occurredAt: item.created_at,
     })
   }
@@ -135,6 +135,20 @@ function formatActivityLabel(action: string, resourceType: string) {
   const normalizedAction = action.replaceAll('_', ' ')
   const normalizedResource = resourceType.replaceAll('_', ' ')
   return `${capitalize(normalizedAction)} ${normalizedResource}`
+}
+
+function formatActivityDetail(resourceType: string, metadata: Json) {
+  if (isJsonObject(metadata)) {
+    const repository = typeof metadata.repository === 'string' ? metadata.repository : null
+    const account = typeof metadata.account === 'string' ? metadata.account : null
+    if (repository) return repository
+    if (account) return `${resourceType.replaceAll('_', ' ')} · ${account}`
+  }
+  return 'Workspace activity'
+}
+
+function isJsonObject(value: Json): value is { [key: string]: Json | undefined } {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }
 
 function capitalize(value: string) {

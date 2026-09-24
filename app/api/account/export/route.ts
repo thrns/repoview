@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { AUDIT_ACTIONS, recordAuditLogBestEffort } from '@/lib/audit-log'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +18,14 @@ export async function GET() {
   if (membershipError) return NextResponse.json({ error: 'Account data could not be exported.' }, { status: 500 })
 
   const workspaceIds = (membership ?? []).map((item) => item.workspace_id)
+  await Promise.all(workspaceIds.map((workspaceId) => recordAuditLogBestEffort({
+    workspaceId,
+    actorUserId: authData.user.id,
+    action: AUDIT_ACTIONS.accountExportRequested,
+    resourceType: 'account',
+    resourceId: authData.user.id,
+    metadata: { format: 'json' },
+  })))
   const [profileResult, workspaceResult, settingsResult, installationResult, repositoryResult, shareResult, recipientResult, sessionResult, eventResult, repositoryEventResult, fileEngagementResult, accessAttemptResult, deliveryResult, viewerResult, auditResult] = await Promise.all([
     supabase.from('profiles').select('id, full_name, avatar_url, profile_completed_at, terms_version_accepted, terms_accepted_at, privacy_version_acknowledged, privacy_acknowledged_at, onboarding_completed_at, created_at, updated_at').eq('id', authData.user.id).maybeSingle(),
     workspaceIds.length > 0 ? supabase.from('workspaces').select('id, name, slug, owner_id, is_personal, status, deletion_started_at, deletion_completed_at, created_at, updated_at').in('id', workspaceIds) : Promise.resolve({ data: [], error: null }),
@@ -32,7 +41,7 @@ export async function GET() {
     workspaceIds.length > 0 ? supabase.from('share_access_attempts').select('id, share_id, workspace_id, valid, failure_reason, token_age_seconds, ip_hash, referrer_host, is_probable_bot, created_at').in('workspace_id', workspaceIds).order('created_at', { ascending: true }) : Promise.resolve({ data: [], error: null }),
     workspaceIds.length > 0 ? supabase.from('notification_deliveries').select('*').in('workspace_id', workspaceIds).order('created_at', { ascending: true }) : Promise.resolve({ data: [], error: null }),
     workspaceIds.length > 0 ? supabase.from('viewers').select('id, workspace_id, viewer_code, first_seen_at, last_seen_at').in('workspace_id', workspaceIds).order('first_seen_at', { ascending: true }) : Promise.resolve({ data: [], error: null }),
-    workspaceIds.length > 0 ? supabase.from('audit_logs').select('workspace_id, actor_id, action, resource_type, resource_id, metadata, created_at').in('workspace_id', workspaceIds).order('created_at', { ascending: false }).limit(500) : Promise.resolve({ data: [], error: null }),
+    workspaceIds.length > 0 ? supabase.from('audit_logs').select('workspace_id, actor_user_id, action, resource_type, resource_id, metadata, created_at').in('workspace_id', workspaceIds).order('created_at', { ascending: false }).limit(500) : Promise.resolve({ data: [], error: null }),
   ])
 
   const results = [profileResult, workspaceResult, settingsResult, installationResult, repositoryResult, shareResult, recipientResult, sessionResult, eventResult, repositoryEventResult, fileEngagementResult, accessAttemptResult, deliveryResult, viewerResult, auditResult]

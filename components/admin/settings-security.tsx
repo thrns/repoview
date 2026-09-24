@@ -53,10 +53,10 @@ export function SettingsSecurity({ lastSignInAt, activity }: { lastSignInAt: str
       </div>
 
       <div className="rounded-md border border-border/70">
-        <div className="flex items-center justify-between gap-4 border-b border-border/70 px-4 py-3"><div><p className="text-sm font-medium">Recent account activity</p><p className="mt-0.5 text-xs text-foreground-muted">Security-relevant events for this workspace.</p></div><Clock3 className="size-4 text-foreground-muted" aria-hidden="true" /></div>
+        <div className="flex items-center justify-between gap-4 border-b border-border/70 px-4 py-3"><div><p className="text-sm font-medium">Recent workspace activity</p><p className="mt-0.5 text-xs text-foreground-muted">Owner and admin actions recorded for this workspace.</p></div><Clock3 className="size-4 text-foreground-muted" aria-hidden="true" /></div>
         <div className="divide-y divide-border/60">
           {activity.map((item) => <div key={`${item.label}-${item.occurredAt}`} className="flex items-center justify-between gap-4 px-4 py-3"><div><p className="text-sm">{item.label}</p><p className="mt-0.5 text-xs text-foreground-muted">{item.detail}</p></div><time className="shrink-0 font-mono text-[11px] text-foreground-muted" dateTime={item.occurredAt}>{formatDate(item.occurredAt)}</time></div>)}
-          {activity.length === 0 ? <p className="px-4 py-4 text-sm text-foreground-muted">No recent security activity has been recorded.</p> : null}
+          {activity.length === 0 ? <p className="px-4 py-4 text-sm text-foreground-muted">No recent workspace activity has been recorded.</p> : null}
         </div>
         {lastSignInAt ? <p className="border-t border-border/60 px-4 py-3 text-xs text-foreground-muted">Last sign in: {formatDate(lastSignInAt)}</p> : null}
       </div>

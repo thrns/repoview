@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { CheckCircle2, CircleAlert, Download, LockKeyhole, Trash2 } from 'lucide-react'
 
-import { updateProfile } from '@/app/(admin)/dashboard/settings/actions'
+import { changePassword, updateProfile } from '@/app/(admin)/dashboard/settings/actions'
 import { Alert, AlertDescription, Button, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label } from '@/components/ui'
 import { getAccountDeletionConfirmation } from '@/lib/account/deletion-shared'
 
@@ -166,9 +166,8 @@ function ChangePasswordForm() {
     }
     setPending(true)
     try {
-      const { createSupabaseBrowserClient } = await import('@/lib/supabase/client')
-      const { error } = await createSupabaseBrowserClient().auth.updateUser({ password })
-      if (error) {
+      const result = await changePassword({ password })
+      if (!result.changed) {
         setMessage('The password could not be changed. Sign in again and retry.')
       } else {
         setPassword('')

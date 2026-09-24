@@ -7,6 +7,7 @@ import { createSupabaseServerClient } from '../supabase/server'
 import type { VisibilityRules } from '../security/visibility'
 import type { Tables } from '../supabase/database.types'
 import { assertWorkspaceResourceQuota } from '../security/quotas'
+import { AUDIT_ACTIONS, recordAuditLogBestEffort } from '../audit-log'
 
 export type RepositoryRecord = Tables<'repositories'>
 
@@ -73,7 +74,7 @@ export async function saveRepositoryRecord(input: {
   defaultRules?: VisibilityRules
   existingRepositoryId?: string
 }) {
-  const { workspace } = await requireWorkspaceAdmin()
+  const { workspace, user } = await requireWorkspaceAdmin()
   const supabase = await createSupabaseServerClient()
   const { data: installation, error: installationError } = await supabase
     .from('github_installations')
@@ -87,6 +88,7 @@ export async function saveRepositoryRecord(input: {
     throw new Error('RepoView could not verify the GitHub App installation for this workspace.')
   }
 
+  let existingEnabled: boolean | null = null
   if (input.enabled) {
     const existing = input.existingRepositoryId
       ? await supabase
@@ -97,7 +99,17 @@ export async function saveRepositoryRecord(input: {
         .maybeSingle()
       : { data: null, error: null }
     if (existing.error) throw new Error('RepoView could not inspect this repository record.')
+    existingEnabled = existing.data?.enabled ?? null
     if (!existing.data?.enabled) await assertWorkspaceResourceQuota('enabled-repositories', workspace.id)
+  } else if (input.existingRepositoryId) {
+    const existing = await supabase
+      .from('repositories')
+      .select('enabled')
+      .eq('id', input.existingRepositoryId)
+      .eq('workspace_id', workspace.id)
+      .maybeSingle()
+    if (existing.error) throw new Error('RepoView could not inspect this repository record.')
+    existingEnabled = existing.data?.enabled ?? null
   }
 
   const repositoryFields = {
@@ -142,10 +154,32 @@ export async function saveRepositoryRecord(input: {
       .from('repositories')
       .upsert(repositoryFields, { onConflict: 'workspace_id,github_repository_id' })
 
-  const { error } = await query
+  const { data: savedRepository, error } = await query.select('id').maybeSingle()
 
-  if (error) {
+  if (error || !savedRepository) {
     throw new Error('RepoView could not save this repository record.')
+  }
+
+  if (!input.existingRepositoryId) {
+    await recordAuditLogBestEffort({
+      workspaceId: workspace.id,
+      actorUserId: user.id,
+      action: AUDIT_ACTIONS.repositoryConnected,
+      resourceType: 'repository',
+      resourceId: savedRepository.id,
+      metadata: { repository: `${input.githubOwner}/${input.githubRepo}`, github_repository_id: input.githubRepositoryId },
+    })
+  }
+
+  if (existingEnabled !== input.enabled) {
+    await recordAuditLogBestEffort({
+      workspaceId: workspace.id,
+      actorUserId: user.id,
+      action: input.enabled ? AUDIT_ACTIONS.repositoryEnabled : AUDIT_ACTIONS.repositoryDisabled,
+      resourceType: 'repository',
+      resourceId: savedRepository.id,
+      metadata: { repository: `${input.githubOwner}/${input.githubRepo}` },
+    })
   }
 }
 
@@ -167,6 +201,15 @@ export async function updateRepositoryVisibilityRules(id: string, rules: Visibil
   if (error) {
     throw new Error('RepoView could not update repository visibility rules.')
   }
+
+  await recordAuditLogBestEffort({
+    workspaceId: access.workspace.id,
+    actorUserId: access.user.id,
+    action: AUDIT_ACTIONS.visibilityRulesChanged,
+    resourceType: 'repository',
+    resourceId: id,
+    metadata: { hidden_count: rules.hidden.length, allow_only_count: rules.allowOnly.length },
+  })
 }
 
 export async function setRepositoryEnabled(id: string, enabled: boolean) {
@@ -183,4 +226,13 @@ export async function setRepositoryEnabled(id: string, enabled: boolean) {
   if (error) {
     throw new Error('RepoView could not update this repository record.')
   }
+
+  await recordAuditLogBestEffort({
+    workspaceId: access.workspace.id,
+    actorUserId: access.user.id,
+    action: enabled ? AUDIT_ACTIONS.repositoryEnabled : AUDIT_ACTIONS.repositoryDisabled,
+    resourceType: 'repository',
+    resourceId: id,
+    metadata: { repository: `${access.repository.github_owner}/${access.repository.github_repo}` },
+  })
 }

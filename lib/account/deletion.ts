@@ -4,6 +4,7 @@ import type { User } from '@supabase/supabase-js'
 
 import { getAccountDeletionConfirmation } from './deletion-shared'
 import { createSupabaseAdminClient } from '../supabase/admin'
+import { AUDIT_ACTIONS, recordAuditLogBestEffort } from '../audit-log'
 
 export const RECENT_AUTH_MAX_AGE_MS = 15 * 60 * 1000
 
@@ -85,6 +86,15 @@ export async function deleteAccountData({ user, confirmation }: { user: User; co
     await expectSuccess(
       admin.from('repositories').update({ enabled: false }).in('workspace_id', workspaceIds),
     )
+
+    await Promise.all(workspaceIds.map((workspaceId) => recordAuditLogBestEffort({
+      workspaceId,
+      actorUserId: user.id,
+      action: AUDIT_ACTIONS.accountDeletionRequested,
+      resourceType: 'account',
+      resourceId: user.id,
+      metadata: { workspace_count: workspaceIds.length },
+    }, admin)))
 
     // Delete user-owned metadata and analytics explicitly. The workspace
     // cascade remains a final safety net for any future tenant-owned table.

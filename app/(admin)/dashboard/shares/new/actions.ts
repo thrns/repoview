@@ -12,6 +12,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { listRegisteredRepositories } from '@/lib/repositories/registry'
 import { enforceAuthenticatedRateLimit } from '../../../../../lib/security/rate-limit'
 import { assertWorkspaceResourceQuota, releaseQuota, reserveQuota } from '../../../../../lib/security/quotas'
+import { AUDIT_ACTIONS, recordAuditLogBestEffort } from '../../../../../lib/audit-log'
 
 const shareFormInputSchema = z.object({
   repositoryId: z.string().uuid(),
@@ -145,6 +146,19 @@ export async function createShare(input: unknown) {
       })
       if (recipientError) throw new Error('RepoView could not save recipient details.')
     }
+
+    await recordAuditLogBestEffort({
+      workspaceId: repositoryAccess.workspace.id,
+      actorUserId: repositoryAccess.user.id,
+      action: AUDIT_ACTIONS.shareCreated,
+      resourceType: 'share',
+      resourceId: data.id,
+      metadata: {
+        repository: `${repository.github_owner}/${repository.github_repo}`,
+        share_type: parsed.shareType,
+        expires_at: parsed.expiresAt,
+      },
+    })
 
     const appUrl = getPublicEnv().NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
     return {

@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 import { createSupabaseAdminClient } from '../supabase/admin'
 import type { Tables, TablesUpdate } from '../supabase/database.types'
+import { AUDIT_ACTIONS, recordAuditLogBestEffort } from '../audit-log'
 
 const repositoryPayloadSchema = z.object({
   id: z.number().int().positive(),
@@ -191,16 +192,20 @@ async function dispatchWebhookEvent(
       case 'created':
         await updateInstallationFromPayload(admin, installation, payload.installation, 'active')
         await syncAddedRepositories(admin, installation, payload.repositories_added)
+        await recordInstallationAudit(admin, installation, AUDIT_ACTIONS.githubInstallationConnected, { source: 'github_webhook' })
         return 'processed'
       case 'deleted':
         await updateInstallationFromPayload(admin, installation, payload.installation, 'deleted')
         await closeInstallationAccess(admin, installation)
+        await recordInstallationAudit(admin, installation, AUDIT_ACTIONS.githubInstallationDisconnected, { source: 'github_webhook' })
         return 'processed'
       case 'suspended':
         await updateInstallationFromPayload(admin, installation, payload.installation, 'suspended')
+        await recordInstallationAudit(admin, installation, AUDIT_ACTIONS.githubInstallationSuspended, { source: 'github_webhook' })
         return 'processed'
       case 'unsuspended':
         await updateInstallationFromPayload(admin, installation, payload.installation, 'active')
+        await recordInstallationAudit(admin, installation, AUDIT_ACTIONS.githubInstallationUnsuspended, { source: 'github_webhook' })
         return 'processed'
       default:
         return 'ignored'
@@ -222,6 +227,22 @@ async function dispatchWebhookEvent(
     default:
       return 'ignored'
   }
+}
+
+async function recordInstallationAudit(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  installation: Tables<'github_installations'>,
+  action: string,
+  metadata: Record<string, unknown>,
+) {
+  await recordAuditLogBestEffort({
+    workspaceId: installation.workspace_id,
+    actorUserId: null,
+    action,
+    resourceType: 'github_installation',
+    resourceId: installation.id,
+    metadata: { ...metadata, account: installation.github_account_login },
+  }, admin)
 }
 
 async function updateInstallationFromPayload(
@@ -347,6 +368,15 @@ async function closeRepositoryAccess(
     .is('revoked_at', null)
 
   if (shareError) throw new Error('RepoView could not revoke GitHub repository shares.')
+
+  await Promise.all(repositoryIds.map((repositoryId) => recordAuditLogBestEffort({
+    workspaceId,
+    actorUserId: null,
+    action: AUDIT_ACTIONS.repositoryDisconnected,
+    resourceType: 'repository',
+    resourceId: repositoryId,
+    metadata: { source: 'github_webhook' },
+  }, admin)))
 }
 
 function normalizeDeliveryId(value: string) {

@@ -8,6 +8,7 @@ import { getServerEnv } from '../../../../lib/env/server'
 import { sendTransactionalEmail } from '../../../../lib/notifications/email-provider'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import { enforceAuthenticatedRateLimit, enforceRateLimits } from '../../../../lib/security/rate-limit'
+import { AUDIT_ACTIONS, recordAuditLogBestEffort } from '../../../../lib/audit-log'
 
 const profileSchema = z.object({
   fullName: z.string().trim().min(1).max(100),
@@ -37,6 +38,14 @@ export async function updateProfile(input: { fullName: string }) {
     .eq('id', context.user.id)
 
   if (error) return { saved: false as const, error: 'Your profile could not be saved.' }
+  await recordAuditLogBestEffort({
+    workspaceId: context.workspace.id,
+    actorUserId: context.user.id,
+    action: AUDIT_ACTIONS.accountSettingChanged,
+    resourceType: 'account',
+    resourceId: context.user.id,
+    metadata: { setting: 'profile', fields: ['full_name'] },
+  })
   revalidatePath('/dashboard/settings')
   return { saved: true as const }
 }
@@ -75,6 +84,7 @@ export async function updateNotificationSettings(input: {
     destinationEmail
     && ((currentSettings?.email_verified && currentSettings.destination_email?.toLowerCase() === destinationEmail.toLowerCase()) || isVerifiedAccountDestination),
   )
+  const destinationChanged = (currentSettings?.destination_email ?? null)?.toLowerCase() !== (destinationEmail ?? null)?.toLowerCase()
   const { error } = await supabase
     .from('notification_settings')
     .upsert({
@@ -92,6 +102,16 @@ export async function updateNotificationSettings(input: {
     }, { onConflict: 'workspace_id' })
 
   if (error) return { saved: false as const, error: 'Notification settings could not be saved.' }
+  await recordAuditLogBestEffort({
+    workspaceId: context.workspace.id,
+    actorUserId: context.user.id,
+    action: destinationChanged ? AUDIT_ACTIONS.notificationDestinationChanged : AUDIT_ACTIONS.notificationSettingsChanged,
+    resourceType: 'notification_settings',
+    resourceId: context.workspace.id,
+    metadata: destinationChanged
+      ? { configured: Boolean(destinationEmail), verified: emailVerified }
+      : { setting: 'notification_preferences' },
+  })
   revalidatePath('/dashboard/settings')
   return { saved: true as const }
 }
@@ -145,10 +165,46 @@ export async function disconnectGitHubInstallation(installationId: string) {
     if (shareError) return { disconnected: false as const, error: 'Repository shares could not be revoked.' }
   }
 
+  await Promise.all(repositories.map((repository) => recordAuditLogBestEffort({
+    workspaceId: context.workspace.id,
+    actorUserId: context.user.id,
+    action: AUDIT_ACTIONS.repositoryDisconnected,
+    resourceType: 'repository',
+    resourceId: repository.id,
+    metadata: { github_installation_id: installation.id },
+  })))
+
+  await recordAuditLogBestEffort({
+    workspaceId: context.workspace.id,
+    actorUserId: context.user.id,
+    action: AUDIT_ACTIONS.githubInstallationDisconnected,
+    resourceType: 'github_installation',
+    resourceId: installation.id,
+    metadata: { repository_count: repositories.length },
+  })
+
   revalidatePath('/dashboard/settings')
   revalidatePath('/dashboard/repositories')
   revalidatePath('/dashboard/shares')
   return { disconnected: true as const }
+}
+
+export async function changePassword(input: { password: string }) {
+  const password = z.string().min(8).max(200).parse(input.password)
+  const context = await requireWorkspace()
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase.auth.updateUser({ password })
+
+  if (error) return { changed: false as const, error: 'The password could not be changed.' }
+  await recordAuditLogBestEffort({
+    workspaceId: context.workspace.id,
+    actorUserId: context.user.id,
+    action: AUDIT_ACTIONS.securitySettingChanged,
+    resourceType: 'security',
+    resourceId: context.user.id,
+    metadata: { setting: 'password' },
+  })
+  return { changed: true as const }
 }
 
 export async function sendTestEmail() {
