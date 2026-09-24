@@ -46,6 +46,13 @@ type NotificationSettings = {
   workspace_id: string
   notification_email: string | null
   notify_on_view: boolean
+  notify_on_returning_view: boolean
+  notify_on_download: boolean
+  notify_on_session_summary: boolean
+  notify_on_security_alert: boolean
+  digest_frequency: 'off' | 'daily' | 'weekly'
+  analytics_enabled: boolean
+  analytics_retention_days: 30 | 90 | 180 | 365
   created_at: string
   updated_at: string
 }
