@@ -58,7 +58,7 @@ export function SignupForm() {
           data: {
             full_name: normalizedFullName,
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
         },
       })
 
@@ -97,7 +97,7 @@ export function SignupForm() {
           </div>
         ) : (
           <>
-            <GoogleAuthButton label="Continue with Google" />
+            <GoogleAuthButton label="Continue with Google" redirectPath="/onboarding" />
             <div className="auth-divider" aria-hidden="true"><span>or use email</span></div>
             <form className="login-form" onSubmit={handleSubmit}>
               {error ? <Alert className="login-error" aria-live="polite"><AlertDescription><strong>We couldn&apos;t create your account.</strong><span>{error}</span></AlertDescription></Alert> : null}
@@ -130,7 +130,7 @@ export function SignupForm() {
               <Button type="submit" size="large" className="login-submit-button w-full" loading={isSubmitting} iconRight={<ArrowRight className="size-4" aria-hidden="true" />}>
                 Create account
               </Button>
-              <p className="login-form-note">By creating an account, you agree to the <Link href="/terms">Terms</Link> and acknowledge the <Link href="/privacy">Privacy Policy</Link>.</p>
+              <p className="login-form-note">After you verify your email, RepoView will ask you to accept the current <Link href="/terms">Terms</Link> and acknowledge the <Link href="/privacy">Privacy Policy</Link>.</p>
               <p className="login-form-note">Already have an account? <Link href="/login">Sign in</Link></p>
             </form>
           </>

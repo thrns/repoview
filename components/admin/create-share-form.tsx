@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 
 import { createShare } from '@/app/(admin)/dashboard/shares/new/actions'
 import {
@@ -29,9 +30,11 @@ export interface ShareFormRepository {
 
 interface CreateShareFormProps {
   repositories: ShareFormRepository[]
+  onboarding?: boolean
 }
 
-export function CreateShareForm({ repositories }: CreateShareFormProps) {
+export function CreateShareForm({ repositories, onboarding = false }: CreateShareFormProps) {
+  const router = useRouter()
   const [repositoryId, setRepositoryId] = useState(repositories[0]?.id ?? '')
   const [shareType, setShareType] = useState<'generic' | 'recipient'>('recipient')
   const [recipientLabel, setRecipientLabel] = useState('')
@@ -120,7 +123,7 @@ export function CreateShareForm({ repositories }: CreateShareFormProps) {
           {error ? <Alert className="border-destructive/40"><AlertTitle>Check these details</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
           {success ? <Alert className="border-success/40"><AlertTitle>Share created</AlertTitle><AlertDescription>{success}</AlertDescription></Alert> : null}
 
-          {createdShareUrl ? <OneTimeShareResult url={createdShareUrl} copied={copied} onCopied={() => setCopied(true)} onCreateAnother={() => {
+          {createdShareUrl ? <OneTimeShareResult url={createdShareUrl} copied={copied} onboarding={onboarding} onCopied={() => setCopied(true)} onContinue={() => router.replace('/dashboard')} onCreateAnother={() => {
             setCreatedShareUrl(null)
             setSuccess(null)
             setCopied(false)
@@ -234,12 +237,16 @@ export function CreateShareForm({ repositories }: CreateShareFormProps) {
 function OneTimeShareResult({
   url,
   copied,
+  onboarding,
   onCopied,
+  onContinue,
   onCreateAnother,
 }: {
   url: string
   copied: boolean
+  onboarding: boolean
   onCopied: () => void
+  onContinue: () => void
   onCreateAnother: () => void
 }) {
   async function copyUrl() {
@@ -259,7 +266,10 @@ function OneTimeShareResult({
         <Input readOnly value={url} aria-label="New share URL" className="font-mono text-xs" />
         <Button type="button" variant="outline" onClick={copyUrl}>{copied ? 'Copied' : 'Copy link'}</Button>
       </div>
-      <Button type="button" variant="text" onClick={onCreateAnother}>Create another share</Button>
+      <div className="flex flex-wrap items-center gap-3">
+        {onboarding ? <Button type="button" variant="primary" onClick={onContinue}>Continue to dashboard</Button> : null}
+        <Button type="button" variant="text" onClick={onCreateAnother}>Create another share</Button>
+      </div>
     </div>
   )
 }

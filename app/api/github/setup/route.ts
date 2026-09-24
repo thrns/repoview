@@ -15,13 +15,13 @@ export async function GET(request: Request) {
 
   try {
     if (setupAction === 'request' || setupAction === 'pending' || setupAction === 'pending_approval') {
-      await markGitHubConnectionPending(state)
-      return redirectToStatus(request, 'pending')
+      const returnPath = await markGitHubConnectionPending(state)
+      return redirectToStatus(request, 'pending', returnPath)
     }
 
     if (setupAction === 'cancel' || setupAction === 'cancelled' || setupAction === 'canceled') {
-      await markGitHubConnectionFinished(state, 'cancelled')
-      return redirectToStatus(request, 'cancelled')
+      const returnPath = await markGitHubConnectionFinished(state, 'cancelled')
+      return redirectToStatus(request, 'cancelled', returnPath)
     }
 
     const installationId = parseInstallationId(requestUrl.searchParams.get('installation_id'))
@@ -44,8 +44,8 @@ function parseInstallationId(value: string | null) {
   return Number.isSafeInteger(installationId) && installationId > 0 ? installationId : null
 }
 
-function redirectToStatus(request: Request, status: string) {
-  const url = new URL('/dashboard/settings', request.url)
+function redirectToStatus(request: Request, status: string, returnPath = '/dashboard/settings') {
+  const url = new URL(returnPath, request.url)
   url.searchParams.set('github', status)
   return redirectTo(url.toString())
 }

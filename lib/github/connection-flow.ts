@@ -15,8 +15,8 @@ const CONNECTION_TTL_MS = 10 * 60 * 1000
 const STATE_BYTES = 32
 
 export type GitHubConnectionResult =
-  | { status: 'success'; repositoryCount: number }
-  | { status: 'pending' }
+  | { status: 'success'; repositoryCount: number; returnPath: string }
+  | { status: 'pending'; returnPath: string }
 
 export class GitHubConnectionError extends Error {
   constructor(
@@ -28,7 +28,7 @@ export class GitHubConnectionError extends Error {
   }
 }
 
-export async function createGitHubInstallationUrl() {
+export async function createGitHubInstallationUrl(returnPath = '/dashboard/settings') {
   const { workspace, user } = await requireWorkspaceAdmin()
   const env = getServerEnv()
   const state = randomBytes(STATE_BYTES).toString('base64url')
@@ -47,7 +47,7 @@ export async function createGitHubInstallationUrl() {
       user_id: user.id,
       state_hash: hashState(state),
       code_verifier: codeVerifier,
-      return_path: '/dashboard/settings',
+      return_path: normalizeReturnPath(returnPath),
       expires_at: new Date(Date.now() + CONNECTION_TTL_MS).toISOString(),
     })
 
@@ -92,10 +92,11 @@ export async function markGitHubConnectionPending(state: string) {
     .eq('user_id', user.id)
     .eq('status', 'pending_installation')
     .gt('expires_at', new Date().toISOString())
-    .select('id')
+    .select('id, return_path')
     .maybeSingle()
 
   if (error || !data) throw new GitHubConnectionError('invalid_state')
+  return data.return_path
 }
 
 export async function markGitHubConnectionFinished(state: string, status: 'cancelled' | 'failed') {
@@ -110,10 +111,11 @@ export async function markGitHubConnectionFinished(state: string, status: 'cance
     .eq('user_id', user.id)
     .in('status', ['pending_installation', 'awaiting_authorization'])
     .gt('expires_at', new Date().toISOString())
-    .select('id')
+    .select('id, return_path')
     .maybeSingle()
 
   if (error || !finished) throw new GitHubConnectionError('invalid_state')
+  return finished.return_path
 }
 
 export async function completeGitHubConnection(state: string, code: string): Promise<GitHubConnectionResult> {
@@ -137,7 +139,7 @@ export async function completeGitHubConnection(state: string, code: string): Pro
   const visibleInstallation = await findVisibleInstallation(accessToken, transaction.claimed_installation_id)
 
   if (!visibleInstallation) {
-    return { status: 'pending' }
+    return { status: 'pending', returnPath: normalizeReturnPath(transaction.return_path) }
   }
 
   if (visibleInstallation.account.type === 'User' && visibleInstallation.account.id !== githubUser.id) {
@@ -167,7 +169,7 @@ export async function completeGitHubConnection(state: string, code: string): Pro
     savedInstallation.id,
   )
 
-  return { status: 'success', repositoryCount: repositories.length }
+  return { status: 'success', repositoryCount: repositories.length, returnPath: normalizeReturnPath(transaction.return_path) }
 }
 
 function buildAuthorizationUrl(state: string, codeVerifier: string) {
@@ -281,6 +283,11 @@ export function createCodeChallenge(codeVerifier: string) {
 
 function getCallbackUrl(appUrl: string) {
   return new URL('/api/github/callback', `${appUrl.replace(/\/$/, '')}/`).toString()
+}
+
+export function normalizeReturnPath(value: string) {
+  if (value === '/onboarding' || value === '/dashboard/settings') return value
+  return '/dashboard/settings'
 }
 
 function assertState(state: string) {

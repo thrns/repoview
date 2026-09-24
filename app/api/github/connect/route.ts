@@ -6,7 +6,8 @@ export const runtime = 'nodejs'
 
 export async function GET(request: Request) {
   try {
-    const installationUrl = await createGitHubInstallationUrl()
+    const returnPath = new URL(request.url).searchParams.get('return') ?? undefined
+    const installationUrl = await createGitHubInstallationUrl(returnPath)
     return redirectTo(installationUrl)
   } catch (error) {
     if (isNextRedirectError(error)) throw error

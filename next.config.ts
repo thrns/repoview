@@ -24,6 +24,7 @@ const nextConfig: NextConfig = {
       { source: '/api/view/:path*', headers: privateNoStore },
       { source: '/dashboard', headers: privateNoStore },
       { source: '/dashboard/:path*', headers: privateNoStore },
+      { source: '/onboarding/:path*', headers: privateNoStore },
     ]
   },
 }

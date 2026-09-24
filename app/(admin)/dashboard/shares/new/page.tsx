@@ -9,7 +9,9 @@ import { requireWorkspace } from '@/lib/auth/workspace'
 
 export const dynamic = 'force-dynamic'
 
-export default async function NewSharePage() {
+export default async function NewSharePage({ searchParams }: { searchParams?: Promise<{ onboarding?: string | string[] }> }) {
+  const params = await searchParams
+  const onboarding = params?.onboarding === '1'
   try {
     const context = await requireWorkspace()
     const storedRepositories = (await listRegisteredRepositories()).filter((repository) => repository.enabled)
@@ -35,7 +37,7 @@ export default async function NewSharePage() {
           <h1 className="font-heading text-3xl font-semibold tracking-tight">Create a share</h1>
           <p className="mt-2 max-w-2xl text-sm text-foreground-muted">Create a recipient-specific, read-only view of a private repository.</p>
         </div>
-        <CreateShareForm repositories={repositories} />
+        <CreateShareForm repositories={repositories} onboarding={onboarding} />
       </div>
     )
   } catch (error) {

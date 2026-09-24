@@ -18,7 +18,18 @@ const navigation = [
   { href: '/dashboard/activity', label: 'Activity', icon: Activity },
 ]
 
-function Navigation({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+function Navigation({ pathname, onNavigate, onboardingIncomplete = false }: { pathname: string; onNavigate?: () => void; onboardingIncomplete?: boolean }) {
+  if (onboardingIncomplete) {
+    return (
+      <SidebarGroup>
+        <SidebarLabel>Getting started</SidebarLabel>
+        <SidebarNavItem href="/onboarding" active={pathname === '/onboarding'} icon={<LayoutDashboard className="size-4" />}>
+          <span onClick={onNavigate}>Continue setup</span>
+        </SidebarNavItem>
+      </SidebarGroup>
+    )
+  }
+
   return (
     <SidebarGroup>
       <SidebarLabel>Workspace</SidebarLabel>
@@ -80,7 +91,7 @@ function AccountFooter({ email, avatarLabel, pathname, onLogout, className }: { 
   )
 }
 
-export function AdminShell({ email, children }: { email: string; children: ReactNode }) {
+export function AdminShell({ email, children, onboardingIncomplete = false }: { email: string; children: ReactNode; onboardingIncomplete?: boolean }) {
   const pathname = usePathname()
   const router = useRouter()
   const avatarLabel = email.slice(0, 1).toUpperCase() || 'R'
@@ -103,7 +114,7 @@ export function AdminShell({ email, children }: { email: string; children: React
             <div><div className="font-heading text-sm font-semibold">RepoView</div><div className="font-mono text-[10px] uppercase tracking-widest text-foreground-muted">Private source</div></div>
           </div>
         </SidebarHeader>
-        <SidebarContent><Navigation pathname={pathname} /></SidebarContent>
+        <SidebarContent><Navigation pathname={pathname} onboardingIncomplete={onboardingIncomplete} /></SidebarContent>
         <SidebarFooter className="shrink-0 p-3">
           <AccountFooter email={email} avatarLabel={avatarLabel} pathname={pathname} onLogout={handleLogout} />
         </SidebarFooter>
@@ -115,7 +126,7 @@ export function AdminShell({ email, children }: { email: string; children: React
             <SheetTrigger variant="ghost" size="icon"><Menu className="size-4" /><span className="sr-only">Open navigation</span></SheetTrigger>
             <SheetContent side="left" className="max-w-xs p-4">
               <div className="flex items-center gap-3 px-2 py-2"><BrandLogo size={32} /><span className="font-heading text-sm font-semibold">RepoView</span></div>
-              <nav className="mt-8" aria-label="Primary navigation"><Navigation pathname={pathname} /></nav>
+              <nav className="mt-8" aria-label="Primary navigation"><Navigation pathname={pathname} onboardingIncomplete={onboardingIncomplete} /></nav>
               <AccountFooter className="mt-auto min-w-0 overflow-hidden pt-6" email={email} avatarLabel={avatarLabel} pathname={pathname} onLogout={handleLogout} />
             </SheetContent>
           </Sheet>

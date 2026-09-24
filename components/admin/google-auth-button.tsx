@@ -7,9 +7,10 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 interface GoogleAuthButtonProps {
   label?: string
+  redirectPath?: string
 }
 
-export function GoogleAuthButton({ label = 'Sign in with Google' }: GoogleAuthButtonProps) {
+export function GoogleAuthButton({ label = 'Sign in with Google', redirectPath = '/dashboard' }: GoogleAuthButtonProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -22,7 +23,7 @@ export function GoogleAuthButton({ label = 'Sign in with Google' }: GoogleAuthBu
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectPath)}`,
         },
       })
 

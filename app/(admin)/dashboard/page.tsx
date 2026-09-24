@@ -1,42 +1,41 @@
-import { GitHubConnectionCard } from '@/components/admin/github-connection-card'
+import Link from 'next/link'
+
 import { DashboardOverviewView } from '@/components/admin/dashboard-overview'
-import { requireWorkspace } from '@/lib/auth/workspace'
-import { listWorkspaceGitHubInstallations } from '@/lib/github/client'
+import { Badge, Card, CardContent } from '@/components/ui'
+import { getOnboardingLabel, getOnboardingState } from '@/lib/auth/onboarding'
 import { getDashboardOverview } from '@/lib/dashboard/overview'
 
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
   try {
+    const onboarding = await getOnboardingState()
+    if (!onboarding.isComplete) return <DashboardOnboardingState step={onboarding.step} hasPendingGitHubConnection={onboarding.hasPendingGitHubConnection} />
+
     return (
-      <>
-        <DashboardGitHubOnboarding />
-        <DashboardOverviewView data={await getDashboardOverview()} />
-      </>
+      <DashboardOverviewView data={await getDashboardOverview()} />
     )
   } catch (error) {
     return <DashboardOverviewError schemaMissing={error instanceof Error && error.message.includes('database schema is not initialized')} />
   }
 }
 
-async function DashboardGitHubOnboarding() {
-  try {
-    const context = await requireWorkspace()
-    const installations = await listWorkspaceGitHubInstallations(context.workspace.id, { includeInactive: true })
-    if (installations.some((installation) => installation.status === 'active' || installation.status === 'suspended')) return null
-
-    return (
-      <section className="mx-auto w-full max-w-6xl px-5 pt-7 sm:px-8 lg:px-10 lg:pt-9">
-        <GitHubConnectionCard
-          installations={installations}
-          canConnect={context.membership.role === 'owner' || context.membership.role === 'admin'}
-          onboarding
-        />
-      </section>
-    )
-  } catch {
-    return null
-  }
+function DashboardOnboardingState({ step, hasPendingGitHubConnection }: { step: Parameters<typeof getOnboardingLabel>[0]; hasPendingGitHubConnection: boolean }) {
+  return (
+    <section className="mx-auto w-full max-w-6xl space-y-6 px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
+      <header className="space-y-3">
+        <Badge variant="outline">Workspace setup</Badge>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">Finish setting up RepoView</h1>
+        <p className="max-w-2xl text-sm leading-6 text-foreground-muted">Your personal workspace is ready. Complete one short step to unlock the dashboard.</p>
+      </header>
+      <Card className="max-w-2xl rounded-md border-border/70 shadow-none">
+        <CardContent className="space-y-4 p-6">
+          <div><p className="text-sm font-medium">Next: {getOnboardingLabel(step)}</p><p className="mt-1 text-sm leading-6 text-foreground-muted">{step === 'github' && hasPendingGitHubConnection ? 'GitHub may be waiting for organization approval. You can review the connection and return here later.' : 'RepoView saves your progress, so you can leave and continue whenever you’re ready.'}</p></div>
+          <Link href="/onboarding" className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">Continue setup</Link>
+        </CardContent>
+      </Card>
+    </section>
+  )
 }
 
 function DashboardOverviewError({ schemaMissing }: { schemaMissing: boolean }) {
