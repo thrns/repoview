@@ -5,7 +5,7 @@ import { z } from 'zod'
 
 import { requireShareAccess, requireWorkspaceRole } from '../../../../../lib/auth/workspace'
 import { getPublicEnv } from '../../../../../lib/env/public'
-import { createSupabaseAdminClient } from '../../../../../lib/supabase/admin'
+import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
 import { generateShareToken, hashShareToken } from '../../../../../lib/security/tokens'
 
 const shareIdSchema = z.string().uuid()
@@ -18,7 +18,8 @@ export async function revokeShare(input: unknown) {
   const shareId = shareIdSchema.parse(input)
   const access = await requireShareAccess(shareId)
   await requireWorkspaceRole(access.workspace.id, ['owner', 'admin'])
-  const query = createSupabaseAdminClient()
+  const supabase = await createSupabaseServerClient()
+  const query = supabase
     .from('shares')
     .update({ revoked_at: new Date().toISOString() })
     .eq('id', shareId)
@@ -45,7 +46,8 @@ export async function updateShareExpiry(input: unknown) {
     throw new Error('Expiry must be in the future.')
   }
 
-  const query = createSupabaseAdminClient()
+  const supabase = await createSupabaseServerClient()
+  const query = supabase
     .from('shares')
     .update({ expires_at: parsed.expiresAt })
     .eq('id', parsed.shareId)
@@ -67,7 +69,8 @@ export async function rotateShare(input: unknown) {
   const access = await requireShareAccess(shareId)
   await requireWorkspaceRole(access.workspace.id, ['owner', 'admin'])
   const rawToken = generateShareToken()
-  const query = createSupabaseAdminClient()
+  const supabase = await createSupabaseServerClient()
+  const query = supabase
     .from('shares')
     .update({
       token_hash: hashShareToken(rawToken),

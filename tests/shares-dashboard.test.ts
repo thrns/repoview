@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
-vi.mock('../lib/supabase/admin', () => ({ createSupabaseAdminClient: vi.fn() }))
+vi.mock('../lib/supabase/server', () => ({ createSupabaseServerClient: vi.fn() }))
 
 import { getShareStatus } from '../lib/shares/dashboard'
 

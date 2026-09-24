@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
-vi.mock('../lib/supabase/admin', () => ({ createSupabaseAdminClient: vi.fn() }))
+vi.mock('../lib/supabase/server', () => ({ createSupabaseServerClient: vi.fn() }))
 vi.mock('../lib/auth/workspace', () => ({ requireWorkspace: vi.fn(async () => ({ workspace: { id: 'workspace-1' } })) }))
 
-import { createSupabaseAdminClient } from '../lib/supabase/admin'
+import { createSupabaseServerClient } from '../lib/supabase/server'
 import { getDashboardOverview } from '../lib/dashboard/overview'
 
-const getAdmin = vi.mocked(createSupabaseAdminClient)
+const getServer = vi.mocked(createSupabaseServerClient)
 
 const repository = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -55,7 +55,7 @@ describe('dashboard overview', () => {
         throw new Error(`Unexpected table ${table}`)
       },
     }
-    getAdmin.mockReturnValue(admin as never)
+    getServer.mockResolvedValue(admin as never)
 
     const overview = await getDashboardOverview(now)
     expect(overview).toMatchObject({
@@ -70,14 +70,14 @@ describe('dashboard overview', () => {
 
   it('fails closed when an aggregate query fails', async () => {
     const admin = { from: () => createQuery({ data: null, error: new Error('database') }) }
-    getAdmin.mockReturnValue(admin as never)
+    getServer.mockResolvedValue(admin as never)
 
     await expect(getDashboardOverview()).rejects.toThrow('overview could not be loaded')
   })
 
   it('identifies an uninitialized Supabase schema', async () => {
     const admin = { from: () => createQuery({ data: null, error: { code: 'PGRST205' } }) }
-    getAdmin.mockReturnValue(admin as never)
+    getServer.mockResolvedValue(admin as never)
 
     await expect(getDashboardOverview()).rejects.toThrow('database schema is not initialized')
   })

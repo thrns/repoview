@@ -1,12 +1,13 @@
 import 'server-only'
 
 import { createServerClient, type SetAllCookies } from '@supabase/ssr'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
 import { getPublicEnv } from '@/lib/env/public'
 import type { Database } from '@/lib/supabase/database.types'
 
-export async function createSupabaseServerClient() {
+export async function createSupabaseServerClient(): Promise<SupabaseClient<Database>> {
   const cookieStore = await cookies()
   const env = getPublicEnv()
 
@@ -24,5 +25,5 @@ export async function createSupabaseServerClient() {
         }
       },
     },
-  })
+  }) as unknown as SupabaseClient<Database>
 }

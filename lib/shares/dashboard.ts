@@ -1,7 +1,7 @@
 import 'server-only'
 
-import { createSupabaseAdminClient } from '../supabase/admin'
 import { requireWorkspace } from '../auth/workspace'
+import { createSupabaseServerClient } from '../supabase/server'
 import type { Tables } from '../supabase/database.types'
 
 export type ShareStatus = 'active' | 'expiring-soon' | 'expired' | 'revoked' | 'repository-disabled'
@@ -16,8 +16,8 @@ export interface ShareDashboardItem {
 
 export async function listShareDashboardItems(now = new Date()): Promise<ShareDashboardItem[]> {
   const { workspace } = await requireWorkspace()
-  const admin = createSupabaseAdminClient()
-  const { data: shares, error: sharesError } = await admin
+  const supabase = await createSupabaseServerClient()
+  const { data: shares, error: sharesError } = await supabase
     .from('shares')
     .select('*')
     .eq('workspace_id', workspace.id)
@@ -35,8 +35,8 @@ export async function listShareDashboardItems(now = new Date()): Promise<ShareDa
   const shareIds = shareRows.map((share) => share.id)
   const repositoryIds = [...new Set(shareRows.map((share) => share.repository_id))]
   const [{ data: repositories, error: repositoriesError }, { data: sessions, error: sessionsError }] = await Promise.all([
-    admin.from('repositories').select('*').eq('workspace_id', workspace.id).in('id', repositoryIds),
-    admin.from('viewer_sessions').select('share_id, confirmed_at, last_seen_at').eq('workspace_id', workspace.id).in('share_id', shareIds),
+    supabase.from('repositories').select('*').eq('workspace_id', workspace.id).in('id', repositoryIds),
+    supabase.from('viewer_sessions').select('share_id, confirmed_at, last_seen_at').eq('workspace_id', workspace.id).in('share_id', shareIds),
   ])
 
   if (repositoriesError || sessionsError) {

@@ -1,7 +1,7 @@
 import 'server-only'
 
-import { createSupabaseAdminClient } from '../supabase/admin'
 import { requireWorkspace } from '../auth/workspace'
+import { createSupabaseServerClient } from '../supabase/server'
 import { getShareStatus } from '../shares/dashboard'
 
 export type DashboardOverviewActivity = {
@@ -42,16 +42,16 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
 export async function getDashboardOverview(now = new Date()): Promise<DashboardOverview> {
   const { workspace } = await requireWorkspace()
-  const admin = createSupabaseAdminClient()
+  const supabase = await createSupabaseServerClient()
   const since = new Date(now.getTime() - THIRTY_DAYS_MS).toISOString()
   const [sharesResult, repositoriesResult, sessionsResult, confirmationsResult, eventsResult, analyticsEventsResult, viewersResult] = await Promise.all([
-    admin.from('shares').select('*').eq('workspace_id', workspace.id),
-    admin.from('repositories').select('*').eq('workspace_id', workspace.id),
-    admin.from('viewer_sessions').select('*').eq('workspace_id', workspace.id).gte('confirmed_at', since),
-    admin.from('view_events').select('id, created_at').eq('workspace_id', workspace.id).eq('event_type', 'view_confirmed').gte('created_at', since),
-    admin.from('view_events').select('id, share_id, session_id, event_type, path, metadata, created_at').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(24),
-    admin.from('view_events').select('event_type, path, session_id, created_at').eq('workspace_id', workspace.id).gte('created_at', since),
-    admin.from('viewers').select('id, viewer_code').eq('workspace_id', workspace.id),
+    supabase.from('shares').select('*').eq('workspace_id', workspace.id),
+    supabase.from('repositories').select('*').eq('workspace_id', workspace.id),
+    supabase.from('viewer_sessions').select('*').eq('workspace_id', workspace.id).gte('confirmed_at', since),
+    supabase.from('view_events').select('id, created_at').eq('workspace_id', workspace.id).eq('event_type', 'view_confirmed').gte('created_at', since),
+    supabase.from('view_events').select('id, share_id, session_id, event_type, path, metadata, created_at').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(24),
+    supabase.from('view_events').select('event_type, path, session_id, created_at').eq('workspace_id', workspace.id).gte('created_at', since),
+    supabase.from('viewers').select('id, viewer_code').eq('workspace_id', workspace.id),
   ])
 
   const queryErrors = [sharesResult.error, repositoriesResult.error, sessionsResult.error, confirmationsResult.error, eventsResult.error, analyticsEventsResult.error, viewersResult.error]

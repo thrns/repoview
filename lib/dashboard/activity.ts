@@ -1,7 +1,7 @@
 import 'server-only'
 
-import { createSupabaseAdminClient } from '../supabase/admin'
 import { requireWorkspace } from '../auth/workspace'
+import { createSupabaseServerClient } from '../supabase/server'
 import type { Json } from '../supabase/database.types'
 
 export type ActivityFilter = 'all' | 'views' | 'notifications'
@@ -32,10 +32,10 @@ export type DashboardActivityItem = {
 
 export async function getDashboardActivity(filter: ActivityFilter = 'all'): Promise<DashboardActivityItem[]> {
   const { workspace } = await requireWorkspace()
-  const admin = createSupabaseAdminClient()
+  const supabase = await createSupabaseServerClient()
   const [{ data: events, error: eventsError }, { data: notifications, error: notificationsError }] = await Promise.all([
-    admin.from('view_events').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(100),
-    admin.from('notification_deliveries').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(100),
+    supabase.from('view_events').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(100),
+    supabase.from('notification_deliveries').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(100),
   ])
 
   if (eventsError || notificationsError) {
@@ -46,7 +46,7 @@ export async function getDashboardActivity(filter: ActivityFilter = 'all'): Prom
   for (const event of events ?? []) shareIds.add(event.share_id)
   for (const notification of notifications ?? []) shareIds.add(notification.share_id)
   const resolvedShares = shareIds.size > 0
-    ? await admin.from('shares').select('id, recipient_label, repository_id').eq('workspace_id', workspace.id).in('id', [...shareIds])
+    ? await supabase.from('shares').select('id, recipient_label, repository_id').eq('workspace_id', workspace.id).in('id', [...shareIds])
     : { data: [], error: null }
 
   if (resolvedShares.error) {
@@ -55,7 +55,7 @@ export async function getDashboardActivity(filter: ActivityFilter = 'all'): Prom
 
   const repositoryIds = [...new Set((resolvedShares.data ?? []).map((share) => share.repository_id))]
   const resolvedRepositories = repositoryIds.length > 0
-    ? await admin.from('repositories').select('id, github_owner, github_repo').eq('workspace_id', workspace.id).in('id', repositoryIds)
+    ? await supabase.from('repositories').select('id, github_owner, github_repo').eq('workspace_id', workspace.id).in('id', repositoryIds)
     : { data: [], error: null }
 
   if (resolvedRepositories.error) {
@@ -67,7 +67,7 @@ export async function getDashboardActivity(filter: ActivityFilter = 'all'): Prom
     ...(notifications ?? []).map((notification) => notification.session_id),
   ])]
   const resolvedSessions = sessionIds.length > 0
-    ? await admin.from('viewer_sessions').select('id, viewer_id, browser, device_type, country, first_seen_at, last_seen_at, ended_at, active_ms, idle_ms').eq('workspace_id', workspace.id).in('id', sessionIds)
+    ? await supabase.from('viewer_sessions').select('id, viewer_id, browser, device_type, country, first_seen_at, last_seen_at, ended_at, active_ms, idle_ms').eq('workspace_id', workspace.id).in('id', sessionIds)
     : { data: [], error: null }
 
   if (resolvedSessions.error) {
@@ -79,7 +79,7 @@ export async function getDashboardActivity(filter: ActivityFilter = 'all'): Prom
   const sessionsById = new Map((resolvedSessions.data ?? []).map((session) => [session.id, session]))
   const viewerIds = [...new Set((resolvedSessions.data ?? []).map((session) => session.viewer_id).filter((value): value is string => Boolean(value)))]
   const resolvedViewers = viewerIds.length > 0
-    ? await admin.from('viewers').select('id, viewer_code').eq('workspace_id', workspace.id).in('id', viewerIds)
+    ? await supabase.from('viewers').select('id, viewer_code').eq('workspace_id', workspace.id).in('id', viewerIds)
     : { data: [], error: null }
 
   if (resolvedViewers.error) {

@@ -4,14 +4,14 @@ vi.mock('../lib/auth/workspace', () => ({
   requireShareAccess: vi.fn(async () => ({ workspace: { id: 'workspace-1' }, share: {} })),
   requireWorkspaceRole: vi.fn(async () => undefined),
 }))
-vi.mock('../lib/supabase/admin', () => ({ createSupabaseAdminClient: vi.fn() }))
+vi.mock('../lib/supabase/server', () => ({ createSupabaseServerClient: vi.fn() }))
 vi.mock('../lib/security/tokens', () => ({ generateShareToken: vi.fn(() => 'new-raw-token'), hashShareToken: vi.fn(() => 'new-token-hash') }))
 vi.mock('../lib/env/public', () => ({ getPublicEnv: vi.fn(() => ({ NEXT_PUBLIC_APP_URL: 'https://code.thrn.im/' })) }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
 import { revokeShare, rotateShare, updateShareExpiry } from '../app/(admin)/dashboard/shares/[id]/actions'
 import { requireShareAccess, requireWorkspaceRole } from '../lib/auth/workspace'
-import { createSupabaseAdminClient } from '../lib/supabase/admin'
+import { createSupabaseServerClient } from '../lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 const shareId = '11111111-1111-4111-8111-111111111111'
@@ -26,7 +26,7 @@ describe('revoke share action', () => {
       select: vi.fn(() => builder),
       maybeSingle,
     }
-    vi.mocked(createSupabaseAdminClient).mockReturnValue({ from: vi.fn(() => builder) } as never)
+    vi.mocked(createSupabaseServerClient).mockResolvedValue({ from: vi.fn(() => builder) } as never)
 
     await expect(revokeShare(shareId)).resolves.toEqual({ revoked: true })
     expect(requireShareAccess).toHaveBeenCalledWith(shareId)
@@ -42,14 +42,14 @@ describe('revoke share action', () => {
 
     const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null })
     const builder = { update: vi.fn(() => builder), eq: vi.fn(() => builder), is: vi.fn(() => builder), select: vi.fn(() => builder), maybeSingle }
-    vi.mocked(createSupabaseAdminClient).mockReturnValue({ from: vi.fn(() => builder) } as never)
+    vi.mocked(createSupabaseServerClient).mockResolvedValue({ from: vi.fn(() => builder) } as never)
     await expect(revokeShare(shareId)).rejects.toThrow('already revoked')
   })
 
   it('validates and updates future expiry values, including clearing expiry', async () => {
     const maybeSingle = vi.fn().mockResolvedValue({ data: { id: shareId }, error: null })
     const builder = { update: vi.fn(() => builder), eq: vi.fn(() => builder), select: vi.fn(() => builder), maybeSingle }
-    vi.mocked(createSupabaseAdminClient).mockReturnValue({ from: vi.fn(() => builder) } as never)
+    vi.mocked(createSupabaseServerClient).mockResolvedValue({ from: vi.fn(() => builder) } as never)
 
     await expect(updateShareExpiry({ shareId, expiresAt: '2027-01-01T00:00:00.000Z' })).resolves.toMatchObject({ updated: true })
     expect(builder.update).toHaveBeenCalledWith({ expires_at: '2027-01-01T00:00:00.000Z' })
@@ -60,7 +60,7 @@ describe('revoke share action', () => {
   it('replaces the token hash, clears revocation, and returns the new URL once', async () => {
     const maybeSingle = vi.fn().mockResolvedValue({ data: { id: shareId }, error: null })
     const builder = { update: vi.fn(() => builder), eq: vi.fn(() => builder), select: vi.fn(() => builder), maybeSingle }
-    vi.mocked(createSupabaseAdminClient).mockReturnValue({ from: vi.fn(() => builder) } as never)
+    vi.mocked(createSupabaseServerClient).mockResolvedValue({ from: vi.fn(() => builder) } as never)
 
     await expect(rotateShare(shareId)).resolves.toEqual({ shareUrl: 'https://code.thrn.im/s/new-raw-token' })
     expect(builder.update).toHaveBeenCalledWith({ token_hash: 'new-token-hash', revoked_at: null })
@@ -68,12 +68,12 @@ describe('revoke share action', () => {
 
   it('does not touch another workspace when resource authorization fails', async () => {
     vi.mocked(requireShareAccess).mockRejectedValue(new Error('forbidden'))
-    const admin = vi.mocked(createSupabaseAdminClient)
-    admin.mockClear()
+    const server = vi.mocked(createSupabaseServerClient)
+    server.mockClear()
 
     await expect(revokeShare(shareId)).rejects.toThrow('forbidden')
     await expect(updateShareExpiry({ shareId, expiresAt: null })).rejects.toThrow('forbidden')
     await expect(rotateShare(shareId)).rejects.toThrow('forbidden')
-    expect(admin).not.toHaveBeenCalled()
+    expect(server).not.toHaveBeenCalled()
   })
 })

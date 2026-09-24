@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
-vi.mock('../lib/supabase/admin', () => ({ createSupabaseAdminClient: vi.fn() }))
+vi.mock('../lib/supabase/server', () => ({ createSupabaseServerClient: vi.fn() }))
 vi.mock('../lib/auth/workspace', () => ({ requireWorkspace: vi.fn(async () => ({ workspace: { id: 'workspace-1' } })) }))
 
-import { createSupabaseAdminClient } from '../lib/supabase/admin'
+import { createSupabaseServerClient } from '../lib/supabase/server'
 import { getDashboardActivity } from '../lib/dashboard/activity'
 
-const getAdmin = vi.mocked(createSupabaseAdminClient)
+const getServer = vi.mocked(createSupabaseServerClient)
 
 function query(value: unknown) {
   const builder = {
@@ -41,7 +41,7 @@ describe('dashboard activity', () => {
         throw new Error(`Unexpected table ${table}`)
       },
     }
-    getAdmin.mockReturnValue(admin as never)
+    getServer.mockResolvedValue(admin as never)
 
     await expect(getDashboardActivity()).resolves.toMatchObject([
       { category: 'notification', status: 'sent' },
@@ -63,7 +63,7 @@ describe('dashboard activity', () => {
         throw new Error(`Unexpected table ${table}`)
       },
     }
-    getAdmin.mockReturnValue(admin as never)
+    getServer.mockResolvedValue(admin as never)
 
     await expect(getDashboardActivity('views')).resolves.toHaveLength(1)
   })
