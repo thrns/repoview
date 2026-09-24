@@ -11,15 +11,15 @@ vi.mock('../lib/supabase/server', () => ({
     })),
   })),
 }))
-vi.mock('../lib/env/server', () => ({ getServerEnv: vi.fn(() => ({ SMTP_USER: 'operator@example.com' })) }))
-vi.mock('../lib/notifications/smtp', () => ({ sendSmtpEmail: vi.fn() }))
+vi.mock('../lib/env/server', () => ({ getServerEnv: vi.fn(() => ({ OPERATOR_EMAIL: 'operator@example.com' })) }))
+vi.mock('../lib/notifications/email-provider', () => ({ sendTransactionalEmail: vi.fn() }))
 
 import { sendTestEmail } from '../app/(admin)/dashboard/settings/actions'
 import { requireWorkspaceAdmin } from '../lib/auth/workspace'
-import { sendSmtpEmail } from '../lib/notifications/smtp'
+import { sendTransactionalEmail } from '../lib/notifications/email-provider'
 
 const requireWorkspaceAdminMock = vi.mocked(requireWorkspaceAdmin)
-const sendEmail = vi.mocked(sendSmtpEmail)
+const sendEmail = vi.mocked(sendTransactionalEmail)
 
 beforeEach(() => {
   requireWorkspaceAdminMock.mockResolvedValue({ workspace: { id: 'workspace-1' } } as never)
@@ -33,7 +33,7 @@ describe('send test email action', () => {
     expect(requireWorkspaceAdminMock).toHaveBeenCalledOnce()
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({
       to: 'operator@example.com',
-      subject: 'RepoView: SMTP test email',
+      subject: 'RepoView: transactional email test',
     }))
   })
 

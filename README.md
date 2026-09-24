@@ -7,14 +7,14 @@ Recipients receive a short-lived session cookie after the secret-link exchange. 
 ## Architecture
 
 - `app/(auth)/login` provides Supabase email/password sign-in.
-- `app/(admin)/dashboard` is server-guarded workspace UI for repositories, shares, activity, and SMTP settings.
+- `app/(admin)/dashboard` is server-guarded workspace UI for repositories, shares, activity, and notification settings.
 - `app/s/[token]` exchanges a one-time URL token for an HttpOnly viewer session, then redirects to a token-free viewer URL.
 - `app/view/[shareId]` renders the session-authorized repository root, tree, Markdown, code, and safe error states.
 - `app/api/view` confirms meaningful views, batches semantic engagement, updates heartbeats, and serves explicitly allowed downloads; `app/api/assets` serves authorized image bytes.
 - `app/privacy` discloses anonymous viewer analytics, approximate location/network context, recipient-label semantics, and the non-use of raw keylogging or browser permissions.
 - `lib/github` owns GitHub App authentication and server-side repository/tree/file access.
 - `lib/security` owns token hashing, path normalization, visibility rules, coarse bot/context signals, and safe boundaries.
-- `lib/supabase` owns browser, SSR, and server-only clients; `lib/notifications` owns Gmail SMTP and delivery dedupe.
+- `lib/supabase` owns browser, SSR, and server-only clients; `lib/notifications` owns composition, provider adapters, and durable delivery dedupe.
 - `supabase/migrations` is the schema source of truth; `tests` contains unit and integration coverage.
 
 ## Prerequisites
@@ -23,7 +23,7 @@ Recipients receive a short-lived session cookie after the secret-link exchange. 
 - pnpm 10.12.4.
 - A Supabase project with email/password Auth enabled.
 - A public GitHub App with read-only Contents permission and OAuth authorization enabled through a callback URL.
-- A Gmail or Google Workspace App Password for notifications.
+- A transactional email provider. SMTP is supported for development; Resend and Postmark are supported for production delivery.
 
 ## Local setup
 
@@ -67,7 +67,22 @@ SHARE_TOKEN_PEPPER=replace-with-random-value
 SESSION_TOKEN_PEPPER=replace-with-random-value
 IP_HASH_SALT=replace-with-random-value
 
-# Gmail SMTP
+# Transactional email: smtp, resend, or postmark
+EMAIL_PROVIDER=resend
+EMAIL_FROM=notifications@example.com
+OPERATOR_EMAIL=operator@example.com
+
+# Resend (when EMAIL_PROVIDER=resend)
+RESEND_API_KEY=your-resend-api-key
+
+# Postmark (when EMAIL_PROVIDER=postmark)
+POSTMARK_SERVER_TOKEN=your-postmark-server-token
+POSTMARK_MESSAGE_STREAM=outbound
+
+# Optional secret for a trusted scheduler to dispatch retries
+NOTIFICATION_DISPATCH_SECRET=replace-with-random-value-at-least-32-characters
+
+# SMTP fallback/development (when EMAIL_PROVIDER=smtp)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=465
 SMTP_USER=owner@example.com
@@ -75,7 +90,7 @@ SMTP_APP_PASSWORD=your-google-app-password
 SMTP_FROM_NAME=RepoView
 ```
 
-`NEXT_PUBLIC_*` values are browser-visible. The service-role key, GitHub App client secret, private key, token peppers, SMTP credentials, OAuth user tokens, and installation tokens remain server-only.
+`NEXT_PUBLIC_*` values are browser-visible. The service-role key, GitHub App client secret, private key, token peppers, transactional provider credentials, OAuth user tokens, and installation tokens remain server-only.
 
 ## Supabase setup and migrations
 
@@ -114,15 +129,11 @@ RepoView identifies a repository by GitHub's stable numeric repository ID. The o
 
 The app fetches refs, recursive trees, and file contents on the server through Octokit. Visibility rules are applied before tree entries or file bytes are returned, and paths are checked again before direct file or asset fetches.
 
-## Gmail App Password setup
+## Transactional email setup
 
-1. Enable two-step verification for the Gmail/Workspace account where required.
-2. Create a Google App Password for RepoView.
-3. Set `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, the full account address as `SMTP_USER`, and the generated value as `SMTP_APP_PASSWORD`.
-4. Keep `SMTP_USER` as the operator/system mailbox. Customer notification destinations are configured and verified per workspace in **Dashboard → Settings → Notifications**.
-5. SMTP test delivery is an operator-only server action; it is not a customer notification fallback.
+For production, set `EMAIL_PROVIDER=resend` or `EMAIL_PROVIDER=postmark`, the provider credential, and a verified `EMAIL_FROM`. For local development, set `EMAIL_PROVIDER=smtp` with a Gmail/Workspace App Password. `OPERATOR_EMAIL` is used only by the protected operator test-email action. Customer notification destinations are configured and verified per workspace in **Dashboard → Settings → Notifications**.
 
-RepoView sends only low-volume, deduplicated first-meaningful-view notifications. SMTP failures are recorded safely and never deny an otherwise authorized viewer.
+RepoView composes low-volume, deduplicated first-meaningful-view and session-summary notifications into the workspace-scoped `notification_deliveries` ledger. The viewer request only queues a message; an after-response dispatch performs the provider call, while the protected dispatcher endpoint retries transient failures. Permanent failures and safe error summaries remain visible to workspace admins without exposing provider credentials or response bodies.
 
 ## Security model
 
@@ -134,7 +145,7 @@ RepoView sends only low-volume, deduplicated first-meaningful-view notifications
 - Viewer/admin/private API responses are `private, no-store`; security headers, `noindex`, and `robots.txt` rules prevent intentional indexing but never replace authorization.
 - First-party anonymous viewer IDs are stored as peppered digests server-side; browser fingerprinting is not used as identity.
 - Prompt-free browser/device context, server/CDN-derived location, and nullable network intelligence fields may be stored for owner analytics. These values are labeled approximate/observed/inferred in the dashboard and notification emails; they are never used to claim a real identity.
-- Raw viewer tokens, installation tokens, private keys, and SMTP passwords are not sent to the browser or email. Public IP and user-agent fields are restricted to the owner analytics surface and are omitted from emails.
+- Raw viewer tokens, installation tokens, private keys, and transactional provider credentials are not sent to the browser or email. Public IP and user-agent fields are restricted to the owner analytics surface and are omitted from emails.
 - Download events are recorded only when the owner explicitly enables protected text downloads.
 
 ## Deployment to Vercel

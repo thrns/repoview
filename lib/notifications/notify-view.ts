@@ -3,7 +3,7 @@ import 'server-only'
 import { getPublicEnv } from '../env/public'
 import { createSupabaseAdminClient } from '../supabase/admin'
 import { buildSessionSummaryEmail, buildViewNotificationEmail } from './view-email'
-import { sendSmtpEmail } from './smtp'
+import { queueNotificationDelivery } from './delivery'
 
 type NotifyConfirmedViewerInput = {
   shareId: string
@@ -37,7 +37,7 @@ type NotifyConfirmedViewerInput = {
 
 export type NotificationResult =
   | { status: 'disabled' | 'probable-bot' | 'already-attempted' | 'unconfigured' }
-  | { status: 'sent' | 'failed' }
+  | { status: 'queued'; deliveryId: string }
 
 export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): Promise<NotificationResult> {
   if (!input.share.notify_on_view) {
@@ -59,24 +59,6 @@ export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): 
   if (visitContext.visitCount > 1 && !notificationSettings.returning_view) {
     return { status: 'disabled' }
   }
-  const attemptedAt = (input.now ?? new Date()).toISOString()
-  const claimQuery = admin
-    .from('viewer_sessions')
-    .update({ notified_at: attemptedAt })
-    .eq('id', input.sessionId)
-    .eq('share_id', input.shareId)
-  const { data: claim, error: claimError } = await claimQuery.eq('workspace_id', input.share.workspace_id)
-    .is('notified_at', null)
-    .select('id')
-    .maybeSingle()
-
-  if (claimError) {
-    throw claimError
-  }
-  if (!claim) {
-    return { status: 'already-attempted' }
-  }
-
   const viewerLabel = visitContext.viewerCode ? `Anonymous Viewer #${visitContext.viewerCode}` : input.share.recipient_label ?? 'Anonymous Viewer'
   const email = buildViewNotificationEmail({
     recipientLabel: input.share.recipient_label,
@@ -96,35 +78,22 @@ export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): 
     appUrl: getPublicEnv().NEXT_PUBLIC_APP_URL,
   })
 
-  let status: 'sent' | 'failed' = 'sent'
-  try {
-    await sendSmtpEmail({
+  const queued = await queueNotificationDelivery(admin, {
+    workspaceId: input.share.workspace_id,
+    shareId: input.shareId,
+    sessionId: input.sessionId,
+    recipient: notificationSettings.destination_email,
+    notificationKind: 'view_opened',
+    idempotencyKey: `view_opened:${input.sessionId}`,
+    email: {
       to: notificationSettings.destination_email,
       subject: email.subject,
       text: email.text,
       html: email.html,
-    })
-  } catch {
-    status = 'failed'
-  }
-
-  const { error: deliveryError } = await admin.from('notification_deliveries').insert({
-    workspace_id: input.share.workspace_id,
-    share_id: input.shareId,
-    session_id: input.sessionId,
-    channel: 'email',
-    status,
-    notification_kind: 'view_opened',
+    },
     payload: { viewer_label: viewerLabel, visit_count: visitContext.visitCount },
-    error_text: status === 'failed' ? 'SMTP delivery failed.' : null,
-    sent_at: status === 'sent' ? attemptedAt : null,
-  } as never)
-
-  if (deliveryError) {
-    throw deliveryError
-  }
-
-  return { status }
+  })
+  return queued.status === 'queued' ? queued : { status: 'already-attempted' }
 }
 
 export async function notifySessionSummary({ shareId, sessionId, share, repository }: { shareId: string; sessionId: string; share: Record<string, unknown>; repository: Record<string, unknown> }) {
@@ -140,16 +109,6 @@ export async function notifySessionSummary({ shareId, sessionId, share, reposito
   if (!notificationSettings?.destination_email || !notificationSettings.email_verified) return { status: 'unconfigured' as const }
 
   const endedAt = session.ended_at ?? session.last_seen_at
-  const summaryClaimQuery = admin.from('viewer_sessions')
-    .update({ session_summary_notified_at: new Date().toISOString() })
-    .eq('id', sessionId)
-    .eq('share_id', shareId)
-  const { data: claim, error: claimError } = await summaryClaimQuery.eq('workspace_id', workspaceId)
-    .is('session_summary_notified_at', null)
-    .select('id')
-    .maybeSingle()
-  if (claimError) throw claimError
-  if (!claim) return { status: 'already-attempted' as const }
 
   const [{ data: events }, { data: engagement }] = await Promise.all([
     admin.from('view_events').select('event_type, path, created_at').eq('session_id', sessionId).eq('workspace_id', workspaceId).order('created_at', { ascending: true }),
@@ -181,25 +140,22 @@ export async function notifySessionSummary({ shareId, sessionId, share, reposito
     appUrl: getPublicEnv().NEXT_PUBLIC_APP_URL,
   })
 
-  let status: 'sent' | 'failed' = 'sent'
-  try {
-    await sendSmtpEmail({ to: notificationSettings.destination_email, subject: email.subject, text: email.text, html: email.html })
-  } catch {
-    status = 'failed'
-  }
-  const { error: deliveryError } = await admin.from('notification_deliveries').insert({
-    workspace_id: workspaceId,
-    share_id: shareId,
-    session_id: sessionId,
-    channel: 'email',
-    notification_kind: 'session_summary',
-    status,
-    error_text: status === 'failed' ? 'SMTP delivery failed.' : null,
+  const queued = await queueNotificationDelivery(admin, {
+    workspaceId,
+    shareId,
+    sessionId,
+    recipient: notificationSettings.destination_email,
+    notificationKind: 'session_summary',
+    idempotencyKey: `session_summary:${sessionId}`,
+    email: {
+      to: notificationSettings.destination_email,
+      subject: email.subject,
+      text: email.text,
+      html: email.html,
+    },
     payload: { viewer_label: visitContext.viewerCode ? `Anonymous Viewer #${visitContext.viewerCode}` : 'Anonymous Viewer', files_viewed: files.length },
-    sent_at: status === 'sent' ? new Date().toISOString() : null,
-  } as never)
-  if (deliveryError) throw deliveryError
-  return { status }
+  })
+  return queued.status === 'queued' ? queued : { status: 'already-attempted' as const }
 }
 
 async function getNotificationSettings(admin: ReturnType<typeof createSupabaseAdminClient>, workspaceId: string) {

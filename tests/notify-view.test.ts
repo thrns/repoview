@@ -3,14 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('server-only', () => ({}))
 vi.mock('../lib/env/public', () => ({ getPublicEnv: vi.fn(() => ({ NEXT_PUBLIC_APP_URL: 'https://code.example.com' })) }))
 vi.mock('../lib/supabase/admin', () => ({ createSupabaseAdminClient: vi.fn() }))
-vi.mock('../lib/notifications/smtp', () => ({ sendSmtpEmail: vi.fn() }))
+vi.mock('../lib/notifications/delivery', () => ({ queueNotificationDelivery: vi.fn() }))
 
 import { createSupabaseAdminClient } from '../lib/supabase/admin'
 import { notifyConfirmedViewer } from '../lib/notifications/notify-view'
-import { sendSmtpEmail } from '../lib/notifications/smtp'
+import { queueNotificationDelivery } from '../lib/notifications/delivery'
 
 const getAdmin = vi.mocked(createSupabaseAdminClient)
-const sendEmail = vi.mocked(sendSmtpEmail)
+const queueDelivery = vi.mocked(queueNotificationDelivery)
 
 const input = {
   shareId: '22222222-2222-4222-8222-222222222222',
@@ -44,53 +44,41 @@ function createAdminMock(claim: object | null, settings = { destination_email: '
 }
 
 beforeEach(() => {
-  sendEmail.mockReset()
-  sendEmail.mockResolvedValue({ messageId: 'message-1' } as never)
+  queueDelivery.mockReset()
+  queueDelivery.mockResolvedValue({ status: 'queued', deliveryId: 'delivery-1' })
 })
 
 describe('confirmed-view notification', () => {
-  it('claims once, sends the email, and persists a sent delivery', async () => {
-    const { admin, update, eq, is, deliveryInsert } = createAdminMock({ id: input.sessionId })
-    getAdmin.mockReturnValue(admin as never)
-
-    await expect(notifyConfirmedViewer(input)).resolves.toEqual({ status: 'sent' })
-
-    expect(update).toHaveBeenCalledWith({ notified_at: input.now.toISOString() })
-    expect(eq).toHaveBeenNthCalledWith(1, 'id', input.sessionId)
-    expect(eq).toHaveBeenNthCalledWith(2, 'share_id', input.shareId)
-    expect(is).toHaveBeenCalledWith('notified_at', null)
-    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({
-      to: 'alice@example.com',
-      subject: 'RepoView: Interview viewed octocat/hello-world',
-    }))
-    expect(deliveryInsert).toHaveBeenCalledWith(expect.objectContaining({
-      share_id: input.shareId,
-      session_id: input.sessionId,
-      status: 'sent',
-      sent_at: input.now.toISOString(),
-    }))
-  })
-
-  it('does not send again when the atomic claim finds an existing attempt', async () => {
-    const { admin, deliveryInsert } = createAdminMock(null)
-    getAdmin.mockReturnValue(admin as never)
-
-    await expect(notifyConfirmedViewer(input)).resolves.toEqual({ status: 'already-attempted' })
-    expect(sendEmail).not.toHaveBeenCalled()
-    expect(deliveryInsert).not.toHaveBeenCalled()
-  })
-
-  it('persists a failed delivery while keeping the confirmation flow recoverable', async () => {
-    sendEmail.mockRejectedValue(new Error('provider secret'))
+  it('composes and queues one idempotent delivery without calling a provider', async () => {
     const { admin, deliveryInsert } = createAdminMock({ id: input.sessionId })
     getAdmin.mockReturnValue(admin as never)
 
-    await expect(notifyConfirmedViewer(input)).resolves.toEqual({ status: 'failed' })
-    expect(deliveryInsert).toHaveBeenCalledWith(expect.objectContaining({
-      status: 'failed',
-      error_text: 'SMTP delivery failed.',
-      sent_at: null,
+    await expect(notifyConfirmedViewer(input)).resolves.toEqual({ status: 'queued', deliveryId: 'delivery-1' })
+
+    expect(queueDelivery).toHaveBeenCalledWith(admin, expect.objectContaining({
+      recipient: 'alice@example.com',
+      notificationKind: 'view_opened',
+      idempotencyKey: `view_opened:${input.sessionId}`,
+      email: expect.objectContaining({ subject: 'RepoView: Interview viewed octocat/hello-world' }),
     }))
+    expect(deliveryInsert).not.toHaveBeenCalled()
+  })
+
+  it('does not queue again when the idempotent delivery already exists', async () => {
+    queueDelivery.mockResolvedValue({ status: 'already-queued' })
+    const { admin, deliveryInsert } = createAdminMock({ id: input.sessionId })
+    getAdmin.mockReturnValue(admin as never)
+
+    await expect(notifyConfirmedViewer(input)).resolves.toEqual({ status: 'already-attempted' })
+    expect(deliveryInsert).not.toHaveBeenCalled()
+  })
+
+  it('keeps queue failures outside the viewer confirmation response boundary', async () => {
+    queueDelivery.mockRejectedValue(new Error('database unavailable'))
+    const { admin } = createAdminMock({ id: input.sessionId })
+    getAdmin.mockReturnValue(admin as never)
+
+    await expect(notifyConfirmedViewer(input)).rejects.toThrow('database unavailable')
   })
 
   it('does not send when the workspace destination is missing or unverified', async () => {
@@ -98,7 +86,7 @@ describe('confirmed-view notification', () => {
     getAdmin.mockReturnValue(admin as never)
 
     await expect(notifyConfirmedViewer(input)).resolves.toEqual({ status: 'unconfigured' })
-    expect(sendEmail).not.toHaveBeenCalled()
+    expect(queueDelivery).not.toHaveBeenCalled()
     expect(deliveryInsert).not.toHaveBeenCalled()
   })
 
@@ -107,6 +95,6 @@ describe('confirmed-view notification', () => {
     await expect(notifyConfirmedViewer(disabled)).resolves.toEqual({ status: 'disabled' })
     const bot = { ...input, session: { ...input.session, is_probable_bot: true } }
     await expect(notifyConfirmedViewer(bot)).resolves.toEqual({ status: 'probable-bot' })
-    expect(sendEmail).not.toHaveBeenCalled()
+    expect(queueDelivery).not.toHaveBeenCalled()
   })
 })

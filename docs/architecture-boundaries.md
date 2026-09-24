@@ -31,7 +31,7 @@ application compilation scope; its adopted visual surface lives in
 - `lib/github/` owns GitHub App auth, API wrappers, refs, trees, and contents.
 - `lib/markdown/` owns parsing, sanitization, and relative URL resolution.
 - `lib/code/` owns language mapping, binary detection, and highlighting.
-- `lib/notifications/` owns Gmail SMTP transport, templates, and dedupe.
+- `lib/notifications/` separates email templates, provider adapters (`smtp`, `resend`, and `postmark`), and the durable notification delivery queue.
 - `lib/security/` owns token hashing, path normalization, visibility, and bot
   signals.
 - `lib/supabase/` owns browser, SSR, and server-only admin clients.
@@ -44,5 +44,5 @@ application compilation scope; its adopted visual surface lives in
   behavior rather than implementation file.
 
 Server-only modules that can access private keys, service-role credentials,
-installation tokens, viewer secrets, or SMTP credentials must remain outside
+installation tokens, viewer secrets, or transactional email provider credentials must remain outside
 Client Components and use `server-only` where appropriate.

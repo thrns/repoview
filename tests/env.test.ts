@@ -62,6 +62,18 @@ describe('environment validation', () => {
     expect(result.SMTP_FROM_NAME).toBe('RepoView')
   })
 
+  it('allows a transactional API provider without personal SMTP credentials', () => {
+    const apiProviderFixture = Object.fromEntries(Object.entries(serverFixture).filter(([key]) => !['SMTP_USER', 'SMTP_APP_PASSWORD'].includes(key)))
+    const result = parseServerEnv({
+      ...apiProviderFixture,
+      EMAIL_PROVIDER: 'resend',
+      EMAIL_FROM: 'notifications@example.com',
+      RESEND_API_KEY: 'resend-secret',
+    })
+    expect(result.EMAIL_PROVIDER).toBe('resend')
+    expect(result.RESEND_API_KEY).toBe('resend-secret')
+  })
+
   it('does not treat a GitHub installation ID as runtime environment configuration', () => {
     const result = parseServerEnv({ ...serverFixture, GITHUB_APP_INSTALLATION_ID: '5678' })
     expect(result).not.toHaveProperty('GITHUB_APP_INSTALLATION_ID')

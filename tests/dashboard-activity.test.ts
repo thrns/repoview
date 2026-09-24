@@ -34,7 +34,7 @@ describe('dashboard activity', () => {
           { id: 1, share_id: shareId, session_id: 'session-1', event_type: 'file_viewed', path: 'src/index.ts', created_at: '2026-09-21T10:00:00.000Z', metadata: {} },
           { id: 2, share_id: shareId, session_id: 'session-1', event_type: 'heartbeat', path: null, created_at: '2026-09-21T11:00:00.000Z', metadata: {} },
         ], error: null })
-        if (table === 'notification_deliveries') return query({ data: [{ id: 'notice-1', share_id: shareId, session_id: 'session-1', channel: 'email', status: 'sent', error_text: null, created_at: '2026-09-21T12:00:00.000Z', sent_at: '2026-09-21T12:00:01.000Z' }], error: null })
+        if (table === 'notification_deliveries') return query({ data: [{ id: 'notice-1', share_id: shareId, session_id: 'session-1', channel: 'email', status: 'sent', recipient: 'owner@example.com', notification_kind: 'view_opened', attempt_count: 1, provider_message_id: 'message-1', last_error: null, next_retry_at: null, idempotency_key: 'view_opened:session-1', payload: {}, created_at: '2026-09-21T12:00:00.000Z', sent_at: '2026-09-21T12:00:01.000Z' }], error: null })
         if (table === 'shares') { shareQuery = true; return query({ data: [{ id: shareId, recipient_label: 'Interview', repository_id: repositoryId }], error: null }) }
         if (table === 'repositories') { repositoryQuery = true; return query({ data: [{ id: repositoryId, github_owner: 'octocat', github_repo: 'hello-world' }], error: null }) }
         if (table === 'viewer_sessions') { sessionQuery = true; return query({ data: [{ id: 'session-1', browser: 'Chrome', device_type: 'desktop', country: 'CA' }], error: null }) }

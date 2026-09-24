@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('server-only', () => ({}))
 vi.mock('../lib/auth/viewer-session', () => ({ requireViewerSession: vi.fn() }))
 vi.mock('../lib/supabase/admin', () => ({ createSupabaseAdminClient: vi.fn() }))
-vi.mock('../lib/notifications/notify-view', () => ({ notifyConfirmedViewer: vi.fn().mockResolvedValue({ status: 'sent' }) }))
+vi.mock('../lib/notifications/notify-view', () => ({ notifyConfirmedViewer: vi.fn().mockResolvedValue({ status: 'already-attempted' }) }))
 
 import { POST } from '../app/api/view/confirm/route'
 import { requireViewerSession } from '../lib/auth/viewer-session'

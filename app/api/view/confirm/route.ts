@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server'
+import { after, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { requireViewerSession } from '../../../../lib/auth/viewer-session'
+import { dispatchNotificationDelivery } from '../../../../lib/notifications/delivery'
 import { notifyConfirmedViewer } from '../../../../lib/notifications/notify-view'
 import { createSupabaseAdminClient } from '../../../../lib/supabase/admin'
 import type { ViewerClientContext } from '../../../../lib/viewer/analytics-types'
@@ -117,7 +118,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    await notifyConfirmedViewer({
+    const notification = await notifyConfirmedViewer({
       shareId: internalShareId,
       sessionId: confirmedSession.id,
       confirmedAt: confirmedSession.confirmed_at ?? confirmedAt,
@@ -125,8 +126,11 @@ export async function POST(request: Request) {
       repository: viewer.repository,
       session: viewer.session,
     })
+    if (notification.status === 'queued') {
+      after(() => dispatchNotificationDelivery(notification.deliveryId).catch(() => undefined))
+    }
   } catch {
-    // SMTP and delivery logging must not make a confirmed viewer lose access.
+    // Notification queueing must not make a confirmed viewer lose access.
   }
 
   return NextResponse.json({ confirmed: true }, { headers: { 'Cache-Control': 'no-store' } })

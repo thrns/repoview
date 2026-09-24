@@ -5,7 +5,7 @@ import { z } from 'zod'
 
 import { requireWorkspace, requireWorkspaceAdmin } from '../../../../lib/auth/workspace'
 import { getServerEnv } from '../../../../lib/env/server'
-import { sendSmtpEmail } from '../../../../lib/notifications/smtp'
+import { sendTransactionalEmail } from '../../../../lib/notifications/email-provider'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 
 const profileSchema = z.object({
@@ -153,16 +153,18 @@ export async function sendTestEmail() {
 
   try {
     const env = getServerEnv()
-    await sendSmtpEmail({
-      to: env.SMTP_USER,
-      subject: 'RepoView: SMTP test email',
+    const destination = env.OPERATOR_EMAIL ?? (env.EMAIL_PROVIDER === 'smtp' ? env.SMTP_USER : undefined)
+    if (!destination) return { sent: false as const, error: 'The test email could not be sent.' }
+    await sendTransactionalEmail({
+      to: destination,
+      subject: 'RepoView: transactional email test',
       text: [
         'RepoView',
         '',
-        'This is a test email from the configured RepoView Gmail SMTP transport.',
+        'This is a test email from the configured RepoView transactional email provider.',
         `Sent: ${new Date().toISOString()}`,
       ].join('\n'),
-      html: '<p><strong>RepoView</strong></p><p>This is a test email from the configured RepoView Gmail SMTP transport.</p>',
+      html: '<p><strong>RepoView</strong></p><p>This is a test email from the configured RepoView transactional email provider.</p>',
     })
     return { sent: true as const }
   } catch {

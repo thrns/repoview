@@ -196,7 +196,11 @@ async function updateFileEngagement(admin: ReturnType<typeof createSupabaseAdmin
 async function notifySessionSummarySafely({ shareId, sessionId, share, repository }: { shareId: string; sessionId: string; share: Record<string, unknown>; repository: Record<string, unknown> }) {
   try {
     const { notifySessionSummary } = await import('@/lib/notifications/notify-view')
-    await notifySessionSummary({ shareId, sessionId, share, repository })
+    const notification = await notifySessionSummary({ shareId, sessionId, share, repository })
+    if (notification.status === 'queued') {
+      const { dispatchNotificationDelivery } = await import('@/lib/notifications/delivery')
+      await dispatchNotificationDelivery(notification.deliveryId)
+    }
   } catch {
     // Notification delivery is intentionally best effort.
   }

@@ -40,6 +40,8 @@ export interface ShareNotificationSummary {
   channel: string
   status: string
   errorText: string | null
+  attemptCount: number
+  providerMessageId: string | null
   createdAt: string
   sentAt: string | null
 }
@@ -126,7 +128,9 @@ export async function getShareDetail(id: string, now = new Date()): Promise<Shar
       id: notification.id,
       channel: notification.channel,
       status: notification.status,
-      errorText: notification.error_text,
+      errorText: notification.last_error,
+      attemptCount: notification.attempt_count,
+      providerMessageId: notification.provider_message_id,
       createdAt: notification.created_at,
       sentAt: notification.sent_at,
     })),

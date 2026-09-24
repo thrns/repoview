@@ -64,7 +64,7 @@ function createAdminMock() {
     },
   ]
   const events = [{ id: 1, share_id: share.id, session_id: sessions[0].id, event_type: 'file_viewed', path: 'src/index.ts', metadata: {}, created_at: '2026-09-21T10:04:00.000Z' }]
-  const notifications = [{ id: '55555555-5555-4555-8555-555555555555', share_id: share.id, session_id: sessions[0].id, channel: 'email', status: 'sent', error_text: null, created_at: '2026-09-21T10:02:00.000Z', sent_at: '2026-09-21T10:02:01.000Z' }]
+  const notifications = [{ id: '55555555-5555-4555-8555-555555555555', share_id: share.id, session_id: sessions[0].id, channel: 'email', recipient: 'owner@example.com', notification_kind: 'view_opened', status: 'sent', attempt_count: 1, provider_message_id: 'message-1', last_error: null, next_retry_at: null, idempotency_key: 'view_opened:' + sessions[0].id, payload: {}, created_at: '2026-09-21T10:02:00.000Z', sent_at: '2026-09-21T10:02:01.000Z' }]
   const rows = { shares: { data: share, error: null }, repositories: { data: repository, error: null }, viewer_sessions: { data: sessions, error: null }, view_events: { data: events, error: null }, notification_deliveries: { data: notifications, error: null } }
 
   const admin = {

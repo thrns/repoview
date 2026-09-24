@@ -8,7 +8,7 @@
 **Database/Auth:** Supabase JavaScript SDK  
 **UI:** Provided `design-system/` folder — authoritative source for components, tokens, typography, themes, spacing, surfaces, and interaction patterns  
 **Source integration:** GitHub App  
-**Email:** Gmail SMTP via Nodemailer  
+**Email:** Provider-backed transactional email (`smtp`, `resend`, or `postmark`)
 
 ---
 
@@ -692,15 +692,27 @@ create table public.notification_deliveries (
   id uuid primary key default gen_random_uuid(),
   share_id uuid not null references public.shares(id) on delete cascade,
   session_id uuid not null references public.viewer_sessions(id) on delete cascade,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
   channel text not null default 'email',
+  recipient text not null,
+  notification_kind text not null,
   status text not null,
-  error_text text,
+  attempt_count integer not null default 0,
+  provider_message_id text,
+  last_error text,
+  next_retry_at timestamptz,
+  idempotency_key text unique,
+  payload jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   sent_at timestamptz
 );
 ```
 
-Do not put raw SMTP credentials or full provider stack traces in `error_text`.
+The current migration adds a unique event key so view and session-summary emails
+are idempotent. Notification decisions and composition happen before enqueue;
+provider delivery is dispatched after the viewer response and retried through
+the trusted dispatcher route. Do not put provider credentials or full provider
+response bodies in `last_error`.
 
 ### Recommended indexes
 
@@ -1763,7 +1775,10 @@ For Gmail/Google Workspace:
 
 Gmail has sending limits. RepoView sends low-volume transactional alerts, so notification dedupe matters both for signal quality and quota hygiene.
 
-If this becomes a multi-user SaaS or high-volume product, migrate email to a transactional email provider. That is outside v1.
+For production SaaS delivery, prefer Resend, Postmark, SES, or another
+transactional provider. RepoView's provider adapter keeps this choice outside
+notification decision logic; SMTP remains useful for local development and
+operator testing.
 
 ---
 

@@ -285,9 +285,14 @@ type NotificationDelivery = {
   session_id: string
   workspace_id: string
   channel: string
+  recipient: string
   notification_kind: string
-  status: string
-  error_text: string | null
+  status: 'pending' | 'processing' | 'sent' | 'retryable' | 'permanent' | 'failed'
+  attempt_count: number
+  provider_message_id: string | null
+  last_error: string | null
+  next_retry_at: string | null
+  idempotency_key: string | null
   payload: Json
   created_at: string
   sent_at: string | null
@@ -323,7 +328,7 @@ export interface Database {
       repository_events: TableDefinition<RepositoryEvent, Partial<Omit<RepositoryEvent, 'id' | 'created_at'>> & Pick<RepositoryEvent, 'workspace_id' | 'id' | 'share_id' | 'session_id' | 'event_type' | 'occurred_at'>, never>
       file_engagement: TableDefinition<FileEngagement, Partial<Omit<FileEngagement, 'id' | 'first_viewed_at' | 'last_viewed_at'>> & Pick<FileEngagement, 'workspace_id' | 'share_id' | 'session_id' | 'path'> & { id?: string; first_viewed_at?: string; last_viewed_at?: string }, Partial<Omit<FileEngagement, 'id' | 'workspace_id' | 'share_id' | 'session_id' | 'path'>>>
       share_access_attempts: TableDefinition<ShareAccessAttempt, Partial<Omit<ShareAccessAttempt, 'id' | 'created_at'>> & Pick<ShareAccessAttempt, 'token_hash' | 'valid'> & { id?: string; created_at?: string }, never>
-      notification_deliveries: TableDefinition<NotificationDelivery, Partial<Omit<NotificationDelivery, 'id' | 'created_at'>> & Pick<NotificationDelivery, 'workspace_id' | 'share_id' | 'session_id' | 'status'> & { id?: string; created_at?: string }, Partial<Omit<NotificationDelivery, 'id' | 'workspace_id' | 'created_at'>>>
+      notification_deliveries: TableDefinition<NotificationDelivery, Partial<Omit<NotificationDelivery, 'id' | 'created_at'>> & Pick<NotificationDelivery, 'workspace_id' | 'share_id' | 'session_id' | 'status' | 'recipient'> & { id?: string; created_at?: string }, Partial<Omit<NotificationDelivery, 'id' | 'workspace_id' | 'created_at'>>>
       audit_logs: TableDefinition<AuditLog, Partial<Omit<AuditLog, 'id' | 'created_at'>> & Pick<AuditLog, 'workspace_id' | 'action' | 'resource_type'> & { id?: never; created_at?: string }, never>
     }
     Views: Record<string, never>
