@@ -1,0 +1,83 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
+
+import { requireAdmin } from '../../../../../lib/auth/require-admin'
+import { getPublicEnv } from '../../../../../lib/env/public'
+import { createSupabaseAdminClient } from '../../../../../lib/supabase/admin'
+import { generateShareToken, hashShareToken } from '../../../../../lib/security/tokens'
+
+const shareIdSchema = z.string().uuid()
+const expiryInputSchema = z.object({
+  shareId: shareIdSchema,
+  expiresAt: z.string().datetime({ offset: true }).nullable(),
+})
+
+export async function revokeShare(input: unknown) {
+  await requireAdmin()
+  const shareId = shareIdSchema.parse(input)
+  const { data, error } = await createSupabaseAdminClient()
+    .from('shares')
+    .update({ revoked_at: new Date().toISOString() })
+    .eq('id', shareId)
+    .is('revoked_at', null)
+    .select('id')
+    .maybeSingle()
+
+  if (error || !data) {
+    throw new Error('This share is already revoked or could not be found.')
+  }
+
+  revalidatePath('/dashboard/shares')
+  revalidatePath(`/dashboard/shares/${shareId}`)
+  return { revoked: true as const }
+}
+
+export async function updateShareExpiry(input: unknown) {
+  await requireAdmin()
+  const parsed = expiryInputSchema.parse(input)
+
+  if (parsed.expiresAt && new Date(parsed.expiresAt).getTime() <= Date.now()) {
+    throw new Error('Expiry must be in the future.')
+  }
+
+  const { data, error } = await createSupabaseAdminClient()
+    .from('shares')
+    .update({ expires_at: parsed.expiresAt })
+    .eq('id', parsed.shareId)
+    .select('id')
+    .maybeSingle()
+
+  if (error || !data) {
+    throw new Error('This share could not be updated.')
+  }
+
+  revalidatePath('/dashboard/shares')
+  revalidatePath(`/dashboard/shares/${parsed.shareId}`)
+  return { updated: true as const, expiresAt: parsed.expiresAt }
+}
+
+export async function rotateShare(input: unknown) {
+  await requireAdmin()
+  const shareId = shareIdSchema.parse(input)
+  const rawToken = generateShareToken()
+  const { data, error } = await createSupabaseAdminClient()
+    .from('shares')
+    .update({
+      token_hash: hashShareToken(rawToken),
+      revoked_at: null,
+    })
+    .eq('id', shareId)
+    .select('id')
+    .maybeSingle()
+
+  if (error || !data) {
+    throw new Error('This share could not be rotated.')
+  }
+
+  revalidatePath('/dashboard/shares')
+  revalidatePath(`/dashboard/shares/${shareId}`)
+  const appUrl = getPublicEnv().NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
+  return { shareUrl: `${appUrl}/s/${rawToken}` }
+}
