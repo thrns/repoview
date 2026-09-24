@@ -13,6 +13,12 @@ type Profile = {
   id: string
   full_name: string | null
   avatar_url: string | null
+  profile_completed_at: string | null
+  terms_version_accepted: string | null
+  terms_accepted_at: string | null
+  privacy_version_acknowledged: string | null
+  privacy_acknowledged_at: string | null
+  onboarding_completed_at: string | null
   created_at: string
   updated_at: string
 }
@@ -22,6 +28,7 @@ type Workspace = {
   name: string
   slug: string
   owner_id: string
+  is_personal: boolean
   created_at: string
   updated_at: string
 }
@@ -320,6 +327,10 @@ export interface Database {
       consume_github_connection_transaction: {
         Args: { target_state_hash: string; target_user_id: string }
         Returns: GitHubConnectionTransaction[]
+      }
+      complete_profile: {
+        Args: { target_full_name: string }
+        Returns: Profile[]
       }
     }
     Enums: Record<string, never>
