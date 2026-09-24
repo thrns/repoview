@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Alert, AlertDescription, AlertTitle, Card, CardContent } from '@/components/ui'
 import { CreateShareForm, type ShareFormRepository } from '@/components/admin/create-share-form'
 import { listRepositoryBranches } from '@/lib/github/repositories'
+import { getGitHubInstallationIdForRepository } from '@/lib/github/client'
 import { listRegisteredRepositories } from '@/lib/repositories/registry'
 import { requireWorkspace } from '@/lib/auth/workspace'
 
@@ -13,7 +14,8 @@ export default async function NewSharePage() {
     const context = await requireWorkspace()
     const storedRepositories = (await listRegisteredRepositories()).filter((repository) => repository.enabled)
     const repositories: ShareFormRepository[] = await Promise.all(storedRepositories.map(async (repository) => {
-      const branches = await listRepositoryBranches(repository.github_owner, repository.github_repo, context.workspace.id)
+      const installationId = await getGitHubInstallationIdForRepository(repository.id, context.workspace.id, 'member')
+      const branches = await listRepositoryBranches(repository.github_owner, repository.github_repo, installationId)
       const branchNames = branches.map((branch) => branch.name)
       if (!branchNames.includes(repository.default_branch)) {
         branchNames.unshift(repository.default_branch)

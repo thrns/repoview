@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { requireRepositoryAccess, requireWorkspaceAdmin, requireWorkspaceRole } from '@/lib/auth/workspace'
-import { listInstallationRepositories } from '@/lib/github/repositories'
+import { listWorkspaceInstallationRepositories } from '@/lib/github/repositories'
 import { getDefaultVisibilityRules, parseVisibilityRules } from '@/lib/security/visibility'
 import {
   listRegisteredRepositories,
@@ -15,6 +15,7 @@ import {
 
 const repositoryInputSchema = z.object({
   repositoryId: z.string().uuid().optional(),
+  installationRecordId: z.string().uuid(),
   owner: z.string().min(1).max(100),
   repo: z.string().min(1).max(100),
   enabled: z.boolean(),
@@ -39,9 +40,11 @@ export async function setRepositoryEnabled(input: unknown) {
     return
   }
 
-  const accessibleRepositories = await listInstallationRepositories(context.workspace.id)
+  const accessibleRepositories = await listWorkspaceInstallationRepositories(context.workspace.id)
   const repository = accessibleRepositories.find((candidate) =>
-    candidate.owner === parsed.owner && candidate.name === parsed.repo,
+    candidate.installationRecordId === parsed.installationRecordId
+      && candidate.owner === parsed.owner
+      && candidate.name === parsed.repo,
   )
 
   if (!repository) {
@@ -54,9 +57,16 @@ export async function setRepositoryEnabled(input: unknown) {
   )
 
   if (existing) {
-    await setStoredRepositoryEnabled(existing.id, parsed.enabled)
+    await saveRepositoryRecord({
+      githubInstallationId: parsed.installationRecordId,
+      githubOwner: repository.owner,
+      githubRepo: repository.name,
+      defaultBranch: repository.defaultBranch,
+      enabled: parsed.enabled,
+    })
   } else {
     await saveRepositoryRecord({
+      githubInstallationId: parsed.installationRecordId,
       githubOwner: repository.owner,
       githubRepo: repository.name,
       defaultBranch: repository.defaultBranch,
@@ -70,10 +80,7 @@ export async function setRepositoryEnabled(input: unknown) {
 export async function setRepositoriesEnabled(input: unknown) {
   const context = await requireWorkspaceAdmin()
   const parsed = bulkRepositoryInputSchema.parse(input)
-  const accessibleRepositories = await listInstallationRepositories(context.workspace.id)
-  const accessibleByFullName = new Map(
-    accessibleRepositories.map((repository) => [repository.fullName, repository]),
-  )
+  const accessibleRepositories = await listWorkspaceInstallationRepositories(context.workspace.id)
   const storedRepositories = await listRegisteredRepositories()
   const storedByFullName = new Map(
     storedRepositories.map((repository) => [`${repository.github_owner}/${repository.github_repo}`, repository]),
@@ -89,19 +96,29 @@ export async function setRepositoriesEnabled(input: unknown) {
       return
     }
 
-    const repository = accessibleByFullName.get(`${entry.owner}/${entry.repo}`)
+    const repository = accessibleRepositories.find((candidate) =>
+      candidate.installationRecordId === entry.installationRecordId
+        && candidate.fullName === `${entry.owner}/${entry.repo}`,
+    )
     if (!repository) {
       throw new Error(`The repository ${entry.owner}/${entry.repo} is not accessible to the configured GitHub App installation.`)
     }
 
     const existing = storedByFullName.get(repository.fullName)
     if (existing) {
-      await setStoredRepositoryEnabled(existing.id, entry.enabled)
+      await saveRepositoryRecord({
+        githubInstallationId: entry.installationRecordId,
+        githubOwner: repository.owner,
+        githubRepo: repository.name,
+        defaultBranch: repository.defaultBranch,
+        enabled: entry.enabled,
+      })
       return
     }
 
     if (entry.enabled) {
       await saveRepositoryRecord({
+        githubInstallationId: entry.installationRecordId,
         githubOwner: repository.owner,
         githubRepo: repository.name,
         defaultBranch: repository.defaultBranch,

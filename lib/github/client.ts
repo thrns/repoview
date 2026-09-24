@@ -7,7 +7,9 @@ import {
 } from '@octokit/auth-app'
 import { Octokit } from '@octokit/rest'
 
+import { requireWorkspaceMember } from '../auth/workspace'
 import { getServerEnv } from '../env/server'
+import type { Tables } from '../supabase/database.types'
 
 export const GITHUB_API_BASE_URL = 'https://api.github.com'
 export const GITHUB_API_VERSION = '2022-11-28'
@@ -20,7 +22,15 @@ export const GITHUB_COMMON_HEADERS = Object.freeze({
 const installationAuthenticators = new Map<number, ReturnType<typeof createAppAuth>>()
 const installationClients = new Map<number, Octokit>()
 
+export class GitHubInstallationConfigurationError extends Error {
+  constructor(message = 'The GitHub App installation is unavailable for this workspace.') {
+    super(message)
+    this.name = 'GitHubInstallationConfigurationError'
+  }
+}
+
 function getGitHubAppAuthOptions(installationId: number): StrategyOptions {
+  assertInstallationId(installationId)
   const env = getServerEnv()
 
   return {
@@ -30,42 +40,87 @@ function getGitHubAppAuthOptions(installationId: number): StrategyOptions {
   }
 }
 
-export class GitHubInstallationConfigurationError extends Error {
-  constructor() {
-    super('No GitHub App installation is configured for this workspace.')
-    this.name = 'GitHubInstallationConfigurationError'
+function assertInstallationId(installationId: number) {
+  if (!Number.isSafeInteger(installationId) || installationId <= 0) {
+    throw new GitHubInstallationConfigurationError('The GitHub App installation ID is invalid.')
   }
 }
 
-export async function getWorkspaceGitHubInstallationId(workspaceId: string) {
-  const { createSupabaseAdminClient } = await import('../supabase/admin')
-  const { data, error } = await createSupabaseAdminClient()
+/**
+ * Resolve active installations visible to an authenticated workspace member.
+ * The workspace id is never treated as authorization on its own.
+ */
+export async function listWorkspaceGitHubInstallations(workspaceId: string): Promise<Tables<'github_installations'>[]> {
+  await requireWorkspaceMember(workspaceId)
+  const { createSupabaseServerClient } = await import('../supabase/server')
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase
     .from('github_installations')
-    .select('installation_id, uses_environment_credentials')
+    .select('*')
     .eq('workspace_id', workspaceId)
-    .eq('enabled', true)
-    .maybeSingle()
+    .eq('status', 'active')
+    .order('created_at', { ascending: true })
 
   if (error) {
     throw new GitHubInstallationConfigurationError()
   }
 
-  if (data?.installation_id) {
-    return data.installation_id
-  }
-
-  if (data?.uses_environment_credentials) {
-    return getServerEnv().GITHUB_APP_INSTALLATION_ID
-  }
-
-  throw new GitHubInstallationConfigurationError()
+  return (data ?? []).filter((installation) => installation.github_installation_id > 0)
 }
 
 /**
- * Mints a short-lived installation token on the server. Octokit's auth-app
- * package caches and refreshes the token according to GitHub's expiry.
+ * Resolve the provider installation attached to a repository. Both the
+ * repository workspace and installation workspace are checked explicitly so
+ * a caller cannot substitute an installation from another tenant.
  */
-export async function getGitHubInstallationAuthentication(installationId = getServerEnv().GITHUB_APP_INSTALLATION_ID): Promise<InstallationAccessTokenAuthentication> {
+export async function getGitHubInstallationIdForRepository(
+  repositoryId: string,
+  workspaceId: string,
+  access: 'member' | 'system' = 'system',
+) {
+  const supabase = access === 'member'
+    ? await (async () => {
+      await requireWorkspaceMember(workspaceId)
+      const { createSupabaseServerClient } = await import('../supabase/server')
+      return createSupabaseServerClient()
+    })()
+    : await (async () => {
+      const { createSupabaseAdminClient } = await import('../supabase/admin')
+      return createSupabaseAdminClient()
+    })()
+
+  const { data: repository, error: repositoryError } = await supabase
+    .from('repositories')
+    .select('workspace_id, github_installation_id')
+    .eq('id', repositoryId)
+    .eq('workspace_id', workspaceId)
+    .maybeSingle()
+
+  if (repositoryError || !repository?.github_installation_id) {
+    throw new GitHubInstallationConfigurationError()
+  }
+
+  const { data: installation, error: installationError } = await supabase
+    .from('github_installations')
+    .select('github_installation_id, status')
+    .eq('id', repository.github_installation_id)
+    .eq('workspace_id', repository.workspace_id)
+    .eq('status', 'active')
+    .maybeSingle()
+
+  if (installationError || !installation || installation.github_installation_id <= 0) {
+    throw new GitHubInstallationConfigurationError()
+  }
+
+  return installation.github_installation_id
+}
+
+/**
+ * Mint a short-lived installation token on the server. The installation ID
+ * must come from a workspace/repository authorization lookup; it is never
+ * read from a global environment variable.
+ */
+export async function getGitHubInstallationAuthentication(installationId: number): Promise<InstallationAccessTokenAuthentication> {
   let authenticator = installationAuthenticators.get(installationId)
   if (!authenticator) {
     authenticator = createAppAuth(getGitHubAppAuthOptions(installationId))
@@ -75,10 +130,12 @@ export async function getGitHubInstallationAuthentication(installationId = getSe
 }
 
 /**
- * Returns an authenticated Octokit client. This module is server-only so the
- * App private key and installation token cannot enter browser bundles.
+ * Returns an authenticated Octokit client for one explicit installation.
+ * This module is server-only so the App private key and installation token
+ * cannot enter browser bundles.
  */
-export function getGitHubInstallationClient(installationId = getServerEnv().GITHUB_APP_INSTALLATION_ID) {
+export function getGitHubInstallationClient(installationId: number) {
+  assertInstallationId(installationId)
   let client = installationClients.get(installationId)
   if (client) return client
 
@@ -92,6 +149,11 @@ export function getGitHubInstallationClient(installationId = getServerEnv().GITH
   return client
 }
 
-export async function getGitHubInstallationClientForWorkspace(workspaceId: string) {
-  return getGitHubInstallationClient(await getWorkspaceGitHubInstallationId(workspaceId))
+export async function getGitHubInstallationClientForRepository(
+  repositoryId: string,
+  workspaceId: string,
+  access: 'member' | 'system' = 'system',
+) {
+  const installationId = await getGitHubInstallationIdForRepository(repositoryId, workspaceId, access)
+  return getGitHubInstallationClient(installationId)
 }

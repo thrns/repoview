@@ -39,26 +39,33 @@ create table public.notification_settings (
   updated_at timestamptz not null default now()
 );
 
--- The App credentials remain server-side environment configuration. The
--- installation identity is workspace-owned, allowing future workspaces to
--- connect different installations without sharing repository access.
+-- The App credentials remain server-side environment configuration. Each
+-- GitHub installation is workspace-owned, and repositories retain the
+-- specific installation that granted access to them.
 create table public.github_installations (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
-  installation_id bigint,
-  label text not null default 'GitHub App installation',
-  uses_environment_credentials boolean not null default false,
-  enabled boolean not null default true,
+  github_installation_id bigint not null,
+  github_account_id bigint not null,
+  github_account_login text not null,
+  github_account_type text not null check (github_account_type in ('User', 'Organization', 'Bot')),
+  repository_selection text not null check (repository_selection in ('all', 'selected')),
+  permissions jsonb not null default '{}'::jsonb,
+  status text not null default 'active' check (status in ('active', 'suspended', 'deleted', 'pending_migration')),
+  suspended_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  check (installation_id is not null or uses_environment_credentials)
+  unique (github_installation_id),
+  unique (workspace_id, id),
+  check (github_installation_id > 0 or status = 'pending_migration'),
+  check (github_account_id > 0 or status = 'pending_migration')
 );
 
-create unique index github_installations_workspace_enabled_idx
-  on public.github_installations(workspace_id)
-  where enabled;
+create index github_installations_workspace_idx
+  on public.github_installations(workspace_id, created_at desc);
 
 alter table public.repositories add column workspace_id uuid;
+alter table public.repositories add column github_installation_id uuid;
 alter table public.shares add column workspace_id uuid;
 alter table public.share_recipients add column workspace_id uuid;
 alter table public.viewer_sessions add column workspace_id uuid;
@@ -73,6 +80,7 @@ do $$
 declare
   current_owner_id uuid;
   personal_workspace_id uuid;
+  legacy_installation_record_id uuid;
 begin
   select id
     into current_owner_id
@@ -106,14 +114,33 @@ begin
   insert into public.notification_settings (workspace_id)
   values (personal_workspace_id);
 
-  -- This row marks the legacy environment installation as belonging to the
-  -- backfilled workspace. New workspaces have no installation until one is
-  -- explicitly connected, so they cannot inherit the old owner's access.
-  insert into public.github_installations (workspace_id, uses_environment_credentials)
-  values (personal_workspace_id, true);
+  -- Preserve the existing owner's installation row and repository links while
+  -- the one-time deployment migration fills its provider/account metadata.
+  -- Runtime requests never use these placeholder values; the row is blocked
+  -- by status until migrate:github-installation has completed.
+  insert into public.github_installations (
+    workspace_id,
+    github_installation_id,
+    github_account_id,
+    github_account_login,
+    github_account_type,
+    repository_selection,
+    status
+  )
+  values (
+    personal_workspace_id,
+    0,
+    0,
+    'legacy-migration-required',
+    'User',
+    'selected',
+    'pending_migration'
+  )
+  returning id into legacy_installation_record_id;
 
   update public.repositories
-  set workspace_id = personal_workspace_id
+  set workspace_id = personal_workspace_id,
+      github_installation_id = legacy_installation_record_id
   where workspace_id is null;
 
   update public.shares as shares
@@ -184,6 +211,7 @@ end;
 $$;
 
 alter table public.repositories alter column workspace_id set not null;
+alter table public.repositories alter column github_installation_id set not null;
 alter table public.shares alter column workspace_id set not null;
 alter table public.share_recipients alter column workspace_id set not null;
 alter table public.viewer_sessions alter column workspace_id set not null;
@@ -207,6 +235,11 @@ alter table public.viewers
 
 alter table public.repositories
   add constraint repositories_workspace_fk foreign key (workspace_id) references public.workspaces(id) on delete cascade;
+alter table public.repositories
+  add constraint repositories_workspace_github_installation_fk
+  foreign key (workspace_id, github_installation_id)
+  references public.github_installations(workspace_id, id)
+  on delete restrict;
 alter table public.shares
   add constraint shares_workspace_id_key unique (workspace_id, id);
 alter table public.shares
@@ -219,6 +252,8 @@ alter table public.share_recipients
   add constraint share_recipients_workspace_share_fk foreign key (workspace_id, share_id) references public.shares(workspace_id, id) on delete cascade;
 alter table public.viewer_sessions
   add constraint viewer_sessions_workspace_fk foreign key (workspace_id) references public.workspaces(id) on delete cascade;
+alter table public.viewer_sessions
+  add constraint viewer_sessions_workspace_id_key unique (workspace_id, id);
 alter table public.viewer_sessions
   add constraint viewer_sessions_workspace_share_fk foreign key (workspace_id, share_id) references public.shares(workspace_id, id) on delete cascade;
 alter table public.view_events
@@ -259,6 +294,7 @@ alter table public.share_access_attempts
   add constraint share_access_attempts_workspace_share_fk foreign key (workspace_id, share_id) references public.shares(workspace_id, id) on delete cascade;
 
 create index repositories_workspace_idx on public.repositories(workspace_id, created_at desc);
+create index repositories_github_installation_idx on public.repositories(github_installation_id, created_at desc);
 create index shares_workspace_idx on public.shares(workspace_id, created_at desc);
 create index workspace_members_user_idx on public.workspace_members(user_id, created_at desc);
 create index viewer_sessions_workspace_idx on public.viewer_sessions(workspace_id, last_seen_at desc);

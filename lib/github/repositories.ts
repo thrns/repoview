@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { getGitHubInstallationClient, getGitHubInstallationClientForWorkspace } from './client'
+import { getGitHubInstallationClient, listWorkspaceGitHubInstallations } from './client'
 import {
   GitHubRepositoryError,
   type GitHubRepositoryBranch,
@@ -21,10 +21,8 @@ type GitHubRepositoryLike = {
   disabled: boolean
 }
 
-export async function listInstallationRepositories(workspaceId?: string): Promise<GitHubRepositorySummary[]> {
-  const client = workspaceId
-    ? await getGitHubInstallationClientForWorkspace(workspaceId)
-    : getGitHubInstallationClient()
+export async function listInstallationRepositories(installationId: number, installationRecordId: string): Promise<GitHubRepositorySummary[]> {
+  const client = getGitHubInstallationClient(installationId)
 
   try {
     const repositories = await client.paginate(
@@ -32,29 +30,43 @@ export async function listInstallationRepositories(workspaceId?: string): Promis
       { per_page: 100 },
     )
 
-    return repositories.map(mapGitHubRepository)
+    return repositories.map((repository) => ({
+      ...mapGitHubRepository(repository, installationRecordId),
+    }))
   } catch (error) {
     throw mapGitHubRepositoryError(error)
   }
 }
 
-export async function getRepositoryMetadata(owner: string, repo: string, workspaceId?: string): Promise<GitHubRepositorySummary> {
-  const client = workspaceId
-    ? await getGitHubInstallationClientForWorkspace(workspaceId)
-    : getGitHubInstallationClient()
+export async function listWorkspaceInstallationRepositories(workspaceId: string): Promise<GitHubRepositorySummary[]> {
+  const installations = await listWorkspaceGitHubInstallations(workspaceId)
+  if (installations.length === 0) {
+    throw new GitHubRepositoryError('upstream')
+  }
+
+  const repositories = await Promise.all(
+    installations.map((installation) => listInstallationRepositories(
+      installation.github_installation_id,
+      installation.id,
+    )),
+  )
+
+  return repositories.flat()
+}
+
+export async function getRepositoryMetadata(owner: string, repo: string, installationId: number, installationRecordId: string): Promise<GitHubRepositorySummary> {
+  const client = getGitHubInstallationClient(installationId)
 
   try {
     const { data } = await client.rest.repos.get({ owner, repo })
-    return mapGitHubRepository(data)
+    return mapGitHubRepository(data, installationRecordId)
   } catch (error) {
     throw mapGitHubRepositoryError(error)
   }
 }
 
-export async function listRepositoryBranches(owner: string, repo: string, workspaceId?: string): Promise<GitHubRepositoryBranch[]> {
-  const client = workspaceId
-    ? await getGitHubInstallationClientForWorkspace(workspaceId)
-    : getGitHubInstallationClient()
+export async function listRepositoryBranches(owner: string, repo: string, installationId: number): Promise<GitHubRepositoryBranch[]> {
+  const client = getGitHubInstallationClient(installationId)
 
   try {
     const branches = await client.paginate(client.rest.repos.listBranches, {
@@ -73,10 +85,8 @@ export async function listRepositoryBranches(owner: string, repo: string, worksp
   }
 }
 
-export async function getRepositoryRef(owner: string, repo: string, ref: string, workspaceId?: string): Promise<GitHubRepositoryRef> {
-  const client = workspaceId
-    ? await getGitHubInstallationClientForWorkspace(workspaceId)
-    : getGitHubInstallationClient()
+export async function getRepositoryRef(owner: string, repo: string, ref: string, installationId: number): Promise<GitHubRepositoryRef> {
+  const client = getGitHubInstallationClient(installationId)
 
   try {
     const response = await client.rest.git.getRef({ owner, repo, ref: normalizeGitHubRef(ref) })
@@ -91,9 +101,10 @@ export async function getRepositoryRef(owner: string, repo: string, ref: string,
   }
 }
 
-function mapGitHubRepository(repository: GitHubRepositoryLike): GitHubRepositorySummary {
+function mapGitHubRepository(repository: GitHubRepositoryLike, installationRecordId: string): GitHubRepositorySummary {
   return {
     id: repository.id,
+    installationRecordId,
     owner: repository.owner.login,
     name: repository.name,
     fullName: repository.full_name,

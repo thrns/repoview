@@ -2,6 +2,7 @@ import { after } from 'next/server'
 import { NextResponse } from 'next/server'
 
 import { requireViewerSession } from '@/lib/auth/viewer-session'
+import { getGitHubInstallationIdForRepository } from '@/lib/github/client'
 import { GitHubFileError, loadRepositoryFile } from '@/lib/github/contents'
 import { normalizeRepositoryPath } from '@/lib/security/path'
 import { isPathAllowedForShare } from '@/lib/security/visibility'
@@ -37,12 +38,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ shar
 
   const githubStartedAt = performance.now()
   try {
+    const installationId = await getGitHubInstallationIdForRepository(viewer.repository.id, viewer.repository.workspace_id)
     const file = await loadRepositoryFile(
       viewer.repository.github_owner,
       viewer.repository.github_repo,
       requestedPath,
       viewer.share.ref,
-      viewer.repository.workspace_id,
+      installationId,
     )
 
     after(() => recordViewerViewEvent({

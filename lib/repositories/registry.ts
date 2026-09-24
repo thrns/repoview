@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { requireRepositoryAccess, requireWorkspace, requireWorkspaceAdmin, requireWorkspaceRole } from '../auth/workspace'
-import { createSupabaseAdminClient } from '../supabase/admin'
+import { createSupabaseServerClient } from '../supabase/server'
 import type { VisibilityRules } from '../security/visibility'
 import type { Tables } from '../supabase/database.types'
 
@@ -9,7 +9,8 @@ export type RepositoryRecord = Tables<'repositories'>
 
 export async function listRegisteredRepositories(): Promise<RepositoryRecord[]> {
   const { workspace } = await requireWorkspace()
-  const { data, error } = await createSupabaseAdminClient()
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase
     .from('repositories')
     .select('*')
     .eq('workspace_id', workspace.id)
@@ -24,6 +25,7 @@ export async function listRegisteredRepositories(): Promise<RepositoryRecord[]> 
 }
 
 export async function saveRepositoryRecord(input: {
+  githubInstallationId: string
   githubOwner: string
   githubRepo: string
   defaultBranch: string
@@ -31,10 +33,24 @@ export async function saveRepositoryRecord(input: {
   defaultRules?: VisibilityRules
 }) {
   const { workspace } = await requireWorkspaceAdmin()
-  const { error } = await createSupabaseAdminClient()
+  const supabase = await createSupabaseServerClient()
+  const { data: installation, error: installationError } = await supabase
+    .from('github_installations')
+    .select('id')
+    .eq('id', input.githubInstallationId)
+    .eq('workspace_id', workspace.id)
+    .eq('status', 'active')
+    .maybeSingle()
+
+  if (installationError || !installation) {
+    throw new Error('RepoView could not verify the GitHub App installation for this workspace.')
+  }
+
+  const { error } = await supabase
     .from('repositories')
     .upsert({
       workspace_id: workspace.id,
+      github_installation_id: input.githubInstallationId,
       github_owner: input.githubOwner,
       github_repo: input.githubRepo,
       default_branch: input.defaultBranch,
@@ -55,7 +71,8 @@ export async function saveRepositoryRecord(input: {
 export async function updateRepositoryVisibilityRules(id: string, rules: VisibilityRules) {
   const access = await requireRepositoryAccess(id)
   await requireWorkspaceRole(access.workspace.id, ['owner', 'admin'])
-  const { error } = await createSupabaseAdminClient()
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase
     .from('repositories')
     .update({
       default_rules: {
@@ -74,7 +91,8 @@ export async function updateRepositoryVisibilityRules(id: string, rules: Visibil
 export async function setRepositoryEnabled(id: string, enabled: boolean) {
   const access = await requireRepositoryAccess(id)
   await requireWorkspaceRole(access.workspace.id, ['owner', 'admin'])
-  const { error } = await createSupabaseAdminClient()
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase
     .from('repositories')
     .update({ enabled })
     .eq('id', id)

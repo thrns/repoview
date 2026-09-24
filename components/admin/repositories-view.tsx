@@ -73,7 +73,7 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
     const normalizedQuery = query.trim().toLowerCase()
     return items
       .filter((item) => {
-        const enabled = overrides[item.github.fullName] ?? item.local?.enabled ?? false
+        const enabled = overrides[repositoryKey(item)] ?? item.local?.enabled ?? false
         const shareable = isShareable(item, enabled)
         const matchesQuery = !normalizedQuery || [item.github.fullName, item.github.description ?? '', item.github.defaultBranch]
           .some((value) => value.toLowerCase().includes(normalizedQuery))
@@ -90,8 +90,8 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
       .sort((left, right) => {
         if (sortMode === 'branch') return left.github.defaultBranch.localeCompare(right.github.defaultBranch)
         if (sortMode === 'status') {
-          const leftStatus = isShareable(left, overrides[left.github.fullName] ?? left.local?.enabled ?? false) ? 0 : left.github.archived ? 2 : 1
-          const rightStatus = isShareable(right, overrides[right.github.fullName] ?? right.local?.enabled ?? false) ? 0 : right.github.archived ? 2 : 1
+          const leftStatus = isShareable(left, overrides[repositoryKey(left)] ?? left.local?.enabled ?? false) ? 0 : left.github.archived ? 2 : 1
+          const rightStatus = isShareable(right, overrides[repositoryKey(right)] ?? right.local?.enabled ?? false) ? 0 : right.github.archived ? 2 : 1
           return leftStatus - rightStatus || left.github.fullName.localeCompare(right.github.fullName)
         }
         const result = left.github.fullName.localeCompare(right.github.fullName)
@@ -99,17 +99,17 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
       })
   }, [items, overrides, query, sortMode, statusFilter, visibilityFilter])
 
-  const selectedItems = items.filter((item) => selectedKeys.includes(item.github.fullName))
+  const selectedItems = items.filter((item) => selectedKeys.includes(repositoryKey(item)))
   const selectedPolicyItems = selectedItems.filter((item) => item.local && item.rules)
   const toggleableSelectedItems = selectedItems.filter((item) => !item.github.disabled && !item.github.archived)
   const enableableSelectedItems = toggleableSelectedItems.filter((item) => !getEnabled(item, overrides))
   const disableableSelectedItems = toggleableSelectedItems.filter((item) => getEnabled(item, overrides))
-  const visibleKeys = filteredItems.map((item) => item.github.fullName)
+  const visibleKeys = filteredItems.map(repositoryKey)
   const allVisibleSelected = visibleKeys.length > 0 && visibleKeys.every((key) => selectedKeys.includes(key))
   const someVisibleSelected = visibleKeys.some((key) => selectedKeys.includes(key))
 
   function toggleRepository(item: RepositoryDashboardItem, enabled: boolean) {
-    const key = item.github.fullName
+    const key = repositoryKey(item)
     const previousValue = getEnabled(item, overrides)
     setError(null)
     setOverrides((current) => ({ ...current, [key]: enabled }))
@@ -119,6 +119,7 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
       try {
         await setRepositoryEnabled({
           repositoryId: item.local?.id,
+          installationRecordId: item.github.installationRecordId,
           owner: item.github.owner,
           repo: item.github.name,
           enabled,
@@ -134,8 +135,8 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
 
   function bulkToggle(repositories: RepositoryDashboardItem[], enabled: boolean) {
     if (repositories.length === 0) return
-    const keys = repositories.map((item) => item.github.fullName)
-    const previousValues = Object.fromEntries(repositories.map((item) => [item.github.fullName, getEnabled(item, overrides)]))
+    const keys = repositories.map(repositoryKey)
+    const previousValues = Object.fromEntries(repositories.map((item) => [repositoryKey(item), getEnabled(item, overrides)]))
     setError(null)
     setPendingKeys(keys)
     setOverrides((current) => Object.fromEntries([
@@ -148,6 +149,7 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
         await setRepositoriesEnabled({
           repositories: repositories.map((item) => ({
             repositoryId: item.local?.id,
+            installationRecordId: item.github.installationRecordId,
             owner: item.github.owner,
             repo: item.github.name,
             enabled,
@@ -298,7 +300,7 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
               </thead>
               <tbody>
                 {filteredItems.map((item) => {
-                  const key = item.github.fullName
+                  const key = repositoryKey(item)
                   const enabled = getEnabled(item, overrides)
                   const shareable = isShareable(item, enabled)
                   const rowPending = pendingKeys.includes(key)
@@ -363,7 +365,11 @@ function EmptyRepositories() {
 }
 
 function getEnabled(item: RepositoryDashboardItem, overrides: Record<string, boolean>) {
-  return overrides[item.github.fullName] ?? item.local?.enabled ?? false
+  return overrides[repositoryKey(item)] ?? item.local?.enabled ?? false
+}
+
+function repositoryKey(item: RepositoryDashboardItem) {
+  return `${item.github.installationRecordId}:${item.github.fullName}`
 }
 
 function isShareable(item: RepositoryDashboardItem, enabled: boolean) {

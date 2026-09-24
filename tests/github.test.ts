@@ -3,15 +3,21 @@ import { generateKeyPairSync } from 'node:crypto'
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
+vi.mock('../lib/supabase/admin', () => ({
+  createSupabaseAdminClient: vi.fn(),
+}))
 
 import {
   GITHUB_API_VERSION,
   GITHUB_COMMON_HEADERS,
   getGitHubInstallationAuthentication,
+  getGitHubInstallationIdForRepository,
 } from '../lib/github/client'
+import { createSupabaseAdminClient } from '../lib/supabase/admin'
 
 const originalEnvironment = { ...process.env }
 const originalFetch = globalThis.fetch
+const getAdmin = vi.mocked(createSupabaseAdminClient)
 
 describe('GitHub App authentication', () => {
   beforeAll(() => {
@@ -21,7 +27,6 @@ describe('GitHub App authentication', () => {
     Object.assign(process.env, {
       SUPABASE_SERVICE_ROLE_KEY: 'service-role',
       GITHUB_APP_ID: '1234',
-      GITHUB_APP_INSTALLATION_ID: '5678',
       GITHUB_APP_PRIVATE_KEY: privateKeyPem,
       SHARE_TOKEN_PEPPER: 's'.repeat(32),
       SESSION_TOKEN_PEPPER: 't'.repeat(32),
@@ -64,11 +69,49 @@ describe('GitHub App authentication', () => {
 
     globalThis.fetch = fetchMock
 
-    const authentication = await getGitHubInstallationAuthentication()
+    const authentication = await getGitHubInstallationAuthentication(5678)
 
     expect(authentication.type).toBe('token')
     expect(authentication.token).toBe('installation-token')
     expect(authentication.installationId).toBe(5678)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
+
+  it('resolves a repository installation only inside the requested workspace', async () => {
+    const repositoryQuery = createQuery({
+      data: {
+        workspace_id: 'workspace-a',
+        github_installation_id: 'installation-a',
+      },
+      error: null,
+    })
+    const installationQuery = createQuery({
+      data: {
+        github_installation_id: 5678,
+        status: 'active',
+      },
+      error: null,
+    })
+    getAdmin.mockReturnValue({
+      from(table: string) {
+        return table === 'repositories' ? repositoryQuery : installationQuery
+      },
+    } as never)
+
+    await expect(getGitHubInstallationIdForRepository('repository-a', 'workspace-a')).resolves.toBe(5678)
+    expect(repositoryQuery.eq).toHaveBeenCalledWith('workspace_id', 'workspace-a')
+    expect(installationQuery.eq).toHaveBeenCalledWith('workspace_id', 'workspace-a')
+    expect(installationQuery.eq).toHaveBeenCalledWith('status', 'active')
+  })
 })
+
+function createQuery(result: unknown) {
+  const query = {
+    select: vi.fn(),
+    eq: vi.fn(),
+    maybeSingle: vi.fn().mockResolvedValue(result),
+  }
+  query.select.mockReturnValue(query)
+  query.eq.mockReturnValue(query)
+  return query
+}

@@ -6,7 +6,6 @@ import { parseServerEnv } from '../lib/env/schema'
 const serverFixture = {
   SUPABASE_SERVICE_ROLE_KEY: 'service-role',
   GITHUB_APP_ID: '1234',
-  GITHUB_APP_INSTALLATION_ID: '5678',
   GITHUB_APP_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----\\nprivate\\n-----END PRIVATE KEY-----',
   SHARE_TOKEN_PEPPER: 's'.repeat(32),
   SESSION_TOKEN_PEPPER: 't'.repeat(32),
@@ -54,11 +53,15 @@ describe('environment validation', () => {
   it('normalizes escaped GitHub private-key newlines and applies defaults', () => {
     const result = parseServerEnv(serverFixture)
     expect(result.GITHUB_APP_ID).toBe(1234)
-    expect(result.GITHUB_APP_INSTALLATION_ID).toBe(5678)
     expect(result.GITHUB_APP_PRIVATE_KEY).toContain('\nprivate\n')
     expect(result.SMTP_HOST).toBe('smtp.gmail.com')
     expect(result.SMTP_PORT).toBe(465)
     expect(result.SMTP_FROM_NAME).toBe('RepoView')
+  })
+
+  it('does not treat a GitHub installation ID as runtime environment configuration', () => {
+    const result = parseServerEnv({ ...serverFixture, GITHUB_APP_INSTALLATION_ID: '5678' })
+    expect(result).not.toHaveProperty('GITHUB_APP_INSTALLATION_ID')
   })
 
   it('reports missing required server configuration clearly', () => {

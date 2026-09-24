@@ -1,6 +1,6 @@
 import { Alert, AlertDescription, AlertTitle, Card, CardContent } from '@/components/ui'
 import { RepositoriesView, type RepositoryDashboardItem } from '@/components/admin/repositories-view'
-import { listInstallationRepositories } from '@/lib/github/repositories'
+import { listWorkspaceInstallationRepositories } from '@/lib/github/repositories'
 import { GitHubRepositoryError } from '@/lib/github/types'
 import { getSafeVisibilityRules } from '@/lib/security/visibility'
 import { listRegisteredRepositories } from '@/lib/repositories/registry'
@@ -12,7 +12,7 @@ export default async function RepositoriesPage() {
   try {
     const context = await requireWorkspace()
     const [githubRepositories, registeredRepositories] = await Promise.all([
-      listInstallationRepositories(context.workspace.id),
+      listWorkspaceInstallationRepositories(context.workspace.id),
       listRegisteredRepositories(),
     ])
     const localByFullName = new Map(

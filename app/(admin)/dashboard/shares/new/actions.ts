@@ -4,10 +4,11 @@ import { z } from 'zod'
 
 import { requireRepositoryAccess, requireWorkspaceRole } from '@/lib/auth/workspace'
 import { getPublicEnv } from '@/lib/env/public'
+import { getGitHubInstallationIdForRepository } from '@/lib/github/client'
 import { getRepositoryRef } from '@/lib/github/repositories'
 import { parseVisibilityRules } from '@/lib/security/visibility'
 import { generateShareCode, generateShareToken, hashShareToken } from '@/lib/security/tokens'
-import { createSupabaseAdminClient } from '@/lib/supabase/admin'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { listRegisteredRepositories } from '@/lib/repositories/registry'
 
 const shareFormInputSchema = z.object({
@@ -45,7 +46,8 @@ export async function validateShareForm(input: unknown) {
     throw new Error('Expiry must be in the future.')
   }
 
-  const repositoryRef = await getRepositoryRef(repository.github_owner, repository.github_repo, parsed.ref, repositoryAccess.workspace.id)
+  const installationId = await getGitHubInstallationIdForRepository(repository.id, repositoryAccess.workspace.id, 'member')
+  const repositoryRef = await getRepositoryRef(repository.github_owner, repository.github_repo, parsed.ref, installationId)
   const rules = parseVisibilityRules({ hidden: parsed.hidden, allowOnly: parsed.allowOnly })
   const recipientLabel = parsed.recipientName || parsed.recipientLabel || parsed.company || ''
 
@@ -87,12 +89,14 @@ export async function createShare(input: unknown) {
     throw new Error('Expiry must be in the future.')
   }
 
-  const repositoryRef = await getRepositoryRef(repository.github_owner, repository.github_repo, parsed.ref, repositoryAccess.workspace.id)
+  const installationId = await getGitHubInstallationIdForRepository(repository.id, repositoryAccess.workspace.id, 'member')
+  const repositoryRef = await getRepositoryRef(repository.github_owner, repository.github_repo, parsed.ref, installationId)
   const rules = parseVisibilityRules({ hidden: parsed.hidden, allowOnly: parsed.allowOnly })
   const recipientLabel = parsed.recipientName || parsed.recipientLabel || parsed.company || null
   const rawToken = generateShareToken()
   const shareCode = generateShareCode()
-  const { data, error } = await createSupabaseAdminClient()
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase
     .from('shares')
     .insert({
       repository_id: repository.id,
@@ -121,7 +125,7 @@ export async function createShare(input: unknown) {
   }
 
   if (parsed.shareType === 'recipient' || parsed.recipientName || parsed.company || parsed.email || parsed.roleNotes) {
-    const { error: recipientError } = await createSupabaseAdminClient().from('share_recipients').insert({
+    const { error: recipientError } = await supabase.from('share_recipients').insert({
       workspace_id: repositoryAccess.workspace.id,
       share_id: data.id,
       recipient_name: parsed.recipientName || null,

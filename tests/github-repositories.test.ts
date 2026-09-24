@@ -38,8 +38,9 @@ describe('GitHub installation repositories', () => {
       rest: { apps: { listReposAccessibleToInstallation: endpoint } },
     } as never)
 
-    await expect(listInstallationRepositories()).resolves.toEqual([{
+    await expect(listInstallationRepositories(5678, 'installation-record-id')).resolves.toEqual([{
       id: 42,
+      installationRecordId: 'installation-record-id',
       owner: 'octocat',
       name: 'hello-world',
       fullName: 'octocat/hello-world',
@@ -57,7 +58,7 @@ describe('GitHub installation repositories', () => {
     const get = vi.fn().mockResolvedValue({ data: repository })
     getClient.mockReturnValue({ rest: { repos: { get } } } as never)
 
-    await expect(getRepositoryMetadata('octocat', 'hello-world')).resolves.toMatchObject({
+    await expect(getRepositoryMetadata('octocat', 'hello-world', 5678, 'installation-record-id')).resolves.toMatchObject({
       fullName: 'octocat/hello-world',
       defaultBranch: 'main',
     })
@@ -81,10 +82,10 @@ describe('GitHub installation repositories', () => {
       },
     } as never)
 
-    await expect(listRepositoryBranches('octocat', 'hello-world')).resolves.toEqual([
+    await expect(listRepositoryBranches('octocat', 'hello-world', 5678)).resolves.toEqual([
       { name: 'main', sha: 'abc123', protected: true },
     ])
-    await expect(getRepositoryRef('octocat', 'hello-world', 'refs/heads/main')).resolves.toEqual({
+    await expect(getRepositoryRef('octocat', 'hello-world', 'refs/heads/main', 5678)).resolves.toEqual({
       name: 'heads/main',
       ref: 'refs/heads/main',
       sha: 'abc123',
@@ -108,7 +109,7 @@ describe('GitHub installation repositories', () => {
       rest: { apps: { listReposAccessibleToInstallation: vi.fn() } },
     } as never)
 
-    const result = listInstallationRepositories()
+    const result = listInstallationRepositories(5678, 'installation-record-id')
 
     await expect(result).rejects.toMatchObject({ code })
     await expect(result).rejects.toBeInstanceOf(GitHubRepositoryError)

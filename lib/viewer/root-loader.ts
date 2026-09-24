@@ -10,13 +10,13 @@ export async function loadAuthorizedViewerRoot({
   repository,
   ref,
   tree,
-  workspaceId,
+  installationId,
 }: {
   owner: string
   repository: string
   ref: string
   tree: ViewerTreeState
-  workspaceId: string
+  installationId: number
 }): Promise<ViewerRootState> {
   if (tree.status !== 'ready') {
     return {
@@ -33,7 +33,7 @@ export async function loadAuthorizedViewerRoot({
   }
 
   try {
-    const content = await loadRepositoryFile(owner, repository, readmeNode.path, ref, workspaceId)
+    const content = await loadRepositoryFile(owner, repository, readmeNode.path, ref, installationId)
     if (content.kind === 'image') {
       return { status: 'unavailable', reason: 'binary' }
     }

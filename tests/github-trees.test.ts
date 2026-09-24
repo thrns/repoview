@@ -25,7 +25,7 @@ describe('GitHub repository trees', () => {
     })
     getClient.mockReturnValue({ rest: { git: { getTree } } } as never)
 
-    await expect(loadRepositoryTree('octocat', 'hello-world', 'refs/heads/main')).resolves.toEqual([
+    await expect(loadRepositoryTree('octocat', 'hello-world', 'refs/heads/main', 5678)).resolves.toEqual([
       { path: 'src/main.ts', mode: '100644', type: 'blob', sha: 'blob-sha', size: 42 },
       { path: 'src/components', mode: '040000', type: 'tree', sha: 'tree-sha' },
       { path: 'ignored', mode: '100644', type: 'blob', sha: 'ignored-sha' },
@@ -43,7 +43,7 @@ describe('GitHub repository trees', () => {
     const getTree = vi.fn().mockResolvedValue({ data: { truncated: true, tree: [] } })
     getClient.mockReturnValue({ rest: { git: { getTree } } } as never)
 
-    await expect(loadRepositoryTree('octocat', 'hello-world', 'main')).rejects.toBeInstanceOf(
+    await expect(loadRepositoryTree('octocat', 'hello-world', 'main', 5678)).rejects.toBeInstanceOf(
       GitHubTreeTruncatedError,
     )
   })

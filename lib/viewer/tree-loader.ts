@@ -12,17 +12,17 @@ export async function loadAuthorizedViewerTree({
   ref,
   repositoryRules,
   shareRules,
-  workspaceId,
+  installationId,
 }: {
   owner: string
   repository: string
   ref: string
   repositoryRules: unknown
   shareRules: unknown
-  workspaceId: string
+  installationId: number
 }): Promise<ViewerTreeState> {
   try {
-    const tree = await loadRepositoryTree(owner, repository, ref, workspaceId)
+    const tree = await loadRepositoryTree(owner, repository, ref, installationId)
     const visibleTree = filterVisibleTree(tree, repositoryRules, shareRules)
     return { status: 'ready', nodes: buildViewerTree(visibleTree) }
   } catch (error) {

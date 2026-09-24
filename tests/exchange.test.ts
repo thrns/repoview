@@ -16,7 +16,6 @@ beforeAll(() => {
   Object.assign(process.env, {
     SUPABASE_SERVICE_ROLE_KEY: 'service-role',
     GITHUB_APP_ID: '1234',
-    GITHUB_APP_INSTALLATION_ID: '5678',
     GITHUB_APP_PRIVATE_KEY: 'private-key',
     SHARE_TOKEN_PEPPER: 's'.repeat(32),
     SESSION_TOKEN_PEPPER: 't'.repeat(32),
