@@ -56,7 +56,7 @@ type NotificationSettings = {
   security_alerts: boolean
   digest_frequency: 'off' | 'daily' | 'weekly'
   analytics_enabled: boolean
-  analytics_retention_days: 30 | 90 | 180 | 365
+  analytics_retention_days: 30 | 90 | 180
   created_at: string
   updated_at: string
 }
@@ -129,6 +129,7 @@ type Share = {
   ref: string
   expires_at: string | null
   revoked_at: string | null
+  retention_scrubbed_at: string | null
   notify_on_view: boolean
   allow_download: boolean
   rules: Json
@@ -181,6 +182,7 @@ type ViewerSession = {
   confirmed_at: string | null
   notified_at: string | null
   session_summary_notified_at: string | null
+  network_metadata_scrubbed_at: string | null
   active_ms: number
   entry_path: string | null
   exit_path: string | null
@@ -277,6 +279,18 @@ type AuditLog = {
   created_at: string
 }
 
+type RetentionCleanupRun = {
+  id: string
+  job_name: string
+  status: 'running' | 'succeeded' | 'failed'
+  batch_limit: number
+  rows_processed: number
+  details: Json
+  error: string | null
+  started_at: string
+  completed_at: string | null
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -299,6 +313,7 @@ export interface Database {
       share_access_attempts: TableDefinition<ShareAccessAttempt, Partial<Omit<ShareAccessAttempt, 'id' | 'created_at'>> & Pick<ShareAccessAttempt, 'token_hash' | 'valid'> & { id?: string; created_at?: string }, never>
       notification_deliveries: TableDefinition<NotificationDelivery, Partial<Omit<NotificationDelivery, 'id' | 'created_at'>> & Pick<NotificationDelivery, 'workspace_id' | 'share_id' | 'session_id' | 'status' | 'recipient'> & { id?: string; created_at?: string }, Partial<Omit<NotificationDelivery, 'id' | 'workspace_id' | 'created_at'>>>
       audit_logs: TableDefinition<AuditLog, Partial<Omit<AuditLog, 'id' | 'created_at'>> & Pick<AuditLog, 'workspace_id' | 'action' | 'resource_type'> & { id?: never; created_at?: string }, never>
+      retention_cleanup_runs: TableDefinition<RetentionCleanupRun, Partial<Omit<RetentionCleanupRun, 'id' | 'started_at'>> & Pick<RetentionCleanupRun, 'job_name'> & { id?: string; status?: RetentionCleanupRun['status']; batch_limit?: number; rows_processed?: number; details?: Json; error?: string | null; started_at?: string; completed_at?: string | null }, Partial<Omit<RetentionCleanupRun, 'id' | 'job_name' | 'started_at'>>>
     }
     Views: Record<string, never>
     Functions: {

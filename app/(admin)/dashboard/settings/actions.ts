@@ -21,7 +21,7 @@ const notificationSettingsSchema = z.object({
   notifyOnSecurityAlert: z.boolean(),
   digestFrequency: z.enum(['off', 'daily', 'weekly']),
   analyticsEnabled: z.boolean(),
-  analyticsRetentionDays: z.union([z.literal(30), z.literal(90), z.literal(180), z.literal(365)]),
+  analyticsRetentionDays: z.union([z.literal(30), z.literal(90), z.literal(180)]),
 })
 
 const uuidSchema = z.string().uuid()
@@ -49,7 +49,7 @@ export async function updateNotificationSettings(input: {
   notifyOnSecurityAlert: boolean
   digestFrequency: 'off' | 'daily' | 'weekly'
   analyticsEnabled: boolean
-  analyticsRetentionDays: 30 | 90 | 180 | 365
+  analyticsRetentionDays: 30 | 90 | 180
 }) {
   const parsed = notificationSettingsSchema.parse(input)
   const context = await requireWorkspaceAdmin()

@@ -1,3 +1,5 @@
+import { RETENTION_DAYS } from './retention-policy'
+
 export const TERMS_MARKDOWN = String.raw`
 # RepoView Terms of Service
 
@@ -556,17 +558,19 @@ RepoView follows data-minimization principles and is intended to use the followi
 
 | Data category | Default maximum retention |
 |---|---|
-| Individual-level Viewer interaction events | **180 days from the event** |
-| Persistent pseudonymous Viewer identifier/profile | **180 days from last Viewer activity** |
-| Salted IP hashes and security indicators | **90 days from the event**, unless needed for an active investigation |
-| Security/abuse request logs not needed for an active investigation | **90 days** |
-| Share configuration and recipient labels | Until the Owner deletes the share/account, then **30 days** from active systems |
-| Owner account/configuration data | Until account deletion, then **30 days** from active systems |
+| Repository/view events, file engagement, and Viewer sessions | **${RETENTION_DAYS.repositoryViewEvents} days from the event or last activity** |
+| Persistent pseudonymous Viewer identifier/profile | **${RETENTION_DAYS.persistentViewerIdentifiers} days from last Viewer activity** |
+| Salted IP hashes, coarse network/location metadata, and security indicators | **${RETENTION_DAYS.networkLocationMetadata} days from the event**, unless needed for an active investigation |
+| Share access attempts and security/abuse request logs | **${RETENTION_DAYS.shareAccessAttempts} days** unless needed for an active investigation |
+| Notification delivery logs | **${RETENTION_DAYS.notificationDeliveryLogs} days** |
+| Revoked/expired Share configuration and recipient labels | **${RETENTION_DAYS.revokedExpiredShareMetadata} days** from revocation or expiry; minimal references may remain until related analytics age out |
+| Owner account/configuration data | Until account deletion, then **${RETENTION_DAYS.deletedAccountsWorkspaces} days** from active systems |
+| Workspace security/activity audit logs | **${RETENTION_DAYS.securityAuditLogs} days**, unless needed for an active investigation |
 | Support and privacy correspondence | **24 months** after the matter is closed, unless longer retention is reasonably required for a dispute or legal obligation |
 | Backups | Rotated/deleted within **35 days** after deletion from active systems, unless legally preserved |
 | Aggregated or de-identified statistics that no longer reasonably identify an individual | May be retained longer for project reliability and product improvement |
 
-RepoView may retain specific information longer when reasonably necessary for an active security investigation, fraud/abuse prevention, a legal hold, dispute, or legal requirement. When the reason ends, the information should return to the ordinary deletion schedule.
+RepoView may retain specific information longer when reasonably necessary for an active security investigation, fraud/abuse prevention, a legal hold, dispute, or legal requirement. When the reason ends, the information should return to the ordinary deletion schedule. A revoked or expired Share may retain a minimal inactive row while separately scheduled analytics still reference it; the Share cannot be opened during that period.
 
 **These periods must match the production implementation.** If RepoView's actual production retention differs, this section should be updated before launch or before the change takes effect.
 

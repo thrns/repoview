@@ -24,7 +24,7 @@ const completedProfile = {
   full_name: 'Ada Lovelace',
   profile_completed_at: '2026-09-24T00:00:00.000Z',
   terms_version_accepted: '2026-09-23',
-  privacy_version_acknowledged: '2026-09-23',
+  privacy_version_acknowledged: '2026-09-24',
   onboarding_completed_at: null,
 }
 

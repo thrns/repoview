@@ -18,6 +18,7 @@ export const serverEnvSchema = z.object({
   POSTMARK_SERVER_TOKEN: z.string().min(1).optional(),
   POSTMARK_MESSAGE_STREAM: z.string().min(1).default('outbound'),
   NOTIFICATION_DISPATCH_SECRET: z.string().min(32).optional(),
+  CRON_SECRET: z.string().min(32).optional(),
   SMTP_HOST: z.string().default('smtp.gmail.com'),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(465),
   SMTP_USER: z.string().email('SMTP_USER must be a valid email').optional(),
