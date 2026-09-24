@@ -3,6 +3,9 @@ import { z } from 'zod'
 export const serverEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
   GITHUB_APP_ID: z.coerce.number().int().positive('GITHUB_APP_ID must be a positive integer'),
+  GITHUB_APP_SLUG: z.string().trim().min(1, 'GITHUB_APP_SLUG is required'),
+  GITHUB_APP_CLIENT_ID: z.string().trim().min(1, 'GITHUB_APP_CLIENT_ID is required'),
+  GITHUB_APP_CLIENT_SECRET: z.string().min(1, 'GITHUB_APP_CLIENT_SECRET is required'),
   GITHUB_APP_PRIVATE_KEY: z.string().min(1, 'GITHUB_APP_PRIVATE_KEY is required').transform((value) => value.replace(/\\n/g, '\n').trim()),
   SHARE_TOKEN_PEPPER: z.string().min(32, 'SHARE_TOKEN_PEPPER must be at least 32 characters'),
   SESSION_TOKEN_PEPPER: z.string().min(32, 'SESSION_TOKEN_PEPPER must be at least 32 characters'),

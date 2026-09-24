@@ -58,6 +58,21 @@ type GitHubInstallation = {
   updated_at: string
 }
 
+type GitHubConnectionTransaction = {
+  id: string
+  workspace_id: string
+  user_id: string
+  state_hash: string
+  code_verifier: string
+  claimed_installation_id: number | null
+  status: 'pending_installation' | 'awaiting_authorization' | 'pending_approval' | 'consumed' | 'cancelled' | 'failed'
+  return_path: string
+  expires_at: string
+  consumed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
 type Repository = {
   id: string
   workspace_id: string
@@ -271,6 +286,7 @@ export interface Database {
       workspace_members: TableDefinition<WorkspaceMember, Partial<Omit<WorkspaceMember, 'created_at' | 'updated_at'>> & Pick<WorkspaceMember, 'workspace_id' | 'user_id'> & { created_at?: string; updated_at?: string }, Partial<Omit<WorkspaceMember, 'workspace_id' | 'user_id' | 'created_at'>>>
       notification_settings: TableDefinition<NotificationSettings, Partial<Omit<NotificationSettings, 'id' | 'created_at' | 'updated_at'>> & Pick<NotificationSettings, 'workspace_id'> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<NotificationSettings, 'id' | 'workspace_id' | 'created_at'>>>
       github_installations: TableDefinition<GitHubInstallation, Partial<Omit<GitHubInstallation, 'id' | 'workspace_id' | 'created_at' | 'updated_at'>> & Pick<GitHubInstallation, 'workspace_id' | 'github_installation_id' | 'github_account_id' | 'github_account_login' | 'github_account_type' | 'repository_selection'> & { id?: string; permissions?: Json; status?: GitHubInstallation['status']; suspended_at?: string | null; created_at?: string; updated_at?: string }, Partial<Omit<GitHubInstallation, 'id' | 'workspace_id' | 'created_at'>>>
+      github_connection_transactions: TableDefinition<GitHubConnectionTransaction, Partial<Omit<GitHubConnectionTransaction, 'id' | 'created_at' | 'updated_at'>> & Pick<GitHubConnectionTransaction, 'workspace_id' | 'user_id' | 'state_hash' | 'code_verifier' | 'expires_at'> & { id?: string; status?: GitHubConnectionTransaction['status']; claimed_installation_id?: number | null; return_path?: string; consumed_at?: string | null; created_at?: string; updated_at?: string }, Partial<Omit<GitHubConnectionTransaction, 'id' | 'workspace_id' | 'user_id' | 'created_at'>>>
       repositories: TableDefinition<Repository, Partial<Omit<Repository, 'id' | 'created_at' | 'updated_at'>> & Pick<Repository, 'workspace_id' | 'github_installation_id' | 'github_owner' | 'github_repo' | 'default_branch'> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<Repository, 'id' | 'workspace_id' | 'created_at'>>>
       shares: TableDefinition<Share, Partial<Omit<Share, 'id' | 'created_at' | 'updated_at'>> & Pick<Share, 'workspace_id' | 'repository_id' | 'token_hash' | 'ref'> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<Share, 'id' | 'workspace_id' | 'created_at'>>>
       share_recipients: TableDefinition<ShareRecipient, Partial<Omit<ShareRecipient, 'created_at' | 'updated_at'>> & Pick<ShareRecipient, 'share_id' | 'workspace_id'> & { created_at?: string; updated_at?: string }, Partial<Omit<ShareRecipient, 'share_id' | 'workspace_id' | 'created_at'>>>
@@ -284,7 +300,16 @@ export interface Database {
       audit_logs: TableDefinition<AuditLog, Partial<Omit<AuditLog, 'id' | 'created_at'>> & Pick<AuditLog, 'workspace_id' | 'action' | 'resource_type'> & { id?: never; created_at?: string }, never>
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      claim_github_connection_installation: {
+        Args: { target_state_hash: string; target_user_id: string; target_installation_id: number }
+        Returns: GitHubConnectionTransaction[]
+      }
+      consume_github_connection_transaction: {
+        Args: { target_state_hash: string; target_user_id: string }
+        Returns: GitHubConnectionTransaction[]
+      }
+    }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
   }

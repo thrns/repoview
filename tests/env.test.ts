@@ -6,6 +6,9 @@ import { parseServerEnv } from '../lib/env/schema'
 const serverFixture = {
   SUPABASE_SERVICE_ROLE_KEY: 'service-role',
   GITHUB_APP_ID: '1234',
+  GITHUB_APP_SLUG: 'repoview',
+  GITHUB_APP_CLIENT_ID: 'Iv1.test-client-id',
+  GITHUB_APP_CLIENT_SECRET: 'client-secret',
   GITHUB_APP_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----\\nprivate\\n-----END PRIVATE KEY-----',
   SHARE_TOKEN_PEPPER: 's'.repeat(32),
   SESSION_TOKEN_PEPPER: 't'.repeat(32),
