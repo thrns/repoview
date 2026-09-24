@@ -1631,7 +1631,6 @@ SMTP_PORT=465
 SMTP_USER=
 SMTP_APP_PASSWORD=
 SMTP_FROM_NAME=RepoView
-NOTIFICATION_TO_EMAIL=
 ```
 
 The GitHub private key may require newline restoration depending on how it is entered into Vercel. Centralize parsing rather than scattering `.replace(/\\n/g, "\n")`.
@@ -1759,8 +1758,8 @@ For Gmail/Google Workspace:
    - port 465 SSL, or 587 TLS;
    - username = full Gmail/Workspace email;
    - password = App Password.
-5. Set `NOTIFICATION_TO_EMAIL` to the owner inbox.
-6. Add a Settings “Send test email” action.
+5. Keep `SMTP_USER` as the operator/system mailbox. Customer notification destinations belong to workspace-scoped `notification_settings` rows and are used only when verified.
+6. Keep SMTP test delivery operator-only; it must never act as a customer notification fallback.
 
 Gmail has sending limits. RepoView sends low-volume transactional alerts, so notification dedupe matters both for signal quality and quota hygiene.
 

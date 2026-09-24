@@ -16,7 +16,6 @@ const serverFixture = {
   IP_HASH_SALT: 'i'.repeat(32),
   SMTP_USER: 'owner@example.com',
   SMTP_APP_PASSWORD: 'app-password',
-  NOTIFICATION_TO_EMAIL: 'owner@example.com',
 }
 
 describe('environment validation', () => {

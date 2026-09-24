@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 vi.mock('../lib/env/public', () => ({ getPublicEnv: vi.fn(() => ({ NEXT_PUBLIC_APP_URL: 'https://code.example.com' })) }))
-vi.mock('../lib/env/server', () => ({ getServerEnv: vi.fn(() => ({ NOTIFICATION_TO_EMAIL: 'owner@example.com' })) }))
 vi.mock('../lib/supabase/admin', () => ({ createSupabaseAdminClient: vi.fn() }))
 vi.mock('../lib/notifications/smtp', () => ({ sendSmtpEmail: vi.fn() }))
 
@@ -23,7 +22,7 @@ const input = {
   session: { browser: 'Chrome', os: 'macOS', device_type: 'desktop', country: 'CA', is_probable_bot: false },
 }
 
-function createAdminMock(claim: object | null) {
+function createAdminMock(claim: object | null, settings = { destination_email: 'alice@example.com', email_verified: true, view_opened: true, returning_view: true, session_summary: true }) {
   const update = vi.fn().mockReturnThis()
   const eq = vi.fn().mockReturnThis()
   const is = vi.fn().mockReturnThis()
@@ -36,7 +35,7 @@ function createAdminMock(claim: object | null) {
       if (table === 'notification_settings') return {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn().mockResolvedValue({ data: { notification_email: null, notify_on_view: true }, error: null }),
+        maybeSingle: vi.fn().mockResolvedValue({ data: settings, error: null }),
       }
       return { insert: deliveryInsert }
     },
@@ -61,7 +60,7 @@ describe('confirmed-view notification', () => {
     expect(eq).toHaveBeenNthCalledWith(2, 'share_id', input.shareId)
     expect(is).toHaveBeenCalledWith('notified_at', null)
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({
-      to: 'owner@example.com',
+      to: 'alice@example.com',
       subject: 'RepoView: Interview viewed octocat/hello-world',
     }))
     expect(deliveryInsert).toHaveBeenCalledWith(expect.objectContaining({
@@ -92,6 +91,15 @@ describe('confirmed-view notification', () => {
       error_text: 'SMTP delivery failed.',
       sent_at: null,
     }))
+  })
+
+  it('does not send when the workspace destination is missing or unverified', async () => {
+    const { admin, deliveryInsert } = createAdminMock({ id: input.sessionId }, { destination_email: 'bob@example.com', email_verified: false, view_opened: true, returning_view: true, session_summary: true })
+    getAdmin.mockReturnValue(admin as never)
+
+    await expect(notifyConfirmedViewer(input)).resolves.toEqual({ status: 'unconfigured' })
+    expect(sendEmail).not.toHaveBeenCalled()
+    expect(deliveryInsert).not.toHaveBeenCalled()
   })
 
   it('skips disabled shares and probable scanners before claiming or sending', async () => {

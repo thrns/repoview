@@ -11,7 +11,7 @@ vi.mock('../lib/supabase/server', () => ({
     })),
   })),
 }))
-vi.mock('../lib/env/server', () => ({ getServerEnv: vi.fn(() => ({ NOTIFICATION_TO_EMAIL: 'owner@example.com' })) }))
+vi.mock('../lib/env/server', () => ({ getServerEnv: vi.fn(() => ({ SMTP_USER: 'operator@example.com' })) }))
 vi.mock('../lib/notifications/smtp', () => ({ sendSmtpEmail: vi.fn() }))
 
 import { sendTestEmail } from '../app/(admin)/dashboard/settings/actions'
@@ -32,7 +32,7 @@ describe('send test email action', () => {
     await expect(sendTestEmail()).resolves.toEqual({ sent: true })
     expect(requireWorkspaceAdminMock).toHaveBeenCalledOnce()
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({
-      to: 'owner@example.com',
+      to: 'operator@example.com',
       subject: 'RepoView: SMTP test email',
     }))
   })

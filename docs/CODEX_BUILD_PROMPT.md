@@ -368,7 +368,6 @@ Environment:
 - `SMTP_PORT=465` with secure TLS, or supported port 587 STARTTLS
 - `SMTP_USER`
 - `SMTP_APP_PASSWORD`
-- `NOTIFICATION_TO_EMAIL`
 - optional `SMTP_FROM_NAME=RepoView`
 
 Use a Google App Password, never the normal Google account password.
@@ -513,7 +512,6 @@ SMTP_PORT=465
 SMTP_USER=
 SMTP_APP_PASSWORD=
 SMTP_FROM_NAME=RepoView
-NOTIFICATION_TO_EMAIL=
 ```
 
 If newer Supabase naming uses publishable keys, prefer current official naming over deprecated anon-key terminology while still supporting the project you actually configure.

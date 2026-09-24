@@ -7,7 +7,6 @@ import { requireWorkspace, requireWorkspaceAdmin } from '../../../../lib/auth/wo
 import { getServerEnv } from '../../../../lib/env/server'
 import { sendSmtpEmail } from '../../../../lib/notifications/smtp'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
-import type { Tables } from '../../../../lib/supabase/database.types'
 
 const profileSchema = z.object({
   fullName: z.string().trim().min(1).max(100),
@@ -55,16 +54,37 @@ export async function updateNotificationSettings(input: {
   const parsed = notificationSettingsSchema.parse(input)
   const context = await requireWorkspaceAdmin()
   const supabase = await createSupabaseServerClient()
+  const destinationEmail = parsed.notificationEmail || null
+  const { data: currentSettings, error: currentSettingsError } = await supabase
+    .from('notification_settings')
+    .select('destination_email, email_verified')
+    .eq('workspace_id', context.workspace.id)
+    .maybeSingle()
+
+  if (currentSettingsError) return { saved: false as const, error: 'Notification settings could not be saved.' }
+
+  const accountEmail = context.user.email?.trim().toLowerCase()
+  const isVerifiedAccountDestination = Boolean(
+    destinationEmail
+    && context.user.email_confirmed_at
+    && accountEmail
+    && destinationEmail.toLowerCase() === accountEmail,
+  )
+  const emailVerified = Boolean(
+    destinationEmail
+    && ((currentSettings?.email_verified && currentSettings.destination_email?.toLowerCase() === destinationEmail.toLowerCase()) || isVerifiedAccountDestination),
+  )
   const { error } = await supabase
     .from('notification_settings')
     .upsert({
       workspace_id: context.workspace.id,
-      notification_email: parsed.notificationEmail || null,
-      notify_on_view: parsed.notifyOnView,
-      notify_on_returning_view: parsed.notifyOnReturningView,
-      notify_on_download: parsed.notifyOnDownload,
-      notify_on_session_summary: parsed.notifyOnSessionSummary,
-      notify_on_security_alert: parsed.notifyOnSecurityAlert,
+      destination_email: destinationEmail,
+      email_verified: emailVerified,
+      view_opened: parsed.notifyOnView,
+      returning_view: parsed.notifyOnReturningView,
+      download: parsed.notifyOnDownload,
+      session_summary: parsed.notifyOnSessionSummary,
+      security_alerts: parsed.notifyOnSecurityAlert,
       digest_frequency: parsed.digestFrequency,
       analytics_enabled: parsed.analyticsEnabled,
       analytics_retention_days: parsed.analyticsRetentionDays,
@@ -129,21 +149,12 @@ export async function disconnectGitHubInstallation(installationId: string) {
 }
 
 export async function sendTestEmail() {
-  const context = await requireWorkspaceAdmin()
+  await requireWorkspaceAdmin()
 
   try {
     const env = getServerEnv()
-    let recipient = env.NOTIFICATION_TO_EMAIL
-    const { createSupabaseServerClient } = await import('../../../../lib/supabase/server')
-    const supabase = await createSupabaseServerClient()
-    const { data } = await supabase
-      .from('notification_settings')
-      .select('notification_email')
-      .eq('workspace_id', context.workspace.id)
-      .maybeSingle()
-    recipient = (data as Tables<'notification_settings'> | null)?.notification_email ?? recipient
     await sendSmtpEmail({
-      to: recipient,
+      to: env.SMTP_USER,
       subject: 'RepoView: SMTP test email',
       text: [
         'RepoView',

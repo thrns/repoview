@@ -44,12 +44,13 @@ type WorkspaceMember = {
 type NotificationSettings = {
   id: string
   workspace_id: string
-  notification_email: string | null
-  notify_on_view: boolean
-  notify_on_returning_view: boolean
-  notify_on_download: boolean
-  notify_on_session_summary: boolean
-  notify_on_security_alert: boolean
+  destination_email: string | null
+  email_verified: boolean
+  view_opened: boolean
+  returning_view: boolean
+  download: boolean
+  session_summary: boolean
+  security_alerts: boolean
   digest_frequency: 'off' | 'daily' | 'weekly'
   analytics_enabled: boolean
   analytics_retention_days: 30 | 90 | 180 | 365

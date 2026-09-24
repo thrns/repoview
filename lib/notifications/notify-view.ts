@@ -1,7 +1,6 @@
 import 'server-only'
 
 import { getPublicEnv } from '../env/public'
-import { getServerEnv } from '../env/server'
 import { createSupabaseAdminClient } from '../supabase/admin'
 import { buildSessionSummaryEmail, buildViewNotificationEmail } from './view-email'
 import { sendSmtpEmail } from './smtp'
@@ -37,7 +36,7 @@ type NotifyConfirmedViewerInput = {
 }
 
 export type NotificationResult =
-  | { status: 'disabled' | 'probable-bot' | 'already-attempted' }
+  | { status: 'disabled' | 'probable-bot' | 'already-attempted' | 'unconfigured' }
   | { status: 'sent' | 'failed' }
 
 export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): Promise<NotificationResult> {
@@ -50,11 +49,14 @@ export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): 
 
   const admin = createSupabaseAdminClient()
   const notificationSettings = await getNotificationSettings(admin, input.share.workspace_id)
-  if (notificationSettings && !notificationSettings.notify_on_view) {
+  if (notificationSettings && !notificationSettings.view_opened) {
     return { status: 'disabled' }
   }
+  if (!notificationSettings?.destination_email || !notificationSettings.email_verified) {
+    return { status: 'unconfigured' }
+  }
   const visitContext = await getVisitContext(admin, input.shareId, input.sessionId, input.session.viewer_id, input.share.workspace_id)
-  if (visitContext.visitCount > 1 && notificationSettings && !notificationSettings.notify_on_returning_view) {
+  if (visitContext.visitCount > 1 && !notificationSettings.returning_view) {
     return { status: 'disabled' }
   }
   const attemptedAt = (input.now ?? new Date()).toISOString()
@@ -97,7 +99,7 @@ export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): 
   let status: 'sent' | 'failed' = 'sent'
   try {
     await sendSmtpEmail({
-      to: notificationSettings?.notification_email ?? getServerEnv().NOTIFICATION_TO_EMAIL,
+      to: notificationSettings.destination_email,
       subject: email.subject,
       text: email.text,
       html: email.html,
@@ -134,7 +136,8 @@ export async function notifySessionSummary({ shareId, sessionId, share, reposito
   const { data: session, error: sessionError } = await sessionQuery.eq('workspace_id', workspaceId).maybeSingle()
   if (sessionError || !session || !session.confirmed_at || session.is_probable_bot) return { status: 'skipped' as const }
   if (share.notify_on_view === false) return { status: 'disabled' as const }
-  if (notificationSettings?.notify_on_session_summary === false) return { status: 'disabled' as const }
+  if (notificationSettings && !notificationSettings.session_summary) return { status: 'disabled' as const }
+  if (!notificationSettings?.destination_email || !notificationSettings.email_verified) return { status: 'unconfigured' as const }
 
   const endedAt = session.ended_at ?? session.last_seen_at
   const summaryClaimQuery = admin.from('viewer_sessions')
@@ -180,7 +183,7 @@ export async function notifySessionSummary({ shareId, sessionId, share, reposito
 
   let status: 'sent' | 'failed' = 'sent'
   try {
-    await sendSmtpEmail({ to: notificationSettings?.notification_email ?? getServerEnv().NOTIFICATION_TO_EMAIL, subject: email.subject, text: email.text, html: email.html })
+    await sendSmtpEmail({ to: notificationSettings.destination_email, subject: email.subject, text: email.text, html: email.html })
   } catch {
     status = 'failed'
   }
@@ -202,7 +205,7 @@ export async function notifySessionSummary({ shareId, sessionId, share, reposito
 async function getNotificationSettings(admin: ReturnType<typeof createSupabaseAdminClient>, workspaceId: string) {
   const { data, error } = await admin
     .from('notification_settings')
-    .select('notification_email, notify_on_view, notify_on_returning_view, notify_on_session_summary')
+    .select('destination_email, email_verified, view_opened, returning_view, session_summary')
     .eq('workspace_id', workspaceId)
     .maybeSingle()
   if (error) throw error

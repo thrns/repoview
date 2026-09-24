@@ -16,7 +16,6 @@ export const serverEnvSchema = z.object({
   SMTP_USER: z.string().email('SMTP_USER must be a valid email'),
   SMTP_APP_PASSWORD: z.string().min(1, 'SMTP_APP_PASSWORD is required'),
   SMTP_FROM_NAME: z.string().min(1).default('RepoView'),
-  NOTIFICATION_TO_EMAIL: z.string().email('NOTIFICATION_TO_EMAIL must be a valid email'),
 })
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>

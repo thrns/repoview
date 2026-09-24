@@ -170,7 +170,7 @@ select lives_ok($$update public.viewers set viewer_code = 'A997' where id = (sel
 select lives_ok($$update public.repository_events set metadata = '{"tampered":true}' where id = (select repository_event_b from rls_fixture)$$, 'User A cannot update User B repository event');
 select lives_ok($$update public.file_engagement set view_count = 99 where id = (select engagement_b from rls_fixture)$$, 'User A cannot update User B file engagement');
 select lives_ok($$update public.share_access_attempts set failure_reason = 'tampered' where id = (select access_attempt_b from rls_fixture)$$, 'User A cannot update User B share access attempt');
-select lives_ok($$update public.notification_settings set notify_on_view = false where workspace_id = (select workspace_b from rls_fixture)$$, 'User A cannot update User B notification settings');
+select lives_ok($$update public.notification_settings set view_opened = false where workspace_id = (select workspace_b from rls_fixture)$$, 'User A cannot update User B notification settings');
 select lives_ok($$update public.audit_logs set metadata = '{"tampered":true}' where id = (select audit_b from rls_fixture)$$, 'User A cannot update User B audit log');
 
 select lives_ok($$delete from public.workspaces where id = (select workspace_b from rls_fixture)$$, 'User A cannot delete User B workspace');
@@ -201,7 +201,7 @@ select is((select viewer_code from public.viewers where id = viewer_b), 'B999', 
 select is((select metadata from public.repository_events where id = repository_event_b), '{}'::jsonb, 'foreign repository event remains unchanged') from rls_fixture;
 select is((select view_count from public.file_engagement where id = engagement_b), 1, 'foreign file engagement remains unchanged') from rls_fixture;
 select is((select failure_reason from public.share_access_attempts where id = access_attempt_b), null::text, 'foreign share access attempt remains unchanged') from rls_fixture;
-select is((select notify_on_view from public.notification_settings where workspace_id = workspace_b), true, 'foreign notification settings remain unchanged') from rls_fixture;
+select is((select view_opened from public.notification_settings where workspace_id = workspace_b), true, 'foreign notification settings remain unchanged') from rls_fixture;
 select is((select count(*) from public.audit_logs where id = audit_b), 1::bigint, 'foreign audit log remains present') from rls_fixture;
 select is((select count(*) from public.workspaces where id = workspace_b), 1::bigint, 'foreign workspace remains present') from rls_fixture;
 

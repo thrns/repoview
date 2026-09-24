@@ -73,7 +73,6 @@ SMTP_PORT=465
 SMTP_USER=owner@example.com
 SMTP_APP_PASSWORD=your-google-app-password
 SMTP_FROM_NAME=RepoView
-NOTIFICATION_TO_EMAIL=owner@example.com
 ```
 
 `NEXT_PUBLIC_*` values are browser-visible. The service-role key, GitHub App client secret, private key, token peppers, SMTP credentials, OAuth user tokens, and installation tokens remain server-only.
@@ -120,8 +119,8 @@ The app fetches refs, recursive trees, and file contents on the server through O
 1. Enable two-step verification for the Gmail/Workspace account where required.
 2. Create a Google App Password for RepoView.
 3. Set `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, the full account address as `SMTP_USER`, and the generated value as `SMTP_APP_PASSWORD`.
-4. Set `NOTIFICATION_TO_EMAIL` to the owner inbox.
-5. Use **Dashboard → Settings → Send test email** after deployment.
+4. Keep `SMTP_USER` as the operator/system mailbox. Customer notification destinations are configured and verified per workspace in **Dashboard → Settings → Notifications**.
+5. SMTP test delivery is an operator-only server action; it is not a customer notification fallback.
 
 RepoView sends only low-volume, deduplicated first-meaningful-view notifications. SMTP failures are recorded safely and never deny an otherwise authorized viewer.
 

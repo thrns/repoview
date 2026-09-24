@@ -29,15 +29,15 @@ export function SettingsNotifications({ settings, canManage }: { settings: Setti
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_180px]">
-        <div className="space-y-2"><Label htmlFor="notification-email">Notification email</Label><Input id="notification-email" type="email" autoComplete="email" placeholder="you@company.com" value={values.notification_email ?? ''} onChange={(event) => setValues((current) => ({ ...current, notification_email: event.target.value }))} disabled={!canManage} /><p className="text-xs leading-5 text-foreground-muted">Used for workspace activity alerts. It is never shown to viewers.</p></div>
+        <div className="space-y-2"><Label htmlFor="notification-email">Notification email</Label><Input id="notification-email" type="email" autoComplete="email" placeholder="you@company.com" value={values.destination_email ?? ''} onChange={(event) => setValues((current) => ({ ...current, destination_email: event.target.value, email_verified: false }))} disabled={!canManage} /><p className="text-xs leading-5 text-foreground-muted">Alerts are sent only after this destination is verified. Your confirmed account email is verified automatically.</p>{values.destination_email ? <p className={`text-xs ${values.email_verified ? 'text-success' : 'text-amber-700'}`}>{values.email_verified ? 'Verified destination' : 'Verification required before alerts are sent'}</p> : null}</div>
         <div className="space-y-2"><Label htmlFor="digest-frequency">Digest frequency</Label><Select id="digest-frequency" value={values.digest_frequency} onChange={(event) => setValues((current) => ({ ...current, digest_frequency: event.target.value as Settings['digest_frequency'] }))} disabled={!canManage}><option value="off">No digest</option><option value="daily">Daily</option><option value="weekly">Weekly</option></Select></div>
       </div>
       <div className="divide-y divide-border/60 rounded-md border border-border/70">
-        <PreferenceRow label="First confirmed view" detail="Email when a viewer meaningfully opens a share." checked={values.notify_on_view} disabled={!canManage} onChange={(checked) => setValues((current) => ({ ...current, notify_on_view: checked }))} />
-        <PreferenceRow label="Returning viewer" detail="Include repeat visits in view notifications." checked={values.notify_on_returning_view} disabled={!canManage} onChange={(checked) => setValues((current) => ({ ...current, notify_on_returning_view: checked }))} />
-        <PreferenceRow label="Download alerts" detail="Notify when a viewer downloads an allowed file." checked={values.notify_on_download} disabled={!canManage} onChange={(checked) => setValues((current) => ({ ...current, notify_on_download: checked }))} />
-        <PreferenceRow label="Session summary" detail="Send a compact summary when a viewer session ends." checked={values.notify_on_session_summary} disabled={!canManage} onChange={(checked) => setValues((current) => ({ ...current, notify_on_session_summary: checked }))} />
-        <PreferenceRow label="Security alerts" detail="Receive notices for unusual viewer security signals." checked={values.notify_on_security_alert} disabled={!canManage} onChange={(checked) => setValues((current) => ({ ...current, notify_on_security_alert: checked }))} />
+        <PreferenceRow label="First confirmed view" detail="Email when a viewer meaningfully opens a share." checked={values.view_opened} disabled={!canManage} onChange={(checked) => setValues((current) => ({ ...current, view_opened: checked }))} />
+        <PreferenceRow label="Returning viewer" detail="Include repeat visits in view notifications." checked={values.returning_view} disabled={!canManage} onChange={(checked) => setValues((current) => ({ ...current, returning_view: checked }))} />
+        <PreferenceRow label="Download alerts" detail="Notify when a viewer downloads an allowed file." checked={values.download} disabled={!canManage} onChange={(checked) => setValues((current) => ({ ...current, download: checked }))} />
+        <PreferenceRow label="Session summary" detail="Send a compact summary when a viewer session ends." checked={values.session_summary} disabled={!canManage} onChange={(checked) => setValues((current) => ({ ...current, session_summary: checked }))} />
+        <PreferenceRow label="Security alerts" detail="Receive notices for unusual viewer security signals." checked={values.security_alerts} disabled={!canManage} onChange={(checked) => setValues((current) => ({ ...current, security_alerts: checked }))} />
       </div>
       {canManage ? <div className="flex flex-wrap items-center gap-3"><Button type="button" loading={pending} icon={<Save className="size-3.5" aria-hidden="true" />} onClick={save}>Save preferences</Button>{message ? <span className="text-xs text-foreground-muted" role="status">{message}</span> : null}</div> : <p className="text-xs text-foreground-muted">Only workspace owners and admins can change notification preferences.</p>}
     </div>
@@ -78,12 +78,12 @@ function PreferenceRow({ label, detail, checked, disabled, onChange }: { label: 
 
 function toInput(settings: Settings) {
   return {
-    notificationEmail: settings.notification_email ?? '',
-    notifyOnView: settings.notify_on_view,
-    notifyOnReturningView: settings.notify_on_returning_view,
-    notifyOnDownload: settings.notify_on_download,
-    notifyOnSessionSummary: settings.notify_on_session_summary,
-    notifyOnSecurityAlert: settings.notify_on_security_alert,
+    notificationEmail: settings.destination_email ?? '',
+    notifyOnView: settings.view_opened,
+    notifyOnReturningView: settings.returning_view,
+    notifyOnDownload: settings.download,
+    notifyOnSessionSummary: settings.session_summary,
+    notifyOnSecurityAlert: settings.security_alerts,
     digestFrequency: settings.digest_frequency,
     analyticsEnabled: settings.analytics_enabled,
     analyticsRetentionDays: settings.analytics_retention_days,
