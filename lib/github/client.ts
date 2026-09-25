@@ -30,6 +30,8 @@ export class GitHubInstallationConfigurationError extends Error {
   }
 }
 
+export type GitHubInstallationAccess = 'member' | 'system'
+
 function getGitHubAppAuthOptions(installationId?: number): StrategyOptions {
   if (installationId !== undefined) assertInstallationId(installationId)
   const env = getServerEnv()
@@ -53,11 +55,9 @@ function assertInstallationId(installationId: number) {
  */
 export async function listWorkspaceGitHubInstallations(
   workspaceId: string,
-  options: { includeInactive?: boolean } = {},
+  options: { includeInactive?: boolean; access?: GitHubInstallationAccess } = {},
 ): Promise<Tables<'github_installations'>[]> {
-  await requireWorkspaceMember(workspaceId)
-  const { createSupabaseServerClient } = await import('../supabase/server')
-  const supabase = await createSupabaseServerClient()
+  const supabase = await getWorkspaceSupabaseClient(workspaceId, options.access ?? 'member')
   let query = supabase
     .from('github_installations')
     .select('*')
@@ -78,42 +78,25 @@ export async function listWorkspaceGitHubInstallations(
 }
 
 /**
- * Resolve the provider installation attached to a repository. Both the
- * repository workspace and installation workspace are checked explicitly so
- * a caller cannot substitute an installation from another tenant.
+ * Load a verified local installation record. The provider installation id is
+ * deliberately not accepted as an authorization input anywhere in the
+ * normal application path.
  */
-export async function getGitHubInstallationIdForRepository(
-  repositoryId: string,
+export async function getVerifiedGitHubInstallation(
+  installationRecordId: string,
   workspaceId: string,
-  access: 'member' | 'system' = 'system',
-) {
-  const supabase = access === 'member'
-    ? await (async () => {
-      await requireWorkspaceMember(workspaceId)
-      const { createSupabaseServerClient } = await import('../supabase/server')
-      return createSupabaseServerClient()
-    })()
-    : await (async () => {
-      const { createSupabaseAdminClient } = await import('../supabase/admin')
-      return createSupabaseAdminClient()
-    })()
-
-  const { data: repository, error: repositoryError } = await supabase
-    .from('repositories')
-    .select('workspace_id, github_installation_id')
-    .eq('id', repositoryId)
-    .eq('workspace_id', workspaceId)
-    .maybeSingle()
-
-  if (repositoryError || !repository?.github_installation_id) {
-    throw new GitHubInstallationConfigurationError()
+  access: GitHubInstallationAccess = 'system',
+): Promise<Tables<'github_installations'>> {
+  if (!isUuid(installationRecordId) || !isUuid(workspaceId)) {
+    throw new GitHubInstallationConfigurationError('The local GitHub App installation reference is invalid.')
   }
 
+  const supabase = await getWorkspaceSupabaseClient(workspaceId, access)
   const { data: installation, error: installationError } = await supabase
     .from('github_installations')
-    .select('github_installation_id, status')
-    .eq('id', repository.github_installation_id)
-    .eq('workspace_id', repository.workspace_id)
+    .select('*')
+    .eq('id', installationRecordId)
+    .eq('workspace_id', workspaceId)
     .eq('status', 'active')
     .maybeSingle()
 
@@ -121,15 +104,22 @@ export async function getGitHubInstallationIdForRepository(
     throw new GitHubInstallationConfigurationError()
   }
 
-  return installation.github_installation_id
+  return installation as Tables<'github_installations'>
 }
 
 /**
- * Mint a short-lived installation token on the server. The installation ID
- * must come from a workspace/repository authorization lookup; it is never
- * read from a global environment variable.
+ * Mint a short-lived installation token from a verified local installation.
  */
-export async function getGitHubInstallationAuthentication(installationId: number): Promise<InstallationAccessTokenAuthentication> {
+export async function getGitHubInstallationAuthenticationForInstallation(
+  installationRecordId: string,
+  workspaceId: string,
+  access: GitHubInstallationAccess = 'system',
+): Promise<InstallationAccessTokenAuthentication> {
+  const installation = await getVerifiedGitHubInstallation(installationRecordId, workspaceId, access)
+  return getGitHubInstallationAuthenticationByProviderId(installation.github_installation_id)
+}
+
+async function getGitHubInstallationAuthenticationByProviderId(installationId: number): Promise<InstallationAccessTokenAuthentication> {
   let authenticator = installationAuthenticators.get(installationId)
   if (!authenticator) {
     authenticator = createAppAuth(getGitHubAppAuthOptions(installationId))
@@ -155,18 +145,29 @@ export function getGitHubAppClient() {
   return appClient
 }
 
-export async function getGitHubAppInstallation(installationId: number) {
+/**
+ * Raw provider lookup used only while verifying the installation returned by
+ * the GitHub OAuth connection flow. Repository access uses a local record.
+ */
+export async function getGitHubAppInstallationByProviderId(installationId: number) {
   assertInstallationId(installationId)
   const { data } = await getGitHubAppClient().rest.apps.getInstallation({ installation_id: installationId })
   return data
 }
 
 /**
- * Returns an authenticated Octokit client for one explicit installation.
- * This module is server-only so the App private key and installation token
- * cannot enter browser bundles.
+ * Returns an authenticated Octokit client for a verified local installation.
  */
-export function getGitHubInstallationClient(installationId: number) {
+export async function getGitHubInstallationClientForInstallation(
+  installationRecordId: string,
+  workspaceId: string,
+  access: GitHubInstallationAccess = 'system',
+) {
+  const installation = await getVerifiedGitHubInstallation(installationRecordId, workspaceId, access)
+  return getGitHubInstallationClientByProviderId(installation.github_installation_id)
+}
+
+function getGitHubInstallationClientByProviderId(installationId: number) {
   assertInstallationId(installationId)
   let client = installationClients.get(installationId)
   if (client) return client
@@ -184,8 +185,34 @@ export function getGitHubInstallationClient(installationId: number) {
 export async function getGitHubInstallationClientForRepository(
   repositoryId: string,
   workspaceId: string,
-  access: 'member' | 'system' = 'system',
+  access: GitHubInstallationAccess = 'system',
 ) {
-  const installationId = await getGitHubInstallationIdForRepository(repositoryId, workspaceId, access)
-  return getGitHubInstallationClient(installationId)
+  const supabase = await getWorkspaceSupabaseClient(workspaceId, access)
+  const { data: repository, error } = await supabase
+    .from('repositories')
+    .select('workspace_id, github_installation_id')
+    .eq('id', repositoryId)
+    .eq('workspace_id', workspaceId)
+    .maybeSingle()
+
+  if (error || !repository?.github_installation_id) {
+    throw new GitHubInstallationConfigurationError()
+  }
+
+  return getGitHubInstallationClientForInstallation(repository.github_installation_id, workspaceId, access)
+}
+
+async function getWorkspaceSupabaseClient(workspaceId: string, access: GitHubInstallationAccess) {
+  if (access === 'member') {
+    await requireWorkspaceMember(workspaceId)
+    const { createSupabaseServerClient } = await import('../supabase/server')
+    return createSupabaseServerClient()
+  }
+
+  const { createSupabaseAdminClient } = await import('../supabase/admin')
+  return createSupabaseAdminClient()
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }

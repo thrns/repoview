@@ -7,20 +7,23 @@ import { consumeStepUpConfirmation, StepUpConfirmationUnavailableError } from '@
 import { isAllowedRequestOrigin } from '@/lib/security/origin'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { isRequestBodyTooLarge, readJsonBody } from '../../../../lib/security/body-limit'
 
 export const dynamic = 'force-dynamic'
 
 const requestSchema = z.object({
   confirmation: z.string().trim().min(1).max(400),
 })
+const MAX_ACCOUNT_BODY_BYTES = 16 * 1024
 
 export async function POST(request: Request) {
   if (!isAllowedRequestOrigin(request)) return response({ error: 'invalid_origin' }, 403)
 
   let input: z.infer<typeof requestSchema>
   try {
-    input = requestSchema.parse(await request.json())
-  } catch {
+    input = requestSchema.parse(await readJsonBody(request, MAX_ACCOUNT_BODY_BYTES))
+  } catch (error) {
+    if (isRequestBodyTooLarge(error)) return response({ error: 'payload_too_large' }, 413)
     return response({ error: 'invalid_request' }, 400)
   }
 

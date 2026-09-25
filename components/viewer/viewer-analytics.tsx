@@ -61,7 +61,7 @@ export function ViewerAnalyticsProvider({ shareId, initialPath, analyticsMode: i
 
   const track = useCallback((eventType: ViewerAnalyticsEventType, path: string | null = null, metadata: Record<string, string | number | boolean | null> = {}) => {
     if (analyticsModeRef.current !== 'optional' || gpcAppliedRef.current) return
-    queueRef.current.push({ eventType, path, metadata, clientSequence: sequenceRef.current++ })
+    queueRef.current.push({ eventId: crypto.randomUUID(), eventType, path, metadata, clientSequence: sequenceRef.current++ })
     if (confirmedRef.current && queueRef.current.length >= 8) send()
   }, [send])
 

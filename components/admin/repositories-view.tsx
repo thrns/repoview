@@ -11,7 +11,7 @@ import {
   Settings2,
   SlidersHorizontal,
 } from 'lucide-react'
-import { useMemo, useState, useTransition } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState, useTransition } from 'react'
 
 import {
   setRepositoriesEnabled,
@@ -57,6 +57,7 @@ interface RepositoriesViewProps {
 type StatusFilter = 'all' | 'shareable' | 'disabled' | 'archived'
 type VisibilityFilter = 'all' | 'private' | 'public'
 type SortMode = 'name-asc' | 'name-desc' | 'branch' | 'status'
+type ScrollSnapshot = { dashboardTop: number; tableTop: number }
 
 export function RepositoriesView({ items }: RepositoriesViewProps) {
   const [isPending, startTransition] = useTransition()
@@ -68,6 +69,18 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all')
   const [sortMode, setSortMode] = useState<SortMode>('name-asc')
   const [error, setError] = useState<string | null>(null)
+  const tableScrollRef = useRef<HTMLDivElement | null>(null)
+  const scrollSnapshotRef = useRef<ScrollSnapshot | null>(null)
+
+  useLayoutEffect(() => {
+    const snapshot = scrollSnapshotRef.current
+    if (!snapshot) return
+
+    const dashboard = document.getElementById('main')
+    if (dashboard) dashboard.scrollTop = snapshot.dashboardTop
+    if (tableScrollRef.current) tableScrollRef.current.scrollTop = snapshot.tableTop
+    scrollSnapshotRef.current = null
+  }, [error, overrides, pendingKeys])
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -108,7 +121,16 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
   const allVisibleSelected = visibleKeys.length > 0 && visibleKeys.every((key) => selectedKeys.includes(key))
   const someVisibleSelected = visibleKeys.some((key) => selectedKeys.includes(key))
 
+  function preserveScrollPosition() {
+    if (scrollSnapshotRef.current) return
+    scrollSnapshotRef.current = {
+      dashboardTop: document.getElementById('main')?.scrollTop ?? 0,
+      tableTop: tableScrollRef.current?.scrollTop ?? 0,
+    }
+  }
+
   function toggleRepository(item: RepositoryDashboardItem, enabled: boolean) {
+    preserveScrollPosition()
     const key = repositoryKey(item)
     const previousValue = getEnabled(item, overrides)
     setError(null)
@@ -137,6 +159,7 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
 
   function bulkToggle(repositories: RepositoryDashboardItem[], enabled: boolean) {
     if (repositories.length === 0) return
+    preserveScrollPosition()
     const keys = repositories.map(repositoryKey)
     const previousValues = Object.fromEntries(repositories.map((item) => [repositoryKey(item), getEnabled(item, overrides)]))
     setError(null)
@@ -189,8 +212,8 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
   }
 
   return (
-    <section className="mx-auto w-full max-w-[1400px] space-y-6 px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
-      <header className="flex flex-col gap-5 border-b border-border/70 pb-6 sm:flex-row sm:items-end sm:justify-between">
+    <section className="mx-auto flex min-h-0 w-full min-w-0 max-w-[1400px] flex-1 flex-col gap-6 px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
+      <header className="flex shrink-0 flex-col gap-5 border-b border-border/70 pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0 space-y-2">
           <p className="flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.15em] text-foreground-muted">
             <Github className="size-3.5" aria-hidden="true" />
@@ -208,13 +231,13 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
       </header>
 
       {error ? (
-        <Alert className="border-destructive/40 bg-destructive/5 py-3">
+        <Alert className="shrink-0 border-destructive/40 bg-destructive/5 py-3">
           <AlertTitle>Could not update repositories</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
 
-      <div className="overflow-hidden rounded-md border border-border/70 bg-card shadow-none">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-border/70 bg-card shadow-none">
         <div className="border-b border-border/60 bg-muted/15 p-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <label className="relative min-w-0 flex-1">
@@ -279,7 +302,7 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
             <Button type="button" variant="outline" size="small" className="mt-4" onClick={clearFilters}>Clear filters</Button>
           </div>
         ) : (
-          <div className="max-h-[min(70vh,680px)] overflow-auto">
+          <div ref={tableScrollRef} className="min-h-0 flex-1 overflow-auto overscroll-contain">
             <table className="w-full min-w-[1060px] table-fixed text-sm">
               <caption className="sr-only">Repositories available to the RepoView GitHub App installation</caption>
               <colgroup>
@@ -332,7 +355,7 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
                       </td>
                       <td className="px-3 py-3.5 align-middle">
                         <div className="flex items-center gap-2.5">
-                          <ShareToggle checked={enabled} disabled={isPending || item.github.disabled || item.github.archived} onChange={(event) => toggleRepository(item, event.target.checked)} label={`${enabled ? 'Disable' : 'Enable'} sharing for ${item.github.fullName}`} />
+                          <ShareToggle checked={enabled} disabled={isPending || item.github.disabled || item.github.archived} onBeforeChange={preserveScrollPosition} onChange={(event) => toggleRepository(item, event.target.checked)} label={`${enabled ? 'Disable' : 'Enable'} sharing for ${item.github.fullName}`} />
                           <div className="min-w-0"><Badge variant={shareable ? 'success' : 'secondary'}>{shareable ? 'Shareable' : 'Not shareable'}</Badge><p className="mt-1 truncate text-[11px] text-foreground-muted">{rowPending ? 'Saving…' : shareable ? 'Ready for new shares' : 'Enable to share'}</p></div>
                         </div>
                       </td>
@@ -348,7 +371,7 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
         )}
       </div>
 
-      <footer className="flex flex-col gap-1 text-xs text-foreground-muted sm:flex-row sm:items-center sm:justify-between">
+      <footer className="flex shrink-0 flex-col gap-1 text-xs text-foreground-muted sm:flex-row sm:items-center sm:justify-between">
         <p>Archived or GitHub-disabled repositories remain visible for diagnosis but cannot be enabled for new shares.</p>
         <p className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-success" aria-hidden="true" /> Changes save automatically</p>
       </footer>
@@ -360,8 +383,8 @@ function StatusTab({ active, onClick, count, children }: { active: boolean; onCl
   return <button type="button" role="tab" aria-selected={active} onClick={onClick} className={cn('inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', active ? 'bg-foreground text-background' : 'text-foreground-muted hover:bg-muted hover:text-foreground')}>{children}<span className={cn('font-mono text-[10px] tabular-nums', active ? 'text-background/70' : 'text-foreground-muted/75')}>{count}</span></button>
 }
 
-function ShareToggle({ checked, disabled, onChange, label }: { checked: boolean; disabled: boolean; onChange: (event: React.ChangeEvent<HTMLInputElement>) => void; label: string }) {
-  return <label className={cn('inline-flex shrink-0 cursor-pointer items-center rounded-full', disabled && 'cursor-not-allowed opacity-50')}><input type="checkbox" checked={checked} disabled={disabled} onChange={onChange} className="peer sr-only" aria-label={label} /><span className="relative block h-5 w-9 rounded-full border border-input bg-muted transition-colors before:absolute before:left-0.5 before:top-0.5 before:size-3.5 before:rounded-full before:bg-background before:shadow-sm before:transition-transform peer-checked:bg-primary peer-checked:before:translate-x-4 peer-focus-visible:ring-2 peer-focus-visible:ring-ring" aria-hidden="true" /></label>
+function ShareToggle({ checked, disabled, onBeforeChange, onChange, label }: { checked: boolean; disabled: boolean; onBeforeChange?: () => void; onChange: (event: React.ChangeEvent<HTMLInputElement>) => void; label: string }) {
+  return <label className={cn('inline-flex shrink-0 cursor-pointer items-center rounded-full', disabled && 'cursor-not-allowed opacity-50')} onPointerDown={disabled ? undefined : onBeforeChange}><input type="checkbox" checked={checked} disabled={disabled} onChange={onChange} onKeyDown={(event) => { if (!disabled && (event.key === ' ' || event.key === 'Enter')) onBeforeChange?.() }} className="peer sr-only" aria-label={label} /><span className="relative block h-5 w-9 rounded-full border border-input bg-muted transition-colors before:absolute before:left-0.5 before:top-0.5 before:size-3.5 before:rounded-full before:bg-background before:shadow-sm before:transition-transform peer-checked:bg-primary peer-checked:before:translate-x-4 peer-focus-visible:ring-2 peer-focus-visible:ring-ring" aria-hidden="true" /></label>
 }
 
 function EmptyRepositories() {

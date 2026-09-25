@@ -28,6 +28,7 @@ type WorkspaceCleanupTable =
   | 'notification_settings'
   | 'audit_logs'
   | 'quota_counters'
+  | 'quota_resource_reservations'
   | 'workspace_members'
   | 'workspaces'
 
@@ -47,6 +48,7 @@ const WORKSPACE_CLEANUP_TABLES: WorkspaceCleanupTable[] = [
   'notification_settings',
   'audit_logs',
   'quota_counters',
+  'quota_resource_reservations',
   'workspace_members',
   'workspaces',
 ]

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { consumeStepUpConfirmation } from '@/lib/account/step-up'
-import { AUDIT_ACTIONS, recordAuditLogBestEffort } from '@/lib/audit-log'
+import { AUDIT_ACTIONS, recordAuditLogBestEffort, type AuditAction } from '@/lib/audit-log'
 import { checkRateLimits, rateLimitResponse, rateLimitUnavailableResponse } from '@/lib/security/rate-limit'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
@@ -157,7 +157,7 @@ export async function GET() {
         controller.close()
       } catch (error) {
         await recordExportAudit(admin, workspaceIds, authData.user.id, AUDIT_ACTIONS.accountExportFailed, {
-          reason: error instanceof Error ? error.message : 'stream_failed',
+          reason: 'stream_failed',
         })
         controller.error(error)
       }
@@ -209,7 +209,7 @@ async function recordExportAudit(
   admin: ReturnType<typeof createSupabaseAdminClient>,
   workspaceIds: string[],
   userId: string,
-  action: string,
+  action: AuditAction,
   metadata: Record<string, unknown>,
 ) {
   await Promise.all(workspaceIds.map((workspaceId) => recordAuditLogBestEffort({

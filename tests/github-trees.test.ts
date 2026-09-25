@@ -2,13 +2,13 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 vi.mock('../lib/github/client', () => ({
-  getGitHubInstallationClient: vi.fn(),
+  getGitHubInstallationClientForInstallation: vi.fn(),
 }))
 
-import { getGitHubInstallationClient } from '../lib/github/client'
+import { getGitHubInstallationClientForInstallation } from '../lib/github/client'
 import { loadRepositoryTree, GitHubTreeTruncatedError } from '../lib/github/trees'
 
-const getClient = vi.mocked(getGitHubInstallationClient)
+const getClient = vi.mocked(getGitHubInstallationClientForInstallation)
 
 describe('GitHub repository trees', () => {
   it('loads a recursive tree and normalizes returned paths', async () => {
@@ -25,7 +25,7 @@ describe('GitHub repository trees', () => {
     })
     getClient.mockReturnValue({ rest: { git: { getTree } } } as never)
 
-    await expect(loadRepositoryTree('octocat', 'hello-world', 'refs/heads/main', 5678)).resolves.toEqual([
+    await expect(loadRepositoryTree('octocat', 'hello-world', 'refs/heads/main', 'installation-record-id', 'workspace-id')).resolves.toEqual([
       { path: 'src/main.ts', mode: '100644', type: 'blob', sha: 'blob-sha', size: 42 },
       { path: 'src/components', mode: '040000', type: 'tree', sha: 'tree-sha' },
       { path: 'ignored', mode: '100644', type: 'blob', sha: 'ignored-sha' },
@@ -43,7 +43,7 @@ describe('GitHub repository trees', () => {
     const getTree = vi.fn().mockResolvedValue({ data: { truncated: true, tree: [] } })
     getClient.mockReturnValue({ rest: { git: { getTree } } } as never)
 
-    await expect(loadRepositoryTree('octocat', 'hello-world', 'main', 5678)).rejects.toBeInstanceOf(
+    await expect(loadRepositoryTree('octocat', 'hello-world', 'main', 'installation-record-id', 'workspace-id')).rejects.toBeInstanceOf(
       GitHubTreeTruncatedError,
     )
   })

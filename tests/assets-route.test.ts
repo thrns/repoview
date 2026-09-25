@@ -19,7 +19,7 @@ const viewer = {
   repository: { id: 'repository-1', github_owner: 'octocat', github_repo: 'hello-world', workspace_id: 'workspace-1', default_rules: {}, github_installation_id: 'installation-record-1' },
   share: { id: 'share-123', workspace_id: 'workspace-1', ref: 'main', rules: {} },
   session: { id: 'session-123' },
-  installationId: 5678,
+  installationRecordId: 'installation-record-1',
   accessibleRepository: { owner: 'octocat', name: 'hello-world', fullName: 'octocat/hello-world' },
 } as never
 
@@ -36,7 +36,7 @@ describe('protected Markdown asset route', () => {
     expect(response.headers.get('cache-control')).toBe('private, no-store')
     expect(response.headers.get('x-content-type-options')).toBe('nosniff')
     expect(await response.text()).toBe('png!')
-    expect(loadAsset).toHaveBeenCalledWith('octocat', 'hello-world', 'docs/diagram.png', 'main', 5678)
+    expect(loadAsset).toHaveBeenCalledWith('octocat', 'hello-world', 'docs/diagram.png', 'main', 'installation-record-1', 'workspace-1', 'system')
   })
 
   it('returns not found for unauthorized or hidden paths without fetching bytes', async () => {

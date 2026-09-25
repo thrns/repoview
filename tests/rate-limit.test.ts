@@ -1,8 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 vi.mock('../lib/supabase/admin', () => ({ createSupabaseAdminClient: vi.fn() }))
-vi.mock('../lib/env/server', () => ({ getServerEnv: vi.fn(() => ({ IP_HASH_SALT: 'i'.repeat(32), SHARE_TOKEN_PEPPER: 's'.repeat(32) })) }))
+vi.mock('../lib/env/server', () => ({ getRateLimitEnv: vi.fn(() => ({ IP_HASH_SALT: 'i'.repeat(32) })) }))
 
 import { createSupabaseAdminClient } from '../lib/supabase/admin'
 import {
@@ -17,7 +17,10 @@ const getAdmin = vi.mocked(createSupabaseAdminClient)
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.stubEnv('VERCEL', '1')
 })
+
+afterEach(() => vi.unstubAllEnvs())
 
 describe('application rate limiting', () => {
   it('uses hashed, scope-separated keys and returns the database decision', async () => {
@@ -71,8 +74,23 @@ describe('application rate limiting', () => {
     const rpc = vi.fn().mockResolvedValue({ data: [{ allowed: true, remaining: 59, retry_after_seconds: 60, reset_at: '2026-09-24T12:01:00.000Z' }], error: null })
     getAdmin.mockReturnValue({ rpc } as never)
 
-    await checkPublicRateLimit(new Request('https://repoview.test/s/token', { headers: { 'x-forwarded-for': '203.0.113.10' } }), 'public-share-open', ['share-token:token-hash'])
+    await checkPublicRateLimit(new Request('https://repoview.test/s/token', { headers: { 'x-vercel-forwarded-for': '203.0.113.10' } }), 'public-share-open', ['share-token:token-hash'])
 
     expect(rpc).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not rotate the production rate-limit identity from spoofed forwarding headers', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: [{ allowed: true, remaining: 59, retry_after_seconds: 60, reset_at: '2026-09-24T12:01:00.000Z' }], error: null })
+    getAdmin.mockReturnValue({ rpc } as never)
+
+    await checkPublicRateLimit(new Request('https://repoview.test/s/token', {
+      headers: { 'x-forwarded-for': '198.51.100.1', 'x-real-ip': '198.51.100.1' },
+    }), 'public-share-open')
+    await checkPublicRateLimit(new Request('https://repoview.test/s/token', {
+      headers: { 'x-forwarded-for': '198.51.100.2', 'x-real-ip': '198.51.100.2' },
+    }), 'public-share-open')
+
+    expect((rpc.mock.calls[0][1] as { target_key_hash: string }).target_key_hash)
+      .toBe((rpc.mock.calls[1][1] as { target_key_hash: string }).target_key_hash)
   })
 })

@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 
 import { headers } from 'next/headers'
 
-import { getServerEnv } from '../env/server'
+import { getRateLimitEnv } from '../env/server'
 import { getLinkOpenMetadata } from '../shares/link-open-metadata'
 import { hashShareToken } from './tokens'
 import { createSupabaseAdminClient } from '../supabase/admin'
@@ -164,7 +164,7 @@ export function getPublicShareRateLimitKey(rawToken: string) {
 }
 
 export function hashRateLimitKey(value: string) {
-  const salt = getServerEnv().IP_HASH_SALT
+  const salt = getRateLimitEnv().IP_HASH_SALT
   return createHash('sha256').update(`${salt}:rate-limit:${value}`, 'utf8').digest('hex')
 }
 

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const migration = readFileSync('supabase/migrations/20260924210000_retention_cleanup.sql', 'utf8')
+const hardeningMigration = readFileSync('supabase/migrations/20260924320000_retention_and_audit_hardening.sql', 'utf8')
 const cleanup = readFileSync('lib/retention/cleanup.ts', 'utf8')
 const deletionJob = readFileSync('lib/account/deletion-job.ts', 'utf8')
 const cron = readFileSync('app/api/cron/retention/route.ts', 'utf8')
@@ -21,7 +22,7 @@ describe('retention cleanup integration', () => {
   })
 
   it('covers each required category and keeps share dependencies safe', () => {
-    for (const table of ['view_events', 'repository_events', 'file_engagement', 'viewer_sessions', 'viewers', 'share_access_attempts', 'notification_deliveries', 'system_admin_audit_logs', 'rate_limit_buckets', 'quota_counters', 'shares', 'workspaces']) {
+    for (const table of ['view_events', 'repository_events', 'file_engagement', 'viewer_sessions', 'viewers', 'share_access_attempts', 'notification_deliveries', 'github_webhook_deliveries', 'github_connection_transactions', 'account_step_up_confirmations', 'viewer_privacy_preferences', 'retention_cleanup_runs', 'account_deletion_jobs', 'account_lifecycle_audit', 'system_admin_audit_logs', 'rate_limit_buckets', 'quota_counters', 'quota_resource_reservations', 'shares', 'workspaces']) {
       expect(cleanup).toContain(`'${table}'`)
     }
     expect(cleanup).toContain('hasAnyRows')
@@ -31,6 +32,21 @@ describe('retention cleanup integration', () => {
     expect(deletionJob).toContain('claim_account_deletion_job')
     expect(deletionJob).toContain('ACCOUNT_DELETION_BATCH_SIZE')
     expect(cleanup).toContain(".eq('status', 'deleted')")
+    expect(cleanup).toContain('deleteNotificationDeliveriesForOldSessions')
+    expect(cleanup).toContain("select('delivery_id')")
+    expect(cleanup).toContain(".in('delivery_id', deliveryIds)")
+    expect(cleanup).not.toContain("{ table: 'notification_deliveries', column: 'session_id' }")
+  })
+
+  it('adds a minimal system lifecycle audit and indexes newly covered ledgers', () => {
+    expect(hardeningMigration).toContain('create table if not exists public.account_lifecycle_audit')
+    expect(hardeningMigration).toContain('account_key_hash')
+    expect(hardeningMigration).toContain('sync_account_lifecycle_audit')
+    expect(hardeningMigration).toContain('github_webhook_deliveries_retention_idx')
+    expect(hardeningMigration).toContain('github_connection_transactions_expiry_retention_idx')
+    expect(hardeningMigration).toContain('account_step_up_confirmations_expiry_retention_idx')
+    expect(hardeningMigration).toContain('extensions.digest')
+    expect(hardeningMigration).not.toContain('encode(digest(')
   })
 
   it('only permits the scheduled endpoint with a server secret', () => {

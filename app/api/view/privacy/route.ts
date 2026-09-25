@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { requireViewerSession } from '../../../../lib/auth/viewer-session'
+import { isRequestBodyTooLarge, readJsonBody } from '../../../../lib/security/body-limit'
+
+const MAX_PRIVACY_BODY_BYTES = 16 * 1024
 import { VIEWER_ID_COOKIE } from '../../../../lib/analytics/constants'
 import { findOrCreateViewer } from '../../../../lib/analytics/identity'
 import { saveViewerPrivacyPreference } from '../../../../lib/viewer/privacy'
@@ -42,8 +45,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   let input: z.infer<typeof requestSchema>
   try {
-    input = requestSchema.parse(await request.json())
-  } catch {
+    input = requestSchema.parse(await readJsonBody(request, MAX_PRIVACY_BODY_BYTES))
+  } catch (error) {
+    if (isRequestBodyTooLarge(error)) return json({ error: 'payload_too_large' }, 413)
     return json({ error: 'invalid_request' }, 400)
   }
 

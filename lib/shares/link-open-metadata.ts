@@ -4,6 +4,8 @@ import { parseUserAgent, type ParsedUserAgent } from '../security/user-agent'
 
 export type LinkFetchSite = 'same-origin' | 'same-site' | 'cross-site' | 'none'
 
+export type SourceIpDeployment = 'vercel' | 'local'
+
 /**
  * Request metadata is split into:
  * - in-memory security inputs (IP and network signals), which are hashed or
@@ -177,12 +179,29 @@ function getBooleanHeader(headers: Headers, names: string[]) {
 }
 
 function getPublicIp(headers: Headers) {
-  const values = [headers.get('x-vercel-forwarded-for'), headers.get('x-forwarded-for'), headers.get('x-real-ip')]
-  for (const value of values) {
-    const candidate = value?.split(',')[0]?.trim()
-    if (candidate && isIP(candidate)) return candidate
-  }
+  return getTrustedSourceIp(headers)
+}
+
+/**
+ * Resolve the source IP from the deployment boundary, not from arbitrary
+ * forwarding headers supplied by a client. Direct Vercel traffic includes
+ * `x-vercel-forwarded-for`, which Vercel normalizes to the public client IP.
+ * Local development intentionally uses one shared bucket unless a developer
+ * explicitly opts into a trusted local proxy with REPOVIEW_TRUST_LOCAL_PROXY=1.
+ */
+export function getTrustedSourceIp(headers: Headers, deployment: SourceIpDeployment = getSourceIpDeployment()) {
+  if (deployment === 'vercel') return parseSingleIp(headers.get('x-vercel-forwarded-for'))
+  if (process.env.REPOVIEW_TRUST_LOCAL_PROXY === '1') return parseSingleIp(headers.get('x-forwarded-for'))
   return null
+}
+
+function getSourceIpDeployment(): SourceIpDeployment {
+  return process.env.VERCEL === '1' ? 'vercel' : 'local'
+}
+
+function parseSingleIp(value: string | null) {
+  const candidate = value?.split(',')[0]?.trim()
+  return candidate && isIP(candidate) ? candidate : null
 }
 
 function sanitizeIp(value: string | null | undefined) {

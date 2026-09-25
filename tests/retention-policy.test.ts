@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { getRetentionCutoff, isOlderThanRetention, RETENTION_DAYS } from '../lib/retention-policy'
+import { getRetentionCutoff, isOlderThanRetention, RETENTION_DAYS, RETENTION_RULES } from '../lib/retention-policy'
 import { PRIVACY_MARKDOWN } from '../lib/legal-content'
 
 describe('retention policy', () => {
@@ -26,5 +26,22 @@ describe('retention policy', () => {
     expect(PRIVACY_MARKDOWN).toContain(`${RETENTION_DAYS.revokedExpiredShareMetadata} days`)
     expect(PRIVACY_MARKDOWN).toContain(`${RETENTION_DAYS.rateLimitBuckets} days`)
     expect(PRIVACY_MARKDOWN).toContain(`${RETENTION_DAYS.quotaCounters} days`)
+    expect(PRIVACY_MARKDOWN).toContain(`${RETENTION_DAYS.githubWebhookDeliveries} days`)
+    expect(PRIVACY_MARKDOWN).toContain(`${RETENTION_DAYS.retentionCleanupRuns} days`)
+    expect(PRIVACY_MARKDOWN).toContain(`${RETENTION_DAYS.accountLifecycleAudit} days`)
+  })
+
+  it('defines bounded policies for server-only ledgers and expiry state', () => {
+    expect(RETENTION_RULES.github_webhook_deliveries).toMatchObject({ timestampColumn: 'received_at', days: 180 })
+    expect(RETENTION_RULES.github_connection_transactions).toMatchObject({ strategy: 'expiry', timestampColumn: 'expires_at' })
+    expect(RETENTION_RULES.retention_cleanup_runs).toMatchObject({ timestampColumn: 'completed_at', days: 90 })
+    expect(RETENTION_RULES.account_step_up_confirmations.strategy).toBe('expiry')
+    expect(RETENTION_RULES.account_lifecycle_audit).toMatchObject({ timestampColumn: 'updated_at', days: 365 })
+  })
+
+  it('keeps selected analytics retention independent of the fixed notification log period', () => {
+    expect(RETENTION_RULES.notification_deliveries.strategy).toBe('analytics-dependency')
+    expect(RETENTION_RULES.notification_deliveries.days).toBe(RETENTION_DAYS.notificationDeliveryLogs)
+    expect(RETENTION_RULES.viewer_sessions.days).toBe('workspace-selected')
   })
 })

@@ -101,6 +101,7 @@ function AccountFooter({ email, avatarLabel, pathname, onLogout, className, work
 export function AdminShell({ email, children, onboardingIncomplete = false, workspaceName, workspaces = [] }: { email: string; children: ReactNode; onboardingIncomplete?: boolean; workspaceName: string; workspaces?: Array<{ id: string; name: string; role: string }> }) {
   const pathname = usePathname()
   const router = useRouter()
+  const isRepositoriesRoute = pathname.replace(/\/+$/, '') === '/dashboard/repositories'
   const avatarLabel = email.slice(0, 1).toUpperCase() || 'R'
 
   async function handleLogout() {
@@ -140,7 +141,7 @@ export function AdminShell({ email, children, onboardingIncomplete = false, work
           <div className="flex items-center gap-2"><BrandLogo size={24} /><span className="font-heading text-sm font-semibold">RepoView</span></div>
           <ThemeSwitcher />
         </header>
-        <main id="main" className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">{children}</main>
+        <main id="main" className={cn('flex min-h-0 min-w-0 flex-1 flex-col', isRepositoriesRoute ? 'overflow-hidden' : 'overflow-y-auto overscroll-contain')}>{children}</main>
       </div>
     </div>
   )

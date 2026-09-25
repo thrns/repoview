@@ -4,14 +4,14 @@ import { z } from 'zod'
 
 import { requireRepositoryAccess, requireWorkspaceRole } from '@/lib/auth/workspace'
 import { getPublicEnv } from '@/lib/env/public'
-import { getGitHubInstallationIdForRepository } from '@/lib/github/client'
 import { getRepositoryRef } from '@/lib/github/repositories'
 import { parseVisibilityRules } from '@/lib/security/visibility'
 import { generateShareCode, generateShareToken, hashShareToken } from '@/lib/security/tokens'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { listRegisteredRepositories } from '@/lib/repositories/registry'
+import { synchronizeRepositoryForGitHub } from '@/lib/repositories/synchronize'
 import { enforceAuthenticatedRateLimit } from '../../../../../lib/security/rate-limit'
-import { assertWorkspaceResourceQuota, releaseQuota, reserveQuota } from '../../../../../lib/security/quotas'
+import { finalizeResourceQuota, releaseQuota, releaseResourceQuota, reserveQuota, reserveResourceQuota, type ResourceQuotaReservation } from '../../../../../lib/security/quotas'
 import { AUDIT_ACTIONS, recordAuditLogBestEffort } from '../../../../../lib/audit-log'
 
 const shareFormInputSchema = z.object({
@@ -37,12 +37,12 @@ export async function validateShareForm(input: unknown) {
   await requireWorkspaceRole(repositoryAccess.workspace.id, ['owner', 'admin'])
   await enforceAuthenticatedRateLimit('authenticated-share-create', repositoryAccess.workspace.id, repositoryAccess.user.id)
   const repositories = await listRegisteredRepositories()
-  const repository = repositories.find((candidate) => candidate.id === parsed.repositoryId)
+  const storedRepository = repositories.find((candidate) => candidate.id === parsed.repositoryId)
 
-  if (!repository || !repository.enabled) {
+  if (!storedRepository || !storedRepository.enabled) {
     throw new Error('Choose an enabled repository before creating a share.')
   }
-  if (repository.workspace_id !== repositoryAccess.workspace.id) {
+  if (storedRepository.workspace_id !== repositoryAccess.workspace.id) {
     throw new Error('That repository is not available in the active workspace.')
   }
 
@@ -50,8 +50,9 @@ export async function validateShareForm(input: unknown) {
     throw new Error('Expiry must be in the future.')
   }
 
-  const installationId = await getGitHubInstallationIdForRepository(repository.id, repositoryAccess.workspace.id, 'member')
-  const repositoryRef = await getRepositoryRef(repository.github_owner, repository.github_repo, parsed.ref, installationId)
+  const { repository } = await synchronizeRepositoryForGitHub(storedRepository.id, repositoryAccess.workspace.id, 'member')
+  if (!repository.enabled) throw new Error('Choose an enabled repository before creating a share.')
+  const repositoryRef = await getRepositoryRef(repository.github_owner, repository.github_repo, parsed.ref, repository.github_installation_id, repositoryAccess.workspace.id, 'member')
   const rules = parseVisibilityRules({ hidden: parsed.hidden, allowOnly: parsed.allowOnly })
   const recipientLabel = parsed.recipientName || parsed.recipientLabel || parsed.company || ''
 
@@ -81,12 +82,12 @@ export async function createShare(input: unknown) {
   await requireWorkspaceRole(repositoryAccess.workspace.id, ['owner', 'admin'])
   await enforceAuthenticatedRateLimit('authenticated-share-create', repositoryAccess.workspace.id, repositoryAccess.user.id)
   const repositories = await listRegisteredRepositories()
-  const repository = repositories.find((candidate) => candidate.id === parsed.repositoryId)
+  const storedRepository = repositories.find((candidate) => candidate.id === parsed.repositoryId)
 
-  if (!repository || !repository.enabled) {
+  if (!storedRepository || !storedRepository.enabled) {
     throw new Error('Choose an enabled repository before creating a share.')
   }
-  if (repository.workspace_id !== repositoryAccess.workspace.id) {
+  if (storedRepository.workspace_id !== repositoryAccess.workspace.id) {
     throw new Error('That repository is not available in the active workspace.')
   }
 
@@ -94,16 +95,22 @@ export async function createShare(input: unknown) {
     throw new Error('Expiry must be in the future.')
   }
 
-  await assertWorkspaceResourceQuota('active-shares', repositoryAccess.workspace.id)
   const dailyShareReservation = await reserveQuota('shares-created-daily', repositoryAccess.workspace.id, 'workspace')
 
   let shareCreated = false
+  let resourceReservation: ResourceQuotaReservation | null = null
   try {
-    const installationId = await getGitHubInstallationIdForRepository(repository.id, repositoryAccess.workspace.id, 'member')
-    const repositoryRef = await getRepositoryRef(repository.github_owner, repository.github_repo, parsed.ref, installationId)
+    const { repository } = await synchronizeRepositoryForGitHub(storedRepository.id, repositoryAccess.workspace.id, 'member')
+    if (!repository.enabled) throw new Error('Choose an enabled repository before creating a share.')
+    const repositoryRef = await getRepositoryRef(repository.github_owner, repository.github_repo, parsed.ref, repository.github_installation_id, repositoryAccess.workspace.id, 'member')
     const rules = parseVisibilityRules({ hidden: parsed.hidden, allowOnly: parsed.allowOnly })
     const recipientLabel = parsed.recipientName || parsed.recipientLabel || parsed.company || null
     const rawToken = generateShareToken()
+    resourceReservation = await reserveResourceQuota(
+      'active-shares',
+      repositoryAccess.workspace.id,
+      `share:${hashShareToken(rawToken)}`,
+    )
     const shareCode = generateShareCode()
     const supabase = await createSupabaseServerClient()
     const { data, error } = await supabase
@@ -134,6 +141,13 @@ export async function createShare(input: unknown) {
       throw new Error('RepoView could not create this share.')
     }
     shareCreated = true
+    if (resourceReservation) {
+      try {
+        await finalizeResourceQuota(resourceReservation)
+      } catch {
+        // The share is durable; the short reservation lease safely expires.
+      }
+    }
 
     if (parsed.shareType === 'recipient' || parsed.recipientName || parsed.company || parsed.email || parsed.roleNotes) {
       const { error: recipientError } = await supabase.from('share_recipients').insert({
@@ -170,6 +184,13 @@ export async function createShare(input: unknown) {
     }
   } catch (error) {
     if (!shareCreated) await releaseQuota(dailyShareReservation)
+    if (!shareCreated && resourceReservation) {
+      try {
+        await releaseResourceQuota(resourceReservation)
+      } catch {
+        // The short reservation lease bounds recovery if cleanup is unavailable.
+      }
+    }
     throw error
   }
 }

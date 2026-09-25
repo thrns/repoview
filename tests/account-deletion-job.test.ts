@@ -105,6 +105,7 @@ function createFixture(): Fixture {
     'notification_settings',
     'audit_logs',
     'quota_counters',
+    'quota_resource_reservations',
     'workspace_members',
     'workspaces',
   ]) {

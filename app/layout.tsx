@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   description: 'Create a secure, read-only repository link and understand how viewers engage with your private code.',
 }
 
+// The page CSP is nonce-based in production. Keep the app request-rendered so
+// Next can attach each request's nonce to its generated scripts.
+export const dynamic = 'force-dynamic'
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>

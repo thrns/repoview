@@ -64,7 +64,6 @@ export function SignupForm() {
       const result = await response.json() as { authenticated?: boolean }
       if (result.authenticated) {
         router.replace('/dashboard')
-        router.refresh()
         return
       }
 

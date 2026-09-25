@@ -7,9 +7,13 @@ import { isGlobalPrivacyControl } from '@/lib/viewer/privacy-shared'
 import { checkPublicRateLimit, checkRateLimits, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../lib/security/rate-limit'
 import { requireViewerSession } from '../../../../lib/auth/viewer-session'
 import { QuotaExceededError, QuotaUnavailableError, quotaResponse, quotaUnavailableResponse } from '../../../../lib/security/quotas'
+import { isRequestBodyTooLarge, readJsonBody } from '../../../../lib/security/body-limit'
+
+const MAX_EVENTS_BODY_BYTES = 128 * 1024
 
 const scalarSchema = z.union([z.string().max(512), z.number().finite(), z.boolean(), z.null()])
 const eventSchema = z.object({
+  eventId: z.string().uuid().optional(),
   eventType: z.enum(VIEWER_ANALYTICS_EVENT_TYPES),
   path: z.string().trim().max(512).nullable().optional(),
   metadata: z.record(z.string(), scalarSchema).optional(),
@@ -36,8 +40,11 @@ const requestSchema = z.object({
 export async function POST(request: Request) {
   let input: z.infer<typeof requestSchema>
   try {
-    input = requestSchema.parse(await request.json())
-  } catch {
+    input = requestSchema.parse(await readJsonBody(request, MAX_EVENTS_BODY_BYTES))
+  } catch (error) {
+    if (isRequestBodyTooLarge(error)) {
+      return NextResponse.json({ error: 'payload_too_large' }, { status: 413, headers: { 'Cache-Control': 'no-store' } })
+    }
     return NextResponse.json({ error: 'invalid_request' }, { status: 400, headers: { 'Cache-Control': 'no-store' } })
   }
 

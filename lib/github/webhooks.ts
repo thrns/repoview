@@ -5,7 +5,7 @@ import { z } from 'zod'
 
 import { createSupabaseAdminClient } from '../supabase/admin'
 import type { Tables, TablesUpdate } from '../supabase/database.types'
-import { AUDIT_ACTIONS, recordAuditLogBestEffort } from '../audit-log'
+import { AUDIT_ACTIONS, recordAuditLogBestEffort, type AuditAction } from '../audit-log'
 
 const repositoryPayloadSchema = z.object({
   id: z.number().int().positive(),
@@ -192,20 +192,20 @@ async function dispatchWebhookEvent(
       case 'created':
         await updateInstallationFromPayload(admin, installation, payload.installation, 'active')
         await syncAddedRepositories(admin, installation, payload.repositories_added)
-        await recordInstallationAudit(admin, installation, AUDIT_ACTIONS.githubInstallationConnected, { source: 'github_webhook' })
+        await recordInstallationAudit(admin, installation, AUDIT_ACTIONS.githubInstallationConnected, { trigger: 'github_webhook' })
         return 'processed'
       case 'deleted':
         await updateInstallationFromPayload(admin, installation, payload.installation, 'deleted')
         await closeInstallationAccess(admin, installation)
-        await recordInstallationAudit(admin, installation, AUDIT_ACTIONS.githubInstallationDisconnected, { source: 'github_webhook' })
+        await recordInstallationAudit(admin, installation, AUDIT_ACTIONS.githubInstallationDisconnected, { trigger: 'github_webhook' })
         return 'processed'
       case 'suspended':
         await updateInstallationFromPayload(admin, installation, payload.installation, 'suspended')
-        await recordInstallationAudit(admin, installation, AUDIT_ACTIONS.githubInstallationSuspended, { source: 'github_webhook' })
+        await recordInstallationAudit(admin, installation, AUDIT_ACTIONS.githubInstallationSuspended, { trigger: 'github_webhook' })
         return 'processed'
       case 'unsuspended':
         await updateInstallationFromPayload(admin, installation, payload.installation, 'active')
-        await recordInstallationAudit(admin, installation, AUDIT_ACTIONS.githubInstallationUnsuspended, { source: 'github_webhook' })
+        await recordInstallationAudit(admin, installation, AUDIT_ACTIONS.githubInstallationUnsuspended, { trigger: 'github_webhook' })
         return 'processed'
       default:
         return 'ignored'
@@ -232,7 +232,7 @@ async function dispatchWebhookEvent(
 async function recordInstallationAudit(
   admin: ReturnType<typeof createSupabaseAdminClient>,
   installation: Tables<'github_installations'>,
-  action: string,
+  action: AuditAction,
   metadata: Record<string, unknown>,
 ) {
   await recordAuditLogBestEffort({
@@ -375,7 +375,7 @@ async function closeRepositoryAccess(
     action: AUDIT_ACTIONS.repositoryDisconnected,
     resourceType: 'repository',
     resourceId: repositoryId,
-    metadata: { source: 'github_webhook' },
+    metadata: { trigger: 'github_webhook' },
   }, admin)))
 }
 

@@ -45,6 +45,11 @@ application compilation scope; its adopted visual surface lives in
   email. Both are enforced after viewer/workspace context is known where
   possible; Vercel or another edge firewall can add coarse volumetric limits
   without replacing these application checks.
+- Request source-IP identity is intentionally deployment-specific: Vercel
+  production trusts only its normalized `x-vercel-forwarded-for` header;
+  arbitrary `x-forwarded-for` and `x-real-ip` values are ignored. Local
+  development shares one safe bucket unless `REPOVIEW_TRUST_LOCAL_PROXY=1` is
+  explicitly set for a trusted local proxy.
 - `lib/supabase/` owns browser, SSR, and server-only admin clients.
 - `lib/viewer/` owns share loading, authorization, and view event operations.
 

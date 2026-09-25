@@ -19,7 +19,7 @@ describe('system administration boundary', () => {
   it('keeps operator audit rows server-only and metadata-only', () => {
     expect(migration).toContain('create table if not exists public.system_admin_audit_logs')
     expect(migration).toContain('revoke all on table public.system_admin_audit_logs from anon, authenticated')
-    expect(readFileSync('lib/system-admin/audit.ts', 'utf8')).toContain('sanitizeAuditMetadata')
+    expect(readFileSync('lib/system-admin/audit.ts', 'utf8')).toContain('sanitizeMetadataWithSchema')
     expect(overview).not.toContain('github_owner')
     expect(overview).not.toContain('github_repo')
     expect(overview).not.toContain("select('github_owner")

@@ -565,9 +565,13 @@ RepoView follows data-minimization principles and is intended to use the followi
 | Hashed application rate-limit counters | **${RETENTION_DAYS.rateLimitBuckets} days** |
 | Tenant-scoped quota counters used for abuse/cost control | **${RETENTION_DAYS.quotaCounters} days** |
 | Notification delivery logs | **${RETENTION_DAYS.notificationDeliveryLogs} days** |
+| GitHub webhook delivery/idempotency records | **${RETENTION_DAYS.githubWebhookDeliveries} days** |
+| Expired GitHub connection transactions and step-up confirmations | Deleted after expiry |
+| Server-side cleanup run records | **${RETENTION_DAYS.retentionCleanupRuns} days** |
 | Revoked/expired Share configuration and recipient labels | **${RETENTION_DAYS.revokedExpiredShareMetadata} days** from revocation or expiry; minimal references may remain until related analytics age out |
 | Owner account/configuration data | Until account deletion, then **${RETENTION_DAYS.deletedAccountsWorkspaces} days** from active systems |
 | Workspace security/activity audit logs | **${RETENTION_DAYS.securityAuditLogs} days**, unless needed for an active investigation |
+| Minimal account deletion lifecycle records | **${RETENTION_DAYS.accountLifecycleAudit} days** |
 | Support and privacy correspondence | **24 months** after the matter is closed, unless longer retention is reasonably required for a dispute or legal obligation |
 | Backups | Rotated/deleted within **35 days** after deletion from active systems, unless legally preserved |
 | Aggregated or de-identified statistics that no longer reasonably identify an individual | May be retained longer for project reliability and product improvement |

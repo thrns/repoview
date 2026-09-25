@@ -60,7 +60,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ shar
       viewer.accessibleRepository.name,
       requestedPath,
       viewer.share.ref,
-      viewer.installationId,
+      viewer.installationRecordId,
+      viewer.repository.workspace_id,
+      'system',
     )
 
     after(() => recordViewerViewEvent({

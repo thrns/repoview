@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { createContentSecurityPolicy } from '../lib/security/csp'
 import nextConfig from '../next.config'
 
 describe('security headers', () => {
@@ -32,14 +33,26 @@ describe('security headers', () => {
       environment.NODE_ENV = 'development'
       const developmentHeaders = await nextConfig.headers?.()
       const developmentCsp = developmentHeaders?.find((entry) => entry.source === '/:path*')?.headers.find((entry) => entry.key === 'Content-Security-Policy')?.value
-      expect(developmentCsp).toContain("script-src 'self' 'unsafe-inline' 'unsafe-eval'")
+      expect(developmentCsp).toContain("script-src 'self' 'unsafe-eval'")
+      expect(getScriptPolicy(developmentCsp)).not.toContain("'unsafe-inline'")
 
       environment.NODE_ENV = 'production'
       const productionHeaders = await nextConfig.headers?.()
       const productionCsp = productionHeaders?.find((entry) => entry.source === '/:path*')?.headers.find((entry) => entry.key === 'Content-Security-Policy')?.value
-      expect(productionCsp).not.toContain("'unsafe-eval'")
+      expect(getScriptPolicy(productionCsp)).toBe("script-src 'self'")
+      expect(getScriptPolicy(productionCsp)).not.toContain("'unsafe-inline'")
     } finally {
       environment.NODE_ENV = originalNodeEnv
     }
   })
+
+  it('uses a request nonce for Next scripts on rendered pages', () => {
+    const policy = createContentSecurityPolicy({ nonce: 'test-nonce', isDevelopment: false })
+    expect(getScriptPolicy(policy)).toBe("script-src 'self' 'nonce-test-nonce' 'strict-dynamic'")
+    expect(getScriptPolicy(policy)).not.toContain("'unsafe-inline'")
+  })
 })
+
+function getScriptPolicy(policy: string | undefined) {
+  return policy?.split('; ').find((directive) => directive.startsWith('script-src')) ?? ''
+}

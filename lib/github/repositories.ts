@@ -1,6 +1,10 @@
 import 'server-only'
 
-import { getGitHubInstallationClient, listWorkspaceGitHubInstallations } from './client'
+import {
+  getGitHubInstallationClientForInstallation,
+  listWorkspaceGitHubInstallations,
+  type GitHubInstallationAccess,
+} from './client'
 import {
   GitHubRepositoryError,
   type GitHubRepositoryBranch,
@@ -22,8 +26,12 @@ type GitHubRepositoryLike = {
   disabled: boolean
 }
 
-export async function listInstallationRepositories(installationId: number, installationRecordId: string): Promise<GitHubRepositorySummary[]> {
-  const client = getGitHubInstallationClient(installationId)
+export async function listInstallationRepositories(
+  installationRecordId: string,
+  workspaceId: string,
+  access: GitHubInstallationAccess = 'system',
+): Promise<GitHubRepositorySummary[]> {
+  const client = await getGitHubInstallationClientForInstallation(installationRecordId, workspaceId, access)
 
   try {
     const repositories = await client.paginate(
@@ -40,15 +48,16 @@ export async function listInstallationRepositories(installationId: number, insta
 }
 
 export async function listWorkspaceInstallationRepositories(workspaceId: string): Promise<GitHubRepositorySummary[]> {
-  const installations = await listWorkspaceGitHubInstallations(workspaceId)
+  const installations = await listWorkspaceGitHubInstallations(workspaceId, { access: 'member' })
   if (installations.length === 0) {
     throw new GitHubRepositoryError('upstream')
   }
 
   const repositories = await Promise.all(
     installations.map((installation) => listInstallationRepositories(
-      installation.github_installation_id,
       installation.id,
+      workspaceId,
+      'member',
     )),
   )
 
@@ -62,8 +71,14 @@ export async function listWorkspaceInstallationRepositories(workspaceId: string)
   return [...uniqueRepositories.values()]
 }
 
-export async function getRepositoryMetadata(owner: string, repo: string, installationId: number, installationRecordId: string): Promise<GitHubRepositorySummary> {
-  const client = getGitHubInstallationClient(installationId)
+export async function getRepositoryMetadata(
+  owner: string,
+  repo: string,
+  installationRecordId: string,
+  workspaceId: string,
+  access: GitHubInstallationAccess = 'system',
+): Promise<GitHubRepositorySummary> {
+  const client = await getGitHubInstallationClientForInstallation(installationRecordId, workspaceId, access)
 
   try {
     const { data } = await client.rest.repos.get({ owner, repo })
@@ -73,8 +88,33 @@ export async function getRepositoryMetadata(owner: string, repo: string, install
   }
 }
 
-export async function listRepositoryBranches(owner: string, repo: string, installationId: number): Promise<GitHubRepositoryBranch[]> {
-  const client = getGitHubInstallationClient(installationId)
+export async function getRepositoryMetadataById(
+  githubRepositoryId: number,
+  installationRecordId: string,
+  workspaceId: string,
+  access: GitHubInstallationAccess = 'system',
+): Promise<GitHubRepositorySummary> {
+  const client = await getGitHubInstallationClientForInstallation(installationRecordId, workspaceId, access)
+
+  try {
+    const { data } = await client.request('GET /repositories/{repository_id}', {
+      repository_id: githubRepositoryId,
+      headers: { Accept: 'application/vnd.github+json' },
+    })
+    return mapGitHubRepository(data, installationRecordId)
+  } catch (error) {
+    throw mapGitHubRepositoryError(error)
+  }
+}
+
+export async function listRepositoryBranches(
+  owner: string,
+  repo: string,
+  installationRecordId: string,
+  workspaceId: string,
+  access: GitHubInstallationAccess = 'system',
+): Promise<GitHubRepositoryBranch[]> {
+  const client = await getGitHubInstallationClientForInstallation(installationRecordId, workspaceId, access)
 
   try {
     const branches = await client.paginate(client.rest.repos.listBranches, {
@@ -93,8 +133,15 @@ export async function listRepositoryBranches(owner: string, repo: string, instal
   }
 }
 
-export async function getRepositoryRef(owner: string, repo: string, ref: string, installationId: number): Promise<GitHubRepositoryRef> {
-  const client = getGitHubInstallationClient(installationId)
+export async function getRepositoryRef(
+  owner: string,
+  repo: string,
+  ref: string,
+  installationRecordId: string,
+  workspaceId: string,
+  access: GitHubInstallationAccess = 'system',
+): Promise<GitHubRepositoryRef> {
+  const client = await getGitHubInstallationClientForInstallation(installationRecordId, workspaceId, access)
 
   try {
     const response = await client.rest.git.getRef({ owner, repo, ref: normalizeGitHubRef(ref) })
@@ -109,7 +156,7 @@ export async function getRepositoryRef(owner: string, repo: string, ref: string,
   }
 }
 
-function mapGitHubRepository(repository: GitHubRepositoryLike, installationRecordId: string): GitHubRepositorySummary {
+export function mapGitHubRepository(repository: GitHubRepositoryLike, installationRecordId: string): GitHubRepositorySummary {
   return {
     githubRepositoryId: repository.id,
     githubNodeId: repository.node_id,

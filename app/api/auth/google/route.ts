@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')}/auth/callback?next=${encodeURIComponent(next)}`,
+        redirectTo: `${getOAuthAppOrigin(requestUrl, env.NEXT_PUBLIC_APP_URL)}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     })
     if (error || !data.url) return redirectToLogin(requestUrl, 'oauth_error')
@@ -38,6 +38,17 @@ export async function GET(request: Request) {
 
 function normalizeNextPath(value: string | null) {
   return getAuthCallbackRedirectPath(value)
+}
+
+function getOAuthAppOrigin(requestUrl: URL, configuredAppUrl: string) {
+  const localHost = requestUrl.hostname === 'localhost'
+    || requestUrl.hostname === '127.0.0.1'
+    || requestUrl.hostname === '::1'
+    || requestUrl.hostname === '[::1]'
+
+  return process.env.NODE_ENV === 'development' && localHost
+    ? requestUrl.origin
+    : configuredAppUrl.replace(/\/$/, '')
 }
 
 function redirectToLogin(requestUrl: URL, error: string) {

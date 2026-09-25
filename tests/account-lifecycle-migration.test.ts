@@ -22,7 +22,7 @@ describe('account lifecycle hardening', () => {
   })
 
   it('queues deletion and resumes every workspace-owned data family before Auth deletion', () => {
-    for (const table of ['shares', 'notification_settings', 'github_installations', 'repositories', 'viewer_sessions', 'view_events', 'repository_events', 'file_engagement', 'share_access_attempts', 'share_recipients', 'notification_deliveries', 'audit_logs', 'quota_counters', 'workspace_members', 'workspaces']) {
+    for (const table of ['shares', 'notification_settings', 'github_installations', 'repositories', 'viewer_sessions', 'view_events', 'repository_events', 'file_engagement', 'share_access_attempts', 'share_recipients', 'notification_deliveries', 'audit_logs', 'quota_counters', 'quota_resource_reservations', 'workspace_members', 'workspaces']) {
       expect(deletionJob).toContain(`'${table}'`)
     }
     expect(deletion).toContain("request_account_deletion")

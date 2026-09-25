@@ -1,15 +1,17 @@
 import type { NextConfig } from 'next'
 
+import { createContentSecurityPolicy } from './lib/security/csp'
+
 const nextConfig: NextConfig = {
   allowedDevOrigins: ['127.0.0.1', 'localhost'],
   async headers() {
-    const developmentScriptPolicy = process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''
+    const contentSecurityPolicy = createContentSecurityPolicy({ isDevelopment: process.env.NODE_ENV === 'development' })
     const securityHeaders = [
       { key: 'X-Content-Type-Options', value: 'nosniff' },
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
       { key: 'X-Frame-Options', value: 'DENY' },
       { key: 'Permissions-Policy', value: 'camera=(), geolocation=(), microphone=(), payment=(), usb=()' },
-      { key: 'Content-Security-Policy', value: `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'${developmentScriptPolicy}; connect-src 'self' https://*.supabase.co wss://*.supabase.co ws://127.0.0.1:* ws://localhost:*; font-src 'self' data:` },
+      { key: 'Content-Security-Policy', value: contentSecurityPolicy },
     ]
     const privateNoStore = [
       { key: 'Cache-Control', value: 'private, no-store' },

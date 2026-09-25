@@ -20,18 +20,20 @@ function createAdminMock(recentEvent: object | null) {
     limit: vi.fn().mockReturnThis(),
     maybeSingle: vi.fn().mockResolvedValue({ data: recentEvent, error: null }),
   }
-  const insert = vi.fn().mockResolvedValue({ error: null })
+  const upsert = vi.fn().mockReturnValue({
+    select: vi.fn().mockResolvedValue({ data: [{ id: 1 }], error: null }),
+  })
   const admin = {
     from(table: string) {
-      return table === 'view_events' ? { ...builder, insert } : builder
+      return table === 'view_events' ? { ...builder, upsert } : builder
     },
   }
-  return { admin, builder, insert }
+  return { admin, builder, upsert }
 }
 
 describe('viewer view events', () => {
   it('does not write engagement events in necessary-only mode', async () => {
-    const { admin, insert } = createAdminMock(null)
+    const { admin, upsert } = createAdminMock(null)
     getAdmin.mockReturnValue(admin as never)
 
     await expect(recordViewerViewEvent({
@@ -42,11 +44,11 @@ describe('viewer view events', () => {
       workspaceId: 'workspace-1',
       analyticsMode: 'necessary',
     })).resolves.toEqual({ recorded: false, reason: 'necessary-only' })
-    expect(insert).not.toHaveBeenCalled()
+    expect(upsert).not.toHaveBeenCalled()
   })
 
   it('deduplicates the same session/path event within the short window', async () => {
-    const { admin, insert } = createAdminMock({ id: 1 })
+    const { admin, upsert } = createAdminMock({ id: 1 })
     getAdmin.mockReturnValue(admin as never)
 
     await expect(recordViewerViewEvent({
@@ -58,11 +60,11 @@ describe('viewer view events', () => {
       analyticsMode: 'optional',
       now: Date.parse('2026-09-22T00:00:10.000Z'),
     })).resolves.toEqual({ recorded: false })
-    expect(insert).not.toHaveBeenCalled()
+    expect(upsert).not.toHaveBeenCalled()
   })
 
   it('records a coarse path event when no recent duplicate exists', async () => {
-    const { admin, builder, insert } = createAdminMock(null)
+    const { admin, builder, upsert } = createAdminMock(null)
     getAdmin.mockReturnValue(admin as never)
 
     await expect(recordViewerViewEvent({
@@ -76,13 +78,14 @@ describe('viewer view events', () => {
       now: Date.parse('2026-09-22T00:00:10.000Z'),
     })).resolves.toEqual({ recorded: true })
     expect(builder.eq).toHaveBeenCalledWith('path', 'README.md')
-    expect(insert).toHaveBeenCalledWith({
+    expect(upsert).toHaveBeenCalledWith({
       workspace_id: 'workspace-1',
       share_id: 'share-1',
       session_id: 'session-1',
+      event_id: expect.any(String),
       event_type: 'markdown_viewed',
       path: 'README.md',
       metadata: { route: 'root', preview: 'markdown' },
-    })
+    }, { onConflict: 'event_id', ignoreDuplicates: true })
   })
 })

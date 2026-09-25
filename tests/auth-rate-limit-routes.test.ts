@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 vi.mock('../lib/security/rate-limit', () => ({
@@ -12,6 +12,7 @@ vi.mock('../lib/supabase/server', () => ({ createSupabaseServerClient: vi.fn() }
 import { POST as login } from '../app/api/auth/login/route'
 import { POST as signup } from '../app/api/auth/signup/route'
 import { POST as passwordReset } from '../app/api/auth/password-reset/route'
+import { GET as google } from '../app/api/auth/google/route'
 import { checkPublicRateLimit } from '../lib/security/rate-limit'
 import { createSupabaseServerClient } from '../lib/supabase/server'
 
@@ -31,13 +32,26 @@ beforeEach(() => {
   getSupabase.mockResolvedValue({
     auth: {
       signInWithPassword: vi.fn().mockResolvedValue({ error: null }),
+      signInWithOAuth: vi.fn().mockResolvedValue({ data: { url: 'https://accounts.google.test/oauth' }, error: null }),
       signUp: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
       resetPasswordForEmail: vi.fn().mockResolvedValue({ error: null }),
     },
   } as never)
 })
 
+afterEach(() => vi.unstubAllEnvs())
+
 describe('auth route rate limiting', () => {
+  it('starts Google OAuth from the current local origin', async () => {
+    vi.stubEnv('NODE_ENV', 'development')
+
+    const response = await google(new Request('http://localhost:3001/api/auth/google?next=%2Fdashboard'))
+
+    expect(response.status).toBe(303)
+    expect(response.headers.get('location')).toBe('https://accounts.google.test/oauth')
+    expect(getSupabase).toHaveBeenCalled()
+  })
+
   it('returns 429 before attempting password sign-in', async () => {
     checkLimit.mockResolvedValueOnce({ allowed: false, limit: 10, remaining: 0, retryAfterSeconds: 31, resetAt: '2026-09-24T12:00:31.000Z' })
 

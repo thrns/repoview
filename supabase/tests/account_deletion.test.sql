@@ -57,6 +57,8 @@ set job_id = (public.request_account_deletion(deletion_fixture.user_id)).id
 where job_id is null;
 
 select is((select count(*) from public.account_deletion_jobs where user_id = (select user_id from deletion_fixture)), 1::bigint, 'deletion request creates one durable job');
+select is((select count(*) from public.account_lifecycle_audit where deletion_job_id = (select job_id from deletion_fixture)), 1::bigint, 'deletion request creates one minimal system lifecycle record');
+select is((select status from public.account_lifecycle_audit where deletion_job_id = (select job_id from deletion_fixture)), 'requested', 'lifecycle audit starts without tenant data');
 select is((select status from public.workspaces where id = (select workspace_id from deletion_fixture)), 'deleting', 'deletion request immediately fails closed at workspace level');
 select isnt((select revoked_at from public.shares where id = (select share_id from deletion_fixture)), null::timestamptz, 'deletion request revokes active shares');
 select is((select enabled from public.repositories where id = (select repository_id from deletion_fixture)), false, 'deletion request disables repositories');

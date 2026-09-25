@@ -21,4 +21,11 @@ describe('source code renderer', () => {
     expect(html).toContain('alert')
     expect(html).toContain('tabindex="0"')
   })
+
+  it('keeps generated Shiki HTML inside the safe renderer boundary', async () => {
+    const html = await renderSourceCode('<script>alert(1)</script>', 'notes.custom')
+
+    expect(html).not.toContain('<script>')
+    expect(html).not.toContain('onclick=')
+  })
 })

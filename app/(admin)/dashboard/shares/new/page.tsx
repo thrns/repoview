@@ -3,8 +3,8 @@ import Link from 'next/link'
 import { Alert, AlertDescription, AlertTitle, Card, CardContent } from '@/components/ui'
 import { CreateShareForm, type ShareFormRepository } from '@/components/admin/create-share-form'
 import { listRepositoryBranches } from '@/lib/github/repositories'
-import { getGitHubInstallationIdForRepository } from '@/lib/github/client'
 import { listRegisteredRepositories } from '@/lib/repositories/registry'
+import { synchronizeRepositoryForGitHub } from '@/lib/repositories/synchronize'
 import { requireWorkspace } from '@/lib/auth/workspace'
 
 export const dynamic = 'force-dynamic'
@@ -16,16 +16,23 @@ export default async function NewSharePage({ searchParams }: { searchParams?: Pr
     const context = await requireWorkspace()
     const storedRepositories = (await listRegisteredRepositories()).filter((repository) => repository.enabled)
     const repositories: ShareFormRepository[] = await Promise.all(storedRepositories.map(async (repository) => {
-      const installationId = await getGitHubInstallationIdForRepository(repository.id, context.workspace.id, 'member')
-      const branches = await listRepositoryBranches(repository.github_owner, repository.github_repo, installationId)
+      const { repository: synchronizedRepository } = await synchronizeRepositoryForGitHub(repository.id, context.workspace.id, 'member')
+      if (!synchronizedRepository.enabled) throw new Error('A selected repository is no longer enabled.')
+      const branches = await listRepositoryBranches(
+        synchronizedRepository.github_owner,
+        synchronizedRepository.github_repo,
+        synchronizedRepository.github_installation_id,
+        context.workspace.id,
+        'member',
+      )
       const branchNames = branches.map((branch) => branch.name)
-      if (!branchNames.includes(repository.default_branch)) {
-        branchNames.unshift(repository.default_branch)
+      if (!branchNames.includes(synchronizedRepository.default_branch)) {
+        branchNames.unshift(synchronizedRepository.default_branch)
       }
       return {
-        id: repository.id,
-        fullName: `${repository.github_owner}/${repository.github_repo}`,
-        defaultBranch: repository.default_branch,
+        id: synchronizedRepository.id,
+        fullName: `${synchronizedRepository.github_owner}/${synchronizedRepository.github_repo}`,
+        defaultBranch: synchronizedRepository.default_branch,
         branches: branchNames,
       }
     }))

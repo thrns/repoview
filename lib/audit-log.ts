@@ -27,8 +27,46 @@ export const AUDIT_ACTIONS = {
   accountDeletionRequested: 'account_deletion_requested',
 } as const
 
-export type AuditAction = typeof AUDIT_ACTIONS[keyof typeof AUDIT_ACTIONS] | string
+export type AuditAction = typeof AUDIT_ACTIONS[keyof typeof AUDIT_ACTIONS]
 export type AuditResourceType = 'repository' | 'share' | 'github_installation' | 'notification_settings' | 'account' | 'security' | string
+
+export type AuditMetadataField = 'string' | 'nullable-string' | 'boolean' | 'number' | 'string-array' | 'safe-code'
+export type AuditMetadataSchema = Readonly<Record<string, AuditMetadataField>>
+
+/**
+ * Audit metadata is an API contract, not a general-purpose JSON sink. Keep
+ * this map exhaustive so adding an action forces its storage policy to be
+ * reviewed at the same time.
+ */
+export const AUDIT_METADATA_SCHEMAS: Record<AuditAction, AuditMetadataSchema> = {
+  [AUDIT_ACTIONS.repositoryConnected]: { repository: 'string', github_repository_id: 'number' },
+  [AUDIT_ACTIONS.repositoryDisconnected]: { trigger: 'string' },
+  [AUDIT_ACTIONS.repositoryEnabled]: { repository: 'string' },
+  [AUDIT_ACTIONS.repositoryDisabled]: { repository: 'string' },
+  [AUDIT_ACTIONS.visibilityRulesChanged]: { hidden_count: 'number', allow_only_count: 'number' },
+  [AUDIT_ACTIONS.shareCreated]: { repository: 'string', share_type: 'string', expires_at: 'nullable-string' },
+  [AUDIT_ACTIONS.shareRevoked]: {},
+  [AUDIT_ACTIONS.shareRotated]: { token_rotated: 'boolean' },
+  [AUDIT_ACTIONS.shareExpiryChanged]: { expires_at: 'nullable-string' },
+  [AUDIT_ACTIONS.githubInstallationConnected]: {
+    account: 'string',
+    account_type: 'string',
+    repository_selection: 'string',
+    reconnected: 'boolean',
+    trigger: 'string',
+  },
+  [AUDIT_ACTIONS.githubInstallationDisconnected]: { account: 'string', repository_count: 'number', trigger: 'string' },
+  [AUDIT_ACTIONS.githubInstallationSuspended]: { account: 'string', trigger: 'string' },
+  [AUDIT_ACTIONS.githubInstallationUnsuspended]: { account: 'string', trigger: 'string' },
+  [AUDIT_ACTIONS.notificationDestinationChanged]: { configured: 'boolean', verified: 'boolean' },
+  [AUDIT_ACTIONS.notificationSettingsChanged]: { setting: 'string' },
+  [AUDIT_ACTIONS.accountSettingChanged]: { setting: 'string', fields: 'string-array' },
+  [AUDIT_ACTIONS.securitySettingChanged]: { setting: 'string' },
+  [AUDIT_ACTIONS.accountExportRequested]: { format: 'string' },
+  [AUDIT_ACTIONS.accountExportSucceeded]: { format: 'string' },
+  [AUDIT_ACTIONS.accountExportFailed]: { reason: 'safe-code' },
+  [AUDIT_ACTIONS.accountDeletionRequested]: {},
+}
 
 export type RecordAuditLogInput = {
   workspaceId: string
@@ -84,7 +122,7 @@ export async function recordAuditLog(
       action: input.action,
       resource_type: input.resourceType,
       resource_id: input.resourceId ?? null,
-      metadata: sanitizeAuditMetadata(input.metadata ?? {}),
+      metadata: sanitizeAuditMetadata(input.action, input.metadata ?? {}),
     })
 
   if (error) throw new AuditLogError()
@@ -109,39 +147,39 @@ export async function recordAuditLogBestEffort(
 }
 
 /**
- * Audit metadata is an allow-by-default JSON summary, never a credential or a
- * copy of repository content. Sensitive key names are stripped recursively and
- * scalar/object sizes are bounded so audit rows remain useful and cheap.
+ * Keep only fields explicitly allowed for the action. Unknown fields and
+ * values with the wrong shape are dropped, which prevents repository source,
+ * credentials, email bodies, and arbitrary caller-provided objects from being
+ * persisted even when their key names look harmless.
  */
-export function sanitizeAuditMetadata(input: Record<string, unknown>): Json {
-  return sanitizeValue(input, 0)
+export function sanitizeAuditMetadata(action: AuditAction, input: Record<string, unknown>): Json {
+  return sanitizeMetadataWithSchema(input, AUDIT_METADATA_SCHEMAS[action] ?? {})
 }
 
-const blockedKeyPattern = /(secret|token|password|private.?key|access.?token|authorization|cookie|raw.?body|source|content|credential|verifier)/i
-const MAX_DEPTH = 3
-const MAX_OBJECT_KEYS = 40
-const MAX_ARRAY_ITEMS = 20
+export function sanitizeMetadataWithSchema(input: Record<string, unknown>, schema: AuditMetadataSchema): Json {
+  const result: Record<string, Json> = {}
+  for (const [key, field] of Object.entries(schema)) {
+    if (!Object.prototype.hasOwnProperty.call(input, key)) continue
+    const sanitized = sanitizeAllowedField(input[key], field)
+    if (sanitized !== undefined) result[key] = sanitized
+  }
+  return result
+}
+
 const MAX_STRING_LENGTH = 500
 
-function sanitizeValue(value: unknown, depth: number): Json {
-  if (value === null) return null
-  if (typeof value === 'string') return value.slice(0, MAX_STRING_LENGTH)
-  if (typeof value === 'boolean') return value
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null
-  if (depth >= MAX_DEPTH) return '[redacted]'
-
-  if (Array.isArray(value)) {
-    return value.slice(0, MAX_ARRAY_ITEMS).map((entry) => sanitizeValue(entry, depth + 1))
+function sanitizeAllowedField(value: unknown, field: AuditMetadataField): Json | undefined {
+  if (field === 'string') return typeof value === 'string' ? value.slice(0, MAX_STRING_LENGTH) : undefined
+  if (field === 'nullable-string') {
+    if (value === null) return null
+    return typeof value === 'string' ? value.slice(0, MAX_STRING_LENGTH) : undefined
   }
-
-  if (typeof value === 'object') {
-    const result: Record<string, Json> = {}
-    for (const [key, entry] of Object.entries(value).slice(0, MAX_OBJECT_KEYS)) {
-      if (blockedKeyPattern.test(key)) continue
-      result[key.slice(0, 80)] = sanitizeValue(entry, depth + 1)
-    }
-    return result
+  if (field === 'boolean') return typeof value === 'boolean' ? value : undefined
+  if (field === 'number') return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+  if (field === 'safe-code') return typeof value === 'string' && /^[a-z0-9][a-z0-9_:-]{0,79}$/.test(value) ? value : undefined
+  if (field === 'string-array') {
+    if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) return undefined
+    return value.slice(0, 20).map((entry) => entry.slice(0, MAX_STRING_LENGTH))
   }
-
-  return null
+  return undefined
 }

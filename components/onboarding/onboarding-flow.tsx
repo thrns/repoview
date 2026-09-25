@@ -102,7 +102,7 @@ function GitHubState({ state }: { state: OnboardingState }) {
       {state.hasPendingGitHubConnection && !hasSuspended ? <Alert className="border-warning/40 bg-warning/5"><AlertTitle>Organization approval may be pending</AlertTitle><AlertDescription>If an organization owner needs to approve the App, GitHub will finish the connection after approval. You can safely leave this page and return later.</AlertDescription></Alert> : null}
       {hasSuspended ? <Alert className="border-destructive/40 bg-destructive/5"><AlertTitle>GitHub access is suspended</AlertTitle><AlertDescription>Reconnect GitHub or restore the installation in GitHub before selecting repositories.</AlertDescription></Alert> : null}
       <div className="flex items-start gap-3"><Github className="mt-0.5 size-5" aria-hidden="true" /><p className="text-sm leading-6 text-foreground-muted">Connect a personal account or an organization where you can approve App access. RepoView only stores the installation metadata and uses short-lived server-side access tokens.</p></div>
-      <Link prefetch={false} href="/api/github/connect?return=%2Fonboarding" className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"><span>Connect GitHub</span><ArrowRight className="size-4" aria-hidden="true" /></Link>
+      <a href="/api/github/connect?return=%2Fonboarding" className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"><span>Connect GitHub</span><ArrowRight className="size-4" aria-hidden="true" /></a>
     </div>
   )
 }

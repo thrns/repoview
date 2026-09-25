@@ -10,8 +10,9 @@ vi.mock('../lib/supabase/admin', () => ({
 import {
   GITHUB_API_VERSION,
   GITHUB_COMMON_HEADERS,
-  getGitHubInstallationAuthentication,
-  getGitHubInstallationIdForRepository,
+  getGitHubInstallationAuthenticationForInstallation,
+  getGitHubInstallationClientForInstallation,
+  getGitHubInstallationClientForRepository,
 } from '../lib/github/client'
 import { createSupabaseAdminClient } from '../lib/supabase/admin'
 
@@ -54,6 +55,18 @@ describe('GitHub App authentication', () => {
   })
 
   it('mints an installation token through the GitHub App endpoint', async () => {
+    const installationQuery = createQuery({
+      data: {
+        id: '11111111-1111-4111-8111-111111111111',
+        workspace_id: '22222222-2222-4222-8222-222222222222',
+        github_installation_id: 5678,
+        status: 'active',
+      },
+      error: null,
+    })
+    getAdmin.mockReturnValue({
+      from: vi.fn().mockReturnValue(installationQuery),
+    } as never)
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       expect(String(input)).toBe('https://api.github.com/app/installations/5678/access_tokens')
       expect(init?.method).toBe('POST')
@@ -72,7 +85,10 @@ describe('GitHub App authentication', () => {
 
     globalThis.fetch = fetchMock
 
-    const authentication = await getGitHubInstallationAuthentication(5678)
+    const authentication = await getGitHubInstallationAuthenticationForInstallation(
+      '11111111-1111-4111-8111-111111111111',
+      '22222222-2222-4222-8222-222222222222',
+    )
 
     expect(authentication.type).toBe('token')
     expect(authentication.token).toBe('installation-token')
@@ -81,30 +97,48 @@ describe('GitHub App authentication', () => {
   })
 
   it('resolves a repository installation only inside the requested workspace', async () => {
-    const repositoryQuery = createQuery({
-      data: {
-        workspace_id: 'workspace-a',
-        github_installation_id: 'installation-a',
-      },
-      error: null,
-    })
     const installationQuery = createQuery({
       data: {
+        id: '11111111-1111-4111-8111-111111111111',
+        workspace_id: '33333333-3333-4333-8333-333333333333',
         github_installation_id: 5678,
         status: 'active',
       },
       error: null,
     })
     getAdmin.mockReturnValue({
+      from: vi.fn().mockReturnValue(installationQuery),
+    } as never)
+
+    await expect(getGitHubInstallationClientForInstallation(
+      '11111111-1111-4111-8111-111111111111',
+      '33333333-3333-4333-8333-333333333333',
+    )).resolves.toBeDefined()
+    expect(installationQuery.eq).toHaveBeenCalledWith('workspace_id', '33333333-3333-4333-8333-333333333333')
+    expect(installationQuery.eq).toHaveBeenCalledWith('status', 'active')
+  })
+
+  it('does not instantiate a client for an installation record from another workspace', async () => {
+    const repositoryQuery = createQuery({
+      data: {
+        workspace_id: '33333333-3333-4333-8333-333333333333',
+        github_installation_id: '11111111-1111-4111-8111-111111111111',
+      },
+      error: null,
+    })
+    const installationQuery = createQuery({ data: null, error: null })
+    getAdmin.mockReturnValue({
       from(table: string) {
         return table === 'repositories' ? repositoryQuery : installationQuery
       },
     } as never)
 
-    await expect(getGitHubInstallationIdForRepository('repository-a', 'workspace-a')).resolves.toBe(5678)
-    expect(repositoryQuery.eq).toHaveBeenCalledWith('workspace_id', 'workspace-a')
-    expect(installationQuery.eq).toHaveBeenCalledWith('workspace_id', 'workspace-a')
-    expect(installationQuery.eq).toHaveBeenCalledWith('status', 'active')
+    await expect(getGitHubInstallationClientForRepository(
+      '55555555-5555-4555-8555-555555555555',
+      '44444444-4444-4444-8444-444444444444',
+    )).rejects.toThrow('unavailable for this workspace')
+    expect(repositoryQuery.eq).toHaveBeenCalledWith('workspace_id', '44444444-4444-4444-8444-444444444444')
+    expect(installationQuery.eq).toHaveBeenCalledWith('workspace_id', '44444444-4444-4444-8444-444444444444')
   })
 })
 

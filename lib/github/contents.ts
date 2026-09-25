@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { getGitHubInstallationClient } from './client'
+import { getGitHubInstallationClientForInstallation, type GitHubInstallationAccess } from './client'
 import { mapGitHubRepositoryError } from './repositories'
 
 export const MAX_TEXT_PREVIEW_BYTES = 1_000_000
@@ -67,7 +67,9 @@ export async function loadRepositoryFile(
   repo: string,
   path: string,
   ref: string,
-  installationId: number,
+  installationRecordId: string,
+  workspaceId: string,
+  access: GitHubInstallationAccess = 'system',
 ): Promise<GitHubFileContent> {
   let normalizedPath: string
   try {
@@ -76,7 +78,7 @@ export async function loadRepositoryFile(
     throw new GitHubFileError('invalid_path')
   }
 
-  const client = getGitHubInstallationClient(installationId)
+  const client = await getGitHubInstallationClientForInstallation(installationRecordId, workspaceId, access)
 
   try {
     const { data } = await client.rest.repos.getContent({
@@ -166,7 +168,9 @@ export async function loadRepositoryAsset(
   repo: string,
   path: string,
   ref: string,
-  installationId: number,
+  installationRecordId: string,
+  workspaceId: string,
+  access: GitHubInstallationAccess = 'system',
 ): Promise<GitHubImageAsset> {
   let normalizedPath: string
   try {
@@ -175,7 +179,7 @@ export async function loadRepositoryAsset(
     throw new GitHubFileError('invalid_path')
   }
 
-  const client = getGitHubInstallationClient(installationId)
+  const client = await getGitHubInstallationClientForInstallation(installationRecordId, workspaceId, access)
 
   try {
     const { data } = await client.rest.repos.getContent({
@@ -228,7 +232,7 @@ export async function loadRepositoryAsset(
 }
 
 async function loadAssetBytes(
-  client: ReturnType<typeof getGitHubInstallationClient>,
+  client: Awaited<ReturnType<typeof getGitHubInstallationClientForInstallation>>,
   owner: string,
   repo: string,
   file: { content?: string; encoding?: string; sha?: string },

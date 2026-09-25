@@ -8,6 +8,7 @@ import {
   QUOTA_POLICIES,
   QuotaExceededError,
   quotaResponse,
+  reserveResourceQuota,
   reserveQuota,
 } from '../lib/security/quotas'
 
@@ -67,5 +68,38 @@ describe('workspace quotas', () => {
     expect(response.headers.get('retry-after')).toBe('3600')
     expect(response.headers.get('x-quota-scope')).toBe('downloads-session')
     await expect(response.json()).resolves.toMatchObject({ error: 'quota_exceeded', limit: 100, usage: 100 })
+  })
+
+  it('uses the atomic resource reservation RPC for finite resources', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [{ allowed: true, already_reserved: false, usage: 4, remaining: 96, retry_after_seconds: 300, reservation_id: 'reservation-1' }],
+      error: null,
+    })
+    const admin = { rpc } as never
+
+    await expect(reserveResourceQuota('enabled-repositories', 'workspace-1', 'repository:repo-1', admin, new Date('2026-09-24T12:00:00.000Z'))).resolves.toMatchObject({
+      reservationId: 'reservation-1',
+      owned: true,
+      resourceKey: 'repository:repo-1',
+    })
+    expect(rpc).toHaveBeenCalledWith('reserve_workspace_resource_quota', {
+      target_scope: 'enabled-repositories',
+      target_workspace_id: 'workspace-1',
+      target_resource_key: 'repository:repo-1',
+      target_limit: 100,
+      target_expires_at: '2026-09-24T12:05:00.000Z',
+    })
+  })
+
+  it('does not treat a denied resource reservation as an available slot', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [{ allowed: false, already_reserved: false, usage: 100, remaining: 0, retry_after_seconds: 300, reservation_id: null }],
+      error: null,
+    })
+
+    await expect(reserveResourceQuota('active-shares', 'workspace-1', 'share:token-1', { rpc } as never)).rejects.toMatchObject({
+      name: 'QuotaExceededError',
+      decision: { scope: 'active-shares', usage: 100, limit: 1000 },
+    })
   })
 })

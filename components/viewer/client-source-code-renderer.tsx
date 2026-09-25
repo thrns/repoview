@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 
 import { Skeleton } from '@/components/ui'
 import { detectViewerLanguage } from '@/lib/viewer/language'
+import { safeGeneratedHtml } from '@/lib/viewer/generated-html'
 
 const SHIKI_THEMES = {
   light: 'github-light-default',
@@ -23,7 +24,8 @@ export function ClientSourceCodeRenderer({ code, filename }: { code: string; fil
             lang: detectViewerLanguage(filename),
             themes: SHIKI_THEMES,
           })
-          if (!cancelled) setResult({ input, html: rendered })
+          const safeHtml = safeGeneratedHtml(rendered)
+          if (!cancelled) setResult({ input, html: safeHtml ?? undefined, failed: !safeHtml })
         } catch {
           if (!cancelled) setResult({ input, failed: true })
         }

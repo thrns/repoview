@@ -9,6 +9,9 @@ import { checkPublicRateLimit, checkRateLimits, rateLimitResponse, rateLimitUnav
 import type { ViewerClientContext } from '../../../../lib/viewer/analytics-types'
 import { isGlobalPrivacyControl } from '../../../../lib/viewer/privacy-shared'
 import { recordViewerViewEvent } from '../../../../lib/viewer/view-events'
+import { isRequestBodyTooLarge, readJsonBody } from '../../../../lib/security/body-limit'
+
+const MAX_CONFIRM_BODY_BYTES = 32 * 1024
 
 const clientContextSchema = z.object({
   deviceType: z.enum(['desktop', 'mobile', 'tablet']).nullable().optional(),
@@ -24,8 +27,9 @@ const confirmRequestSchema = z.object({
 export async function POST(request: Request) {
   let parsedRequest: z.infer<typeof confirmRequestSchema>
   try {
-    parsedRequest = confirmRequestSchema.parse(await request.json())
-  } catch {
+    parsedRequest = confirmRequestSchema.parse(await readJsonBody(request, MAX_CONFIRM_BODY_BYTES))
+  } catch (error) {
+    if (isRequestBodyTooLarge(error)) return NextResponse.json({ error: 'payload_too_large' }, { status: 413, headers: { 'Cache-Control': 'no-store' } })
     return NextResponse.json({ error: 'invalid_request' }, { status: 400, headers: { 'Cache-Control': 'no-store' } })
   }
 

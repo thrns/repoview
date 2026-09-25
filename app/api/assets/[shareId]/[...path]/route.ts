@@ -46,7 +46,9 @@ export async function GET(
       viewer.accessibleRepository.name,
       responsePath,
       viewer.share.ref,
-      viewer.installationId,
+      viewer.installationRecordId,
+      viewer.repository.workspace_id,
+      'system',
     )
 
     const headers = new Headers({

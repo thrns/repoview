@@ -1,10 +1,11 @@
 import 'server-only'
 
+import { randomUUID } from 'node:crypto'
 import { after } from 'next/server'
 
 import { requireViewerSession } from '@/lib/auth/viewer-session'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
-import { releaseQuota, reserveQuota } from '@/lib/security/quotas'
+import { releaseQuota, reserveQuota, type QuotaReservation } from '@/lib/security/quotas'
 import type { ViewerAnalyticsEvent, ViewerClientContext, ViewerSessionSnapshot } from './analytics-types'
 
 export async function recordViewerAnalytics({
@@ -41,26 +42,55 @@ export async function recordViewerAnalytics({
     if (error) throw error
   }
 
+  let recordedCount = collectOptionalAnalytics ? 0 : events.length
   if (collectOptionalAnalytics && events.length > 0) {
-    const reservations = []
+    let reservations: QuotaReservation[] = []
     let viewEventsInserted = false
-    const rows = events.map((event) => ({
+    const normalizedEvents = events.map((event) => ({ event, eventId: event.eventId ?? randomUUID() }))
+    const uniqueEvents = [...new Map(normalizedEvents.map((entry) => [entry.eventId, entry])).values()]
+    const { data: existingRows, error: existingError } = await admin
+      .from('view_events')
+      .select('event_id')
+      .eq('workspace_id', viewer.share.workspace_id)
+      .eq('session_id', viewer.session.id)
+      .in('event_id', uniqueEvents.map((entry) => entry.eventId))
+    if (existingError) throw existingError
+    const existingIds = new Set((existingRows ?? []).map((row) => row.event_id))
+    const newEvents = uniqueEvents.filter((entry) => !existingIds.has(entry.eventId))
+    const rows = newEvents.map(({ event, eventId }) => ({
       workspace_id: viewer.share.workspace_id,
       share_id: internalShareId,
       session_id: viewer.session.id,
+      event_id: eventId,
       event_type: event.eventType,
       path: sanitizePath(event.path),
       metadata: sanitizeEventMetadata(event.metadata),
     }))
     try {
-      reservations.push(await reserveQuota('analytics-events-session', viewer.share.workspace_id, viewer.session.id, events.length, new Date(now), admin))
-      reservations.push(await reserveQuota('analytics-events-workspace-daily', viewer.share.workspace_id, 'workspace', events.length, new Date(now), admin))
+      if (rows.length > 0) {
+        reservations.push(await reserveQuota('analytics-events-session', viewer.share.workspace_id, viewer.session.id, rows.length, new Date(now), admin))
+        reservations.push(await reserveQuota('analytics-events-workspace-daily', viewer.share.workspace_id, 'workspace', rows.length, new Date(now), admin))
+      }
 
-      const { error } = await admin.from('view_events').insert(rows)
+      const { data: insertedRows, error } = rows.length > 0
+        ? await admin.from('view_events').upsert(rows, { onConflict: 'event_id', ignoreDuplicates: true }).select('id, event_id')
+        : { data: [], error: null }
       if (error) throw error
+      const insertedIds = new Set((insertedRows ?? rows).map((row) => row.event_id))
+      const unusedReservations = Math.max(0, rows.length - insertedIds.size)
+      if (unusedReservations > 0) {
+        await Promise.all(reservations.map((reservation) => releaseQuota({ ...reservation, increment: unusedReservations }, admin)))
+        reservations = reservations
+          .map((reservation) => ({ ...reservation, increment: reservation.increment - unusedReservations }))
+          .filter((reservation) => reservation.increment > 0)
+      }
       viewEventsInserted = true
 
-      await updateFileEngagement(admin, internalShareId, viewer.session.id, viewer.session.viewer_id, viewer.share.workspace_id, events, now)
+      const persistedEvents = newEvents.filter((entry) => insertedIds.has(entry.eventId)).map((entry) => entry.event)
+      if (persistedEvents.length > 0) {
+        await updateFileEngagement(admin, internalShareId, viewer.session.id, viewer.session.viewer_id, viewer.share.workspace_id, persistedEvents, now)
+      }
+      recordedCount = persistedEvents.length
     } catch (error) {
       if (!viewEventsInserted) {
         await Promise.all(reservations.reverse().map((reservation) => releaseQuota(reservation, admin)))
@@ -78,7 +108,7 @@ export async function recordViewerAnalytics({
     }))
   }
 
-  return { ok: true as const, recorded: events.length }
+  return { ok: true as const, recorded: recordedCount }
 }
 
 function buildSessionUpdate(

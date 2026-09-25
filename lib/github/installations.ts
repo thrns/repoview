@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { requireWorkspaceAdmin } from '../auth/workspace'
 import { createSupabaseAdminClient } from '../supabase/admin'
 import type { Json, Tables } from '../supabase/database.types'
-import { assertWorkspaceResourceQuota } from '../security/quotas'
+import { finalizeResourceQuota, releaseResourceQuota, reserveResourceQuota, type ResourceQuotaReservation } from '../security/quotas'
 import { AUDIT_ACTIONS, recordAuditLogBestEffort } from '../audit-log'
 
 const GitHubAccountLoginMaxLength = 100
@@ -66,32 +66,53 @@ export async function registerVerifiedGitHubInstallation(
   }
 
   const shouldConsumeInstallationSlot = !existing || existing.status === 'deleted'
-  if (shouldConsumeInstallationSlot) {
-    await assertWorkspaceResourceQuota('github-installations', workspace.id, 1, supabase)
+  let resourceReservation: ResourceQuotaReservation | null = null
+  let saved = false
+  try {
+    if (shouldConsumeInstallationSlot) {
+      resourceReservation = await reserveResourceQuota('github-installations', workspace.id, `github-installation:${parsed.id}`, supabase)
+    }
+
+    const query = existing
+      ? supabase.from('github_installations').update(providerFields).eq('id', existing.id).eq('workspace_id', workspace.id)
+      : supabase.from('github_installations').insert({ workspace_id: workspace.id, ...providerFields })
+    const { data, error } = await query.select('*').single()
+
+    if (error || !data) {
+      throw new Error('RepoView could not save the GitHub App installation.')
+    }
+    saved = true
+    if (resourceReservation) {
+      try {
+        await finalizeResourceQuota(resourceReservation, supabase)
+      } catch {
+        // The actual row is durable; an expired reservation is safe to reap.
+      }
+    }
+
+    await recordAuditLogBestEffort({
+      workspaceId: workspace.id,
+      actorUserId: user.id,
+      action: AUDIT_ACTIONS.githubInstallationConnected,
+      resourceType: 'github_installation',
+      resourceId: data.id,
+      metadata: {
+        account: parsed.account.login,
+        account_type: parsed.account.type,
+        repository_selection: parsed.repository_selection,
+        reconnected: existing?.status === 'deleted',
+      },
+    }, supabase)
+
+    return data
+  } catch (error) {
+    if (!saved && resourceReservation) {
+      try {
+        await releaseResourceQuota(resourceReservation, supabase)
+      } catch {
+        // The short reservation lease remains bounded if cleanup is unavailable.
+      }
+    }
+    throw error
   }
-
-  const query = existing
-    ? supabase.from('github_installations').update(providerFields).eq('id', existing.id).eq('workspace_id', workspace.id)
-    : supabase.from('github_installations').insert({ workspace_id: workspace.id, ...providerFields })
-  const { data, error } = await query.select('*').single()
-
-  if (error || !data) {
-    throw new Error('RepoView could not save the GitHub App installation.')
-  }
-
-  await recordAuditLogBestEffort({
-    workspaceId: workspace.id,
-    actorUserId: user.id,
-    action: AUDIT_ACTIONS.githubInstallationConnected,
-    resourceType: 'github_installation',
-    resourceId: data.id,
-    metadata: {
-      account: parsed.account.login,
-      account_type: parsed.account.type,
-      repository_selection: parsed.repository_selection,
-      reconnected: existing?.status === 'deleted',
-    },
-  }, supabase)
-
-  return data
 }

@@ -1,5 +1,4 @@
 import { ArrowRight, Github, ShieldCheck } from 'lucide-react'
-import Link from 'next/link'
 
 import { Alert, AlertDescription, AlertTitle, Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui'
 import type { Tables } from '@/lib/supabase/database.types'
@@ -101,10 +100,10 @@ export function GitHubConnectionCard({
           </p>
         )}
         {canConnect ? (
-          <Link prefetch={false} href="/api/github/connect" className="inline-flex h-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <a href="/api/github/connect" className="inline-flex h-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             {activeInstallations.length > 0 ? 'Connect another GitHub account' : 'Connect GitHub'}
             <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
+          </a>
         ) : null}
         {activeInstallations.length > 0 ? (
           <p className="text-xs text-foreground-muted">Repository access is selected separately on the Repositories page.</p>

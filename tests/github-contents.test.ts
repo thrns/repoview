@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 vi.mock('../lib/github/client', () => ({
-  getGitHubInstallationClient: vi.fn(),
+  getGitHubInstallationClientForInstallation: vi.fn(),
 }))
 
-import { getGitHubInstallationClient } from '../lib/github/client'
+import { getGitHubInstallationClientForInstallation } from '../lib/github/client'
 import {
   GitHubFileError,
   loadRepositoryAsset,
@@ -14,7 +14,10 @@ import {
   MAX_TEXT_PREVIEW_BYTES,
 } from '../lib/github/contents'
 
-const getClient = vi.mocked(getGitHubInstallationClient)
+const getClient = vi.mocked(getGitHubInstallationClientForInstallation)
+
+const installationRecordId = 'installation-record-id'
+const workspaceId = 'workspace-id'
 
 describe('GitHub repository file loading', () => {
   it('fetches text server-side, decodes it, and does not return provider URLs', async () => {
@@ -29,7 +32,7 @@ describe('GitHub repository file loading', () => {
     })
     getClient.mockReturnValue({ rest: { repos: { getContent } } } as never)
 
-    await expect(loadRepositoryFile('octocat', 'hello-world', '/src/README.md', 'main', 5678)).resolves.toEqual({
+    await expect(loadRepositoryFile('octocat', 'hello-world', '/src/README.md', 'main', installationRecordId, workspaceId)).resolves.toEqual({
       kind: 'text',
       path: 'src/README.md',
       size: 13,
@@ -50,13 +53,13 @@ describe('GitHub repository file loading', () => {
       .mockResolvedValueOnce({ data: { type: 'file', size: MAX_TEXT_PREVIEW_BYTES + 1, encoding: 'none', content: '' } })
     getClient.mockReturnValue({ rest: { repos: { getContent } } } as never)
 
-    await expect(loadRepositoryFile('octocat', 'hello-world', 'logo.png', 'main', 5678)).resolves.toEqual({
+    await expect(loadRepositoryFile('octocat', 'hello-world', 'logo.png', 'main', installationRecordId, workspaceId)).resolves.toEqual({
       kind: 'image',
       path: 'logo.png',
       size: 12,
       mediaType: 'image/png',
     })
-    await expect(loadRepositoryFile('octocat', 'hello-world', 'large.txt', 'main', 5678)).resolves.toMatchObject({
+    await expect(loadRepositoryFile('octocat', 'hello-world', 'large.txt', 'main', installationRecordId, workspaceId)).resolves.toMatchObject({
       kind: 'unavailable',
       reason: 'oversized',
       message: 'Preview unavailable.',
@@ -76,11 +79,11 @@ describe('GitHub repository file loading', () => {
       .mockRejectedValueOnce({ status: 404 })
     getClient.mockReturnValue({ rest: { repos: { getContent } } } as never)
 
-    await expect(loadRepositoryFile('octocat', 'hello-world', 'data.txt', 'main', 5678)).resolves.toMatchObject({
+    await expect(loadRepositoryFile('octocat', 'hello-world', 'data.txt', 'main', installationRecordId, workspaceId)).resolves.toMatchObject({
       kind: 'unavailable',
       reason: 'binary',
     })
-    const missingFile = loadRepositoryFile('octocat', 'hello-world', 'missing.txt', 'main', 5678)
+    const missingFile = loadRepositoryFile('octocat', 'hello-world', 'missing.txt', 'main', installationRecordId, workspaceId)
     await expect(missingFile).rejects.toMatchObject({
       code: 'not_found',
     })
@@ -97,14 +100,14 @@ describe('GitHub repository file loading', () => {
       .mockResolvedValueOnce({ data: { type: 'file', size: MAX_ASSET_PREVIEW_BYTES + 1, encoding: 'none', content: '' } })
     getClient.mockReturnValue({ rest: { repos: { getContent } } } as never)
 
-    await expect(loadRepositoryAsset('octocat', 'hello-world', 'docs/diagram.png', 'main', 5678)).resolves.toMatchObject({
+    await expect(loadRepositoryAsset('octocat', 'hello-world', 'docs/diagram.png', 'main', installationRecordId, workspaceId)).resolves.toMatchObject({
       path: 'docs/diagram.png',
       size: bytes.length,
       mediaType: 'image/png',
       bytes,
     })
-    await expect(loadRepositoryAsset('octocat', 'hello-world', 'docs/readme.txt', 'main', 5678)).rejects.toMatchObject({ code: 'not_a_file' })
-    await expect(loadRepositoryAsset('octocat', 'hello-world', 'docs/large.png', 'main', 5678)).rejects.toMatchObject({ status: 413 })
+    await expect(loadRepositoryAsset('octocat', 'hello-world', 'docs/readme.txt', 'main', installationRecordId, workspaceId)).rejects.toMatchObject({ code: 'not_a_file' })
+    await expect(loadRepositoryAsset('octocat', 'hello-world', 'docs/large.png', 'main', installationRecordId, workspaceId)).rejects.toMatchObject({ status: 413 })
   })
 
   it('falls back to the authenticated Git Blob API when Contents omits inline image bytes', async () => {
@@ -125,7 +128,7 @@ describe('GitHub repository file loading', () => {
     })
     getClient.mockReturnValue({ rest: { repos: { getContent }, git: { getBlob } } } as never)
 
-    await expect(loadRepositoryAsset('octocat', 'hello-world', 'docs/large.png', 'main', 5678)).resolves.toMatchObject({
+    await expect(loadRepositoryAsset('octocat', 'hello-world', 'docs/large.png', 'main', installationRecordId, workspaceId)).resolves.toMatchObject({
       path: 'docs/large.png',
       mediaType: 'image/png',
       bytes,

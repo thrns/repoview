@@ -12,7 +12,7 @@ vi.mock('../lib/github/client', async () => {
   const actual = await vi.importActual<typeof import('../lib/github/client')>('../lib/github/client')
   return {
     ...actual,
-    getGitHubAppInstallation: vi.fn(),
+    getGitHubAppInstallationByProviderId: vi.fn(),
   }
 })
 vi.mock('../lib/github/installations', () => ({
@@ -24,7 +24,7 @@ vi.mock('../lib/github/repositories', () => ({
 
 import { requireWorkspaceAdmin } from '../lib/auth/workspace'
 import { createSupabaseAdminClient } from '../lib/supabase/admin'
-import { getGitHubAppInstallation } from '../lib/github/client'
+import { getGitHubAppInstallationByProviderId } from '../lib/github/client'
 import { registerVerifiedGitHubInstallation } from '../lib/github/installations'
 import { listInstallationRepositories } from '../lib/github/repositories'
 import {
@@ -35,7 +35,7 @@ import {
 
 const getContext = vi.mocked(requireWorkspaceAdmin)
 const getAdmin = vi.mocked(createSupabaseAdminClient)
-const getAppInstallation = vi.mocked(getGitHubAppInstallation)
+const getAppInstallation = vi.mocked(getGitHubAppInstallationByProviderId)
 const registerInstallation = vi.mocked(registerVerifiedGitHubInstallation)
 const listRepositories = vi.mocked(listInstallationRepositories)
 const originalFetch = globalThis.fetch
@@ -149,7 +149,7 @@ describe('GitHub App connection flow', () => {
       returnPath: '/dashboard/settings',
     })
     expect(registerInstallation).toHaveBeenCalledWith('workspace-1', expect.objectContaining({ id: 777, app_id: 1234 }))
-    expect(listRepositories).toHaveBeenCalledWith(777, 'installation-record-1')
+    expect(listRepositories).toHaveBeenCalledWith('installation-record-1', 'workspace-1', 'member')
   })
 })
 

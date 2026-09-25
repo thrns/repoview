@@ -13,6 +13,10 @@ import {
 type AdminClient = ReturnType<typeof createSupabaseAdminClient>
 type RetentionTable =
   | 'audit_logs'
+  | 'account_deletion_jobs'
+  | 'account_lifecycle_audit'
+  | 'account_step_up_confirmations'
+  | 'github_webhook_deliveries'
   | 'file_engagement'
   | 'github_connection_transactions'
   | 'github_installations'
@@ -22,11 +26,13 @@ type RetentionTable =
   | 'repositories'
   | 'rate_limit_buckets'
   | 'quota_counters'
+  | 'quota_resource_reservations'
   | 'retention_cleanup_runs'
   | 'share_access_attempts'
   | 'share_recipients'
   | 'shares'
   | 'system_admin_audit_logs'
+  | 'viewer_privacy_preferences'
   | 'viewer_sessions'
   | 'view_events'
   | 'viewers'
@@ -72,6 +78,7 @@ const WORKSPACE_DATA_TABLES: Array<{ table: RetentionTable; column: string }> = 
   { table: 'notification_settings', column: 'workspace_id' },
   { table: 'audit_logs', column: 'workspace_id' },
   { table: 'quota_counters', column: 'workspace_id' },
+  { table: 'quota_resource_reservations', column: 'workspace_id' },
   { table: 'workspace_members', column: 'workspace_id' },
 ]
 
@@ -95,6 +102,12 @@ export async function runRetentionCleanup({
     networkLocationMetadata: getRetentionCutoff(now, RETENTION_DAYS.networkLocationMetadata),
     shareAccessAttempts: getRetentionCutoff(now, RETENTION_DAYS.shareAccessAttempts),
     notificationDeliveryLogs: getRetentionCutoff(now, RETENTION_DAYS.notificationDeliveryLogs),
+    githubWebhookDeliveries: getRetentionCutoff(now, RETENTION_DAYS.githubWebhookDeliveries),
+    retentionCleanupRuns: getRetentionCutoff(now, RETENTION_DAYS.retentionCleanupRuns),
+    viewerPrivacyPreferences: getRetentionCutoff(now, RETENTION_DAYS.viewerPrivacyPreferences),
+    accountDeletionJobs: getRetentionCutoff(now, RETENTION_DAYS.accountDeletionJobs),
+    accountLifecycleAudit: getRetentionCutoff(now, RETENTION_DAYS.accountLifecycleAudit),
+    systemAdminAuditLogs: getRetentionCutoff(now, RETENTION_DAYS.systemAdminAuditLogs),
     revokedExpiredShareMetadata: getRetentionCutoff(now, RETENTION_DAYS.revokedExpiredShareMetadata),
     deletedAccountsWorkspaces: getRetentionCutoff(now, RETENTION_DAYS.deletedAccountsWorkspaces),
     securityAuditLogs: getRetentionCutoff(now, RETENTION_DAYS.securityAuditLogs),
@@ -108,15 +121,24 @@ export async function runRetentionCleanup({
   processed.repositoryEvents = await deleteOldRowsByAnalyticsRetention(admin, 'repository_events', 'occurred_at', analyticsRetentionGroups, now, batchSize, maxBatches)
   processed.fileEngagement = await deleteOldRowsByAnalyticsRetention(admin, 'file_engagement', 'last_viewed_at', analyticsRetentionGroups, now, batchSize, maxBatches)
   processed.notificationDeliveryLogs = await deleteOldRows(admin, 'notification_deliveries', 'created_at', cutoffs.notificationDeliveryLogs, batchSize, maxBatches)
+  processed.githubWebhookDeliveries = await deleteOldWebhookDeliveries(admin, cutoffs.githubWebhookDeliveries, batchSize, maxBatches)
+  processed.expiredGithubConnectionTransactions = await deleteOldRows(admin, 'github_connection_transactions', 'expires_at', now, batchSize, maxBatches)
+  processed.expiredAccountStepUpConfirmations = await deleteOldRows(admin, 'account_step_up_confirmations', 'expires_at', now, batchSize, maxBatches)
+  processed.viewerPrivacyPreferences = await deleteOldRows(admin, 'viewer_privacy_preferences', 'updated_at', cutoffs.viewerPrivacyPreferences, batchSize, maxBatches)
   processed.shareAccessAttempts = await deleteOldRows(admin, 'share_access_attempts', 'created_at', cutoffs.shareAccessAttempts, batchSize, maxBatches)
   processed.securityAuditLogs = await deleteOldRows(admin, 'audit_logs', 'created_at', cutoffs.securityAuditLogs, batchSize, maxBatches)
-  processed.systemAdminAuditLogs = await deleteOldRows(admin, 'system_admin_audit_logs', 'created_at', cutoffs.securityAuditLogs, batchSize, maxBatches)
+  processed.systemAdminAuditLogs = await deleteOldRows(admin, 'system_admin_audit_logs', 'created_at', cutoffs.systemAdminAuditLogs, batchSize, maxBatches)
+  processed.retentionCleanupRuns = await deleteOldRetentionCleanupRuns(admin, cutoffs.retentionCleanupRuns, now, batchSize, maxBatches)
+  processed.accountDeletionJobHistory = await deleteOldLifecycleRows(admin, 'account_deletion_jobs', cutoffs.accountDeletionJobs, batchSize, maxBatches)
+  processed.accountLifecycleAudit = await deleteOldLifecycleRows(admin, 'account_lifecycle_audit', cutoffs.accountLifecycleAudit, batchSize, maxBatches)
   processed.rateLimitBuckets = await deleteOldRateLimitBuckets(admin, cutoffs.rateLimitBuckets, batchSize, maxBatches)
   processed.quotaCounters = await deleteOldQuotaCounters(admin, cutoffs.quotaCounters, batchSize, maxBatches)
+  processed.quotaResourceReservations = await deleteOldRows(admin, 'quota_resource_reservations', 'expires_at', now, batchSize, maxBatches)
   processed.networkLocationMetadata = await scrubNetworkLocationMetadata(admin, cutoffs.networkLocationMetadata, referenceTime, batchSize, maxBatches)
+  processed.analyticsDependentNotificationDeliveries = await deleteNotificationDeliveriesForOldSessions(admin, analyticsRetentionGroups, now, batchSize, maxBatches)
   processed.viewerSessions = await deleteOldViewerSessions(admin, analyticsRetentionGroups, now, batchSize, maxBatches)
   processed.persistentViewerIdentifiers = await deleteOldViewerIdentifiers(admin, analyticsRetentionGroups, now, batchSize, maxBatches)
-  processed.revokedExpiredShares = await scrubAndDeleteRevokedExpiredShares(admin, cutoffs.revokedExpiredShareMetadata, referenceTime, batchSize)
+  processed.revokedExpiredShares = await scrubAndDeleteRevokedExpiredShares(admin, cutoffs.revokedExpiredShareMetadata, referenceTime, batchSize, maxBatches)
   const accountDeletion = await runAccountDeletionCleanup({ admin, batchSize })
   processed.accountDeletionJobs = accountDeletion.jobsCompleted + accountDeletion.jobsFailed
   processed.accountDeletionRows = accountDeletion.rowsDeleted
@@ -193,6 +215,76 @@ async function deleteOldRows(admin: AdminClient, table: RetentionTable, column: 
   return processed
 }
 
+async function deleteOldWebhookDeliveries(admin: AdminClient, cutoff: Date, batchSize: number, maxBatches: number) {
+  let processed = 0
+  for (let batch = 0; batch < maxBatches; batch += 1) {
+    const { data, error } = await admin
+      .from('github_webhook_deliveries')
+      .select('delivery_id')
+      .lt('received_at', cutoff.toISOString())
+      .order('received_at', { ascending: true })
+      .limit(batchSize)
+    if (error) throw error
+    const deliveryIds = ((data ?? []) as Array<{ delivery_id?: string }>).flatMap((row) => row.delivery_id ? [row.delivery_id] : [])
+    if (deliveryIds.length === 0) break
+    const { error: deleteError } = await admin
+      .from('github_webhook_deliveries')
+      .delete()
+      .in('delivery_id', deliveryIds)
+    if (deleteError) throw deleteError
+    processed += deliveryIds.length
+    if (deliveryIds.length < batchSize) break
+  }
+  return processed
+}
+
+async function deleteOldLifecycleRows(admin: AdminClient, table: 'account_deletion_jobs' | 'account_lifecycle_audit', cutoff: Date, batchSize: number, maxBatches: number) {
+  // Incomplete deletion work is deliberately never reaped by retention:
+  // failed jobs and their lifecycle record remain observable and retryable.
+  // Only completed progress ledgers are aged out.
+  let processed = 0
+  for (let batch = 0; batch < maxBatches; batch += 1) {
+    const { data, error } = await admin
+      .from(table)
+      .select('id')
+      .in('status', ['completed'])
+      .lt('updated_at', cutoff.toISOString())
+      .order('updated_at', { ascending: true })
+      .limit(batchSize)
+    if (error) throw error
+    const ids = rowsToIds(data)
+    if (ids.length === 0) break
+    await deleteIds(admin, table, ids)
+    processed += ids.length
+    if (ids.length < batchSize) break
+  }
+  return processed
+}
+
+async function deleteOldRetentionCleanupRuns(admin: AdminClient, cutoff: Date, now: Date, batchSize: number, maxBatches: number) {
+  // A run that stopped in `running` is retained long enough to be diagnosed,
+  // then converted to a bounded failed record before normal retention applies.
+  const staleCutoff = getRetentionCutoff(now, 1)
+  const { data: staleRuns, error: staleLookupError } = await admin
+    .from('retention_cleanup_runs')
+    .select('id')
+    .eq('status', 'running')
+    .lt('started_at', staleCutoff.toISOString())
+    .order('started_at', { ascending: true })
+    .limit(batchSize)
+  if (staleLookupError) throw staleLookupError
+  const staleIds = rowsToIds(staleRuns)
+  if (staleIds.length > 0) {
+    const { error: staleError } = await admin
+      .from('retention_cleanup_runs')
+      .update({ status: 'failed', completed_at: now.toISOString(), error: 'stale_run' } as never)
+      .in('id', staleIds as never)
+    if (staleError) throw staleError
+  }
+
+  return deleteOldRows(admin, 'retention_cleanup_runs', 'completed_at', cutoff, batchSize, maxBatches)
+}
+
 async function deleteOldRowsByAnalyticsRetention(
   admin: AdminClient,
   table: RetentionTable,
@@ -265,7 +357,6 @@ async function deleteOldViewerSessions(admin: AdminClient, groups: AnalyticsRete
           { table: 'view_events', column: 'session_id' },
           { table: 'repository_events', column: 'session_id' },
           { table: 'file_engagement', column: 'session_id' },
-          { table: 'notification_deliveries', column: 'session_id' },
         ], id)
         if (!hasRecentDependency) deletable.push(id)
       }
@@ -274,6 +365,21 @@ async function deleteOldViewerSessions(admin: AdminClient, groups: AnalyticsRete
         processed += deletable.length
       }
       if (ids.length < groupLimit || deletable.length === 0) break
+    }
+  }
+  return processed
+}
+
+async function deleteNotificationDeliveriesForOldSessions(admin: AdminClient, groups: AnalyticsRetentionGroup[], now: Date, batchSize: number, maxBatches: number) {
+  let processed = 0
+  const groupLimit = Math.max(1, Math.floor(batchSize / Math.max(groups.length, 1)))
+  for (const group of groups) {
+    const cutoff = getRetentionCutoff(now, group.days)
+    for (let batch = 0; batch < maxBatches; batch += 1) {
+      const sessionIds = await fetchOldIdsForWorkspaces(admin, 'viewer_sessions', 'last_seen_at', cutoff, group.workspaceIds, groupLimit)
+      if (sessionIds.length === 0) break
+      processed += await deleteRowsForValues(admin, 'notification_deliveries', 'session_id', sessionIds, batchSize, maxBatches)
+      if (sessionIds.length < groupLimit) break
     }
   }
   return processed
@@ -303,7 +409,7 @@ async function deleteOldViewerIdentifiers(admin: AdminClient, groups: AnalyticsR
   return processed
 }
 
-async function scrubAndDeleteRevokedExpiredShares(admin: AdminClient, cutoff: Date, scrubbedAt: string, batchSize: number) {
+async function scrubAndDeleteRevokedExpiredShares(admin: AdminClient, cutoff: Date, scrubbedAt: string, batchSize: number, maxBatches: number) {
   const { data, error } = await admin
     .from('shares')
     .select('id, retention_scrubbed_at')
@@ -317,6 +423,7 @@ async function scrubAndDeleteRevokedExpiredShares(admin: AdminClient, cutoff: Da
   const ids = candidates.map((candidate) => candidate.id)
   const { error: recipientError } = await admin.from('share_recipients').delete().in('share_id', ids)
   if (recipientError) throw recipientError
+  await deleteRowsForValues(admin, 'notification_deliveries', 'share_id', ids, batchSize, maxBatches)
 
   const unscrubbedIds = candidates.filter((candidate) => !candidate.retention_scrubbed_at).map((candidate) => candidate.id)
   if (unscrubbedIds.length > 0) {
@@ -414,6 +521,31 @@ async function getAnalyticsRetentionGroups(admin: AdminClient): Promise<Analytic
 async function deleteIds(admin: AdminClient, table: RetentionTable, ids: Array<string | number>) {
   const { error } = await admin.from(table).delete().in('id', ids as never)
   if (error) throw error
+}
+
+async function deleteRowsForValues(
+  admin: AdminClient,
+  table: 'notification_deliveries',
+  column: string,
+  values: Array<string | number>,
+  batchSize: number,
+  maxBatches: number,
+) {
+  let processed = 0
+  for (let batch = 0; batch < maxBatches; batch += 1) {
+    const { data, error } = await admin
+      .from(table)
+      .select('id')
+      .in(column, values as never)
+      .limit(batchSize)
+    if (error) throw error
+    const ids = rowsToIds(data)
+    if (ids.length === 0) break
+    await deleteIds(admin, table, ids)
+    processed += ids.length
+    if (ids.length < batchSize) break
+  }
+  return processed
 }
 
 async function hasAnyRows(admin: AdminClient, dependencies: Array<{ table: RetentionTable; column: string }>, value: string | number) {

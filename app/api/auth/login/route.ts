@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import { checkPublicRateLimit, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../lib/security/rate-limit'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
+import { isRequestBodyTooLarge, readJsonBody } from '../../../../lib/security/body-limit'
 
 export const runtime = 'nodejs'
 
@@ -10,12 +11,14 @@ const requestSchema = z.object({
   email: z.string().trim().email().max(320),
   password: z.string().min(1).max(1024),
 })
+const MAX_AUTH_BODY_BYTES = 16 * 1024
 
 export async function POST(request: Request) {
   let input: z.infer<typeof requestSchema>
   try {
-    input = requestSchema.parse(await request.json())
-  } catch {
+    input = requestSchema.parse(await readJsonBody(request, MAX_AUTH_BODY_BYTES))
+  } catch (error) {
+    if (isRequestBodyTooLarge(error)) return json({ error: 'payload_too_large' }, 413)
     return json({ error: 'invalid_request' }, 400)
   }
 

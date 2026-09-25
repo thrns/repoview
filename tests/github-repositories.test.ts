@@ -2,19 +2,20 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 vi.mock('../lib/github/client', () => ({
-  getGitHubInstallationClient: vi.fn(),
+  getGitHubInstallationClientForInstallation: vi.fn(),
 }))
 
-import { getGitHubInstallationClient } from '../lib/github/client'
+import { getGitHubInstallationClientForInstallation } from '../lib/github/client'
 import {
   getRepositoryMetadata,
+  getRepositoryMetadataById,
   getRepositoryRef,
   listInstallationRepositories,
   listRepositoryBranches,
 } from '../lib/github/repositories'
 import { GitHubRepositoryError } from '../lib/github/types'
 
-const getClient = vi.mocked(getGitHubInstallationClient)
+const getClient = vi.mocked(getGitHubInstallationClientForInstallation)
 
 const repository = {
   id: 42,
@@ -39,7 +40,7 @@ describe('GitHub installation repositories', () => {
       rest: { apps: { listReposAccessibleToInstallation: endpoint } },
     } as never)
 
-    await expect(listInstallationRepositories(5678, 'installation-record-id')).resolves.toEqual([{
+    await expect(listInstallationRepositories('installation-record-id', 'workspace-id')).resolves.toEqual([{
       githubRepositoryId: 42,
       githubNodeId: 'MDEwOlJlcG9zaXRvcnk0Mg==',
       installationRecordId: 'installation-record-id',
@@ -60,11 +61,25 @@ describe('GitHub installation repositories', () => {
     const get = vi.fn().mockResolvedValue({ data: repository })
     getClient.mockReturnValue({ rest: { repos: { get } } } as never)
 
-    await expect(getRepositoryMetadata('octocat', 'hello-world', 5678, 'installation-record-id')).resolves.toMatchObject({
+    await expect(getRepositoryMetadata('octocat', 'hello-world', 'installation-record-id', 'workspace-id')).resolves.toMatchObject({
       fullName: 'octocat/hello-world',
       defaultBranch: 'main',
     })
     expect(get).toHaveBeenCalledWith({ owner: 'octocat', repo: 'hello-world' })
+  })
+
+  it('resolves repository metadata by stable GitHub repository id', async () => {
+    const request = vi.fn().mockResolvedValue({ data: repository })
+    getClient.mockReturnValue({ request } as never)
+
+    await expect(getRepositoryMetadataById(42, 'installation-record-id', 'workspace-id')).resolves.toMatchObject({
+      githubRepositoryId: 42,
+      fullName: 'octocat/hello-world',
+    })
+    expect(request).toHaveBeenCalledWith('GET /repositories/{repository_id}', {
+      repository_id: 42,
+      headers: { Accept: 'application/vnd.github+json' },
+    })
   })
 
   it('lists branch refs and validates a selected ref through GitHub', async () => {
@@ -84,10 +99,10 @@ describe('GitHub installation repositories', () => {
       },
     } as never)
 
-    await expect(listRepositoryBranches('octocat', 'hello-world', 5678)).resolves.toEqual([
+    await expect(listRepositoryBranches('octocat', 'hello-world', 'installation-record-id', 'workspace-id')).resolves.toEqual([
       { name: 'main', sha: 'abc123', protected: true },
     ])
-    await expect(getRepositoryRef('octocat', 'hello-world', 'refs/heads/main', 5678)).resolves.toEqual({
+    await expect(getRepositoryRef('octocat', 'hello-world', 'refs/heads/main', 'installation-record-id', 'workspace-id')).resolves.toEqual({
       name: 'heads/main',
       ref: 'refs/heads/main',
       sha: 'abc123',
@@ -111,7 +126,7 @@ describe('GitHub installation repositories', () => {
       rest: { apps: { listReposAccessibleToInstallation: vi.fn() } },
     } as never)
 
-    const result = listInstallationRepositories(5678, 'installation-record-id')
+    const result = listInstallationRepositories('installation-record-id', 'workspace-id')
 
     await expect(result).rejects.toMatchObject({ code })
     await expect(result).rejects.toBeInstanceOf(GitHubRepositoryError)

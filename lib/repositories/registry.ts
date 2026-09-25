@@ -6,7 +6,7 @@ import { findRegisteredRepository } from './identity'
 import { createSupabaseServerClient } from '../supabase/server'
 import type { VisibilityRules } from '../security/visibility'
 import type { Tables } from '../supabase/database.types'
-import { assertWorkspaceResourceQuota } from '../security/quotas'
+import { finalizeResourceQuota, releaseResourceQuota, reserveResourceQuota, type ResourceQuotaReservation } from '../security/quotas'
 import { AUDIT_ACTIONS, recordAuditLogBestEffort } from '../audit-log'
 
 export type RepositoryRecord = Tables<'repositories'>
@@ -100,7 +100,6 @@ export async function saveRepositoryRecord(input: {
       : { data: null, error: null }
     if (existing.error) throw new Error('RepoView could not inspect this repository record.')
     existingEnabled = existing.data?.enabled ?? null
-    if (!existing.data?.enabled) await assertWorkspaceResourceQuota('enabled-repositories', workspace.id)
   } else if (input.existingRepositoryId) {
     const existing = await supabase
       .from('repositories')
@@ -154,32 +153,62 @@ export async function saveRepositoryRecord(input: {
       .from('repositories')
       .upsert(repositoryFields, { onConflict: 'workspace_id,github_repository_id' })
 
-  const { data: savedRepository, error } = await query.select('id').maybeSingle()
+  let resourceReservation: ResourceQuotaReservation | null = null
+  let saved = false
+  try {
+    if (input.enabled && existingEnabled !== true) {
+      resourceReservation = await reserveResourceQuota(
+        'enabled-repositories',
+        workspace.id,
+        `repository:${input.existingRepositoryId ?? input.githubRepositoryId}`,
+      )
+    }
 
-  if (error || !savedRepository) {
-    throw new Error('RepoView could not save this repository record.')
-  }
+    const { data: savedRepository, error } = await query.select('id').maybeSingle()
 
-  if (!input.existingRepositoryId) {
-    await recordAuditLogBestEffort({
-      workspaceId: workspace.id,
-      actorUserId: user.id,
-      action: AUDIT_ACTIONS.repositoryConnected,
-      resourceType: 'repository',
-      resourceId: savedRepository.id,
-      metadata: { repository: `${input.githubOwner}/${input.githubRepo}`, github_repository_id: input.githubRepositoryId },
-    })
-  }
+    if (error || !savedRepository) {
+      throw new Error('RepoView could not save this repository record.')
+    }
+    saved = true
+    if (resourceReservation) {
+      try {
+        await finalizeResourceQuota(resourceReservation)
+      } catch {
+        // The enabled repository row is durable; the bounded reservation lease
+        // prevents a finalization outage from making capacity permanently stale.
+      }
+    }
 
-  if (existingEnabled !== input.enabled) {
-    await recordAuditLogBestEffort({
-      workspaceId: workspace.id,
-      actorUserId: user.id,
-      action: input.enabled ? AUDIT_ACTIONS.repositoryEnabled : AUDIT_ACTIONS.repositoryDisabled,
-      resourceType: 'repository',
-      resourceId: savedRepository.id,
-      metadata: { repository: `${input.githubOwner}/${input.githubRepo}` },
-    })
+    if (!input.existingRepositoryId) {
+      await recordAuditLogBestEffort({
+        workspaceId: workspace.id,
+        actorUserId: user.id,
+        action: AUDIT_ACTIONS.repositoryConnected,
+        resourceType: 'repository',
+        resourceId: savedRepository.id,
+        metadata: { repository: `${input.githubOwner}/${input.githubRepo}`, github_repository_id: input.githubRepositoryId },
+      })
+    }
+
+    if (existingEnabled !== input.enabled) {
+      await recordAuditLogBestEffort({
+        workspaceId: workspace.id,
+        actorUserId: user.id,
+        action: input.enabled ? AUDIT_ACTIONS.repositoryEnabled : AUDIT_ACTIONS.repositoryDisabled,
+        resourceType: 'repository',
+        resourceId: savedRepository.id,
+        metadata: { repository: `${input.githubOwner}/${input.githubRepo}` },
+      })
+    }
+  } catch (error) {
+    if (!saved && resourceReservation) {
+      try {
+        await releaseResourceQuota(resourceReservation)
+      } catch {
+        // The short reservation lease bounds recovery if the database is down.
+      }
+    }
+    throw error
   }
 }
 
@@ -215,24 +244,47 @@ export async function updateRepositoryVisibilityRules(id: string, rules: Visibil
 export async function setRepositoryEnabled(id: string, enabled: boolean) {
   const access = await requireRepositoryAccess(id)
   await requireWorkspaceRole(access.workspace.id, ['owner', 'admin'])
-  if (enabled && !access.repository.enabled) await assertWorkspaceResourceQuota('enabled-repositories', access.workspace.id)
   const supabase = await createSupabaseServerClient()
-  const { error } = await supabase
-    .from('repositories')
-    .update({ enabled })
-    .eq('id', id)
-    .eq('workspace_id', access.workspace.id)
+  let resourceReservation: ResourceQuotaReservation | null = null
+  let saved = false
+  try {
+    if (enabled && !access.repository.enabled) {
+      resourceReservation = await reserveResourceQuota('enabled-repositories', access.workspace.id, `repository:${id}`)
+    }
+    const { error } = await supabase
+      .from('repositories')
+      .update({ enabled })
+      .eq('id', id)
+      .eq('workspace_id', access.workspace.id)
 
-  if (error) {
-    throw new Error('RepoView could not update this repository record.')
+    if (error) {
+      throw new Error('RepoView could not update this repository record.')
+    }
+    saved = true
+    if (resourceReservation) {
+      try {
+        await finalizeResourceQuota(resourceReservation)
+      } catch {
+        // The repository state is durable; the reservation expires safely.
+      }
+    }
+
+    await recordAuditLogBestEffort({
+      workspaceId: access.workspace.id,
+      actorUserId: access.user.id,
+      action: enabled ? AUDIT_ACTIONS.repositoryEnabled : AUDIT_ACTIONS.repositoryDisabled,
+      resourceType: 'repository',
+      resourceId: id,
+      metadata: { repository: `${access.repository.github_owner}/${access.repository.github_repo}` },
+    })
+  } catch (error) {
+    if (!saved && resourceReservation) {
+      try {
+        await releaseResourceQuota(resourceReservation)
+      } catch {
+        // The short reservation lease bounds recovery if the database is down.
+      }
+    }
+    throw error
   }
-
-  await recordAuditLogBestEffort({
-    workspaceId: access.workspace.id,
-    actorUserId: access.user.id,
-    action: enabled ? AUDIT_ACTIONS.repositoryEnabled : AUDIT_ACTIONS.repositoryDisabled,
-    resourceType: 'repository',
-    resourceId: id,
-    metadata: { repository: `${access.repository.github_owner}/${access.repository.github_repo}` },
-  })
 }

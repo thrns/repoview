@@ -3,6 +3,7 @@
 import { AlertTriangle, Expand, Focus, Minus, Move, Plus, RefreshCcw } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useCallback, useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { sanitizeMermaidSvg } from '../../lib/viewer/mermaid-sanitize'
 import { useViewerAnalytics } from './viewer-analytics'
 
 type DiagramView = { scale: number; x: number; y: number }
@@ -66,13 +67,20 @@ export function MermaidDiagram({ chart, analyticsPath }: { chart: string; analyt
         configureMermaid(mermaid, theme)
         const result = await mermaid.render(`repo-view-mermaid-${id}`, chart)
         if (cancelled) return
-        renderedDiagramCache.set(cacheKey, result.svg)
+        const sanitizedSvg = sanitizeMermaidSvg(result.svg)
+        if (!sanitizedSvg) {
+          setError(true)
+          setIsRendering(false)
+          return
+        }
+
+        renderedDiagramCache.set(cacheKey, sanitizedSvg)
         while (renderedDiagramCache.size > MAX_RENDERED_DIAGRAMS) {
           const oldestKey = renderedDiagramCache.keys().next().value
           if (!oldestKey) break
           renderedDiagramCache.delete(oldestKey)
         }
-        setSvg(result.svg)
+        setSvg(sanitizedSvg)
         setIsRendering(false)
       } catch {
         if (!cancelled) {

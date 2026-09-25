@@ -5,17 +5,14 @@ vi.mock('../lib/auth/viewer-session', () => ({
   ViewerAuthorizationError: class ViewerAuthorizationError extends Error {},
   requireViewerSession: vi.fn(),
 }))
-vi.mock('../lib/github/client', () => ({ getGitHubInstallationIdForRepository: vi.fn() }))
-vi.mock('../lib/github/repositories', () => ({ listInstallationRepositories: vi.fn() }))
+vi.mock('../lib/repositories/synchronize', () => ({ synchronizeRepositoryForGitHub: vi.fn() }))
 
 import { requireViewerRepositoryAccess } from '../lib/auth/viewer-access'
 import { requireViewerSession } from '../lib/auth/viewer-session'
-import { getGitHubInstallationIdForRepository } from '../lib/github/client'
-import { listInstallationRepositories } from '../lib/github/repositories'
+import { synchronizeRepositoryForGitHub } from '../lib/repositories/synchronize'
 
 const requireSession = vi.mocked(requireViewerSession)
-const getInstallationId = vi.mocked(getGitHubInstallationIdForRepository)
-const listRepositories = vi.mocked(listInstallationRepositories)
+const synchronizeRepository = vi.mocked(synchronizeRepositoryForGitHub)
 
 const accessibleRepository = {
   githubRepositoryId: 42,
@@ -46,30 +43,33 @@ const viewer = {
 beforeEach(() => {
   vi.clearAllMocks()
   requireSession.mockResolvedValue(viewer as never)
-  getInstallationId.mockResolvedValue(5678)
-  listRepositories.mockResolvedValue([accessibleRepository])
+  synchronizeRepository.mockResolvedValue({
+    repository: { ...viewer.repository, enabled: true },
+    githubRepository: accessibleRepository,
+  } as never)
 })
 
 describe('viewer repository authorization', () => {
   it('checks current installation access by stable repository id before returning mutable location metadata', async () => {
     await expect(requireViewerRepositoryAccess('share-1')).resolves.toMatchObject({
-      installationId: 5678,
+      installationRecordId: 'installation-record-1',
       accessibleRepository: {
         githubRepositoryId: 42,
         owner: 'renamed-owner',
         name: 'renamed-repository',
       },
     })
-    expect(getInstallationId).toHaveBeenCalledWith('repository-1', 'workspace-1')
-    expect(listRepositories).toHaveBeenCalledWith(5678, 'installation-record-1')
-    expect(requireSession.mock.invocationCallOrder[0]).toBeLessThan(getInstallationId.mock.invocationCallOrder[0] ?? Infinity)
-    expect(getInstallationId.mock.invocationCallOrder[0]).toBeLessThan(listRepositories.mock.invocationCallOrder[0] ?? Infinity)
+    expect(synchronizeRepository).toHaveBeenCalledWith('repository-1', 'workspace-1', 'system')
+    expect(requireSession.mock.invocationCallOrder[0]).toBeLessThan(synchronizeRepository.mock.invocationCallOrder[0] ?? Infinity)
   })
 
   it.each([
-    ['suspended installation', () => getInstallationId.mockRejectedValue(new Error('inactive'))],
-    ['repository removed from installation', () => listRepositories.mockResolvedValue([])],
-    ['repository disabled by GitHub', () => listRepositories.mockResolvedValue([{ ...accessibleRepository, disabled: true }])],
+    ['suspended installation', () => synchronizeRepository.mockRejectedValue(new Error('inactive'))],
+    ['repository removed from installation', () => synchronizeRepository.mockRejectedValue(new Error('removed'))],
+    ['repository disabled by GitHub', () => synchronizeRepository.mockResolvedValue({
+      repository: { ...viewer.repository, enabled: true },
+      githubRepository: { ...accessibleRepository, disabled: true },
+    } as never)],
   ])('denies access when %s', async (_label, configure) => {
     configure()
     await expect(requireViewerRepositoryAccess('share-1')).rejects.toThrow()

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { getPublicEnv, parsePublicEnv } from '../lib/env/public'
-import { parseServerEnv } from '../lib/env/schema'
+import { parseRateLimitEnv, parseServerEnv, parseSupabaseAdminEnv } from '../lib/env/schema'
 
 const serverFixture = {
   SUPABASE_SERVICE_ROLE_KEY: 'service-role',
@@ -81,5 +81,10 @@ describe('environment validation', () => {
 
   it('reports missing required server configuration clearly', () => {
     expect(() => parseServerEnv({})).toThrow(/Invalid server environment/)
+  })
+
+  it('validates rate limiting and Supabase admin dependencies independently', () => {
+    expect(parseRateLimitEnv({ IP_HASH_SALT: 'i'.repeat(32) })).toEqual({ IP_HASH_SALT: 'i'.repeat(32) })
+    expect(parseSupabaseAdminEnv({ SUPABASE_SERVICE_ROLE_KEY: 'service-role' })).toEqual({ SUPABASE_SERVICE_ROLE_KEY: 'service-role' })
   })
 })

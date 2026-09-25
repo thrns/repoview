@@ -208,7 +208,7 @@ function ShareFilterSelect({ ariaLabel, value, onChange, children, fullWidth = f
 function SharesTable({ items, onCopyLink }: { items: ShareListItem[]; onCopyLink: () => void }) {
   return (
     <div className="overflow-hidden rounded-sm border border-border/70 bg-background">
-      <div className="max-h-[min(68vh,760px)] overflow-auto">
+      <div className="max-h-[min(68vh,760px)] overflow-auto overscroll-contain">
         <Table className="min-w-[860px] table-fixed">
           <TableHeader className="bg-background [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:border-border/70 [&_th]:bg-background">
             <TableRow className="hover:bg-transparent">

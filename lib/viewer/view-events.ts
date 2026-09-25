@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { randomUUID } from 'node:crypto'
+
 import { createSupabaseAdminClient } from '../supabase/admin'
 import { releaseQuota, reserveQuota } from '../security/quotas'
 import type { Json } from '../supabase/database.types'
@@ -13,6 +15,7 @@ export async function recordViewerViewEvent({
   shareId,
   sessionId,
   eventType,
+  eventId,
   path,
   metadata = {},
   workspaceId,
@@ -23,6 +26,7 @@ export async function recordViewerViewEvent({
   shareId: string
   sessionId: string
   eventType: ViewerViewEventType
+  eventId?: string
   path: string | null
   metadata?: Record<string, Json>
   workspaceId: string
@@ -35,10 +39,12 @@ export async function recordViewerViewEvent({
   }
 
   const admin = createSupabaseAdminClient()
+  const normalizedEventId = eventId ?? randomUUID()
   const cutoff = new Date(now - VIEW_EVENT_DEDUPE_WINDOW_MS).toISOString()
   const recentEventQuery = admin
     .from('view_events')
     .select('id')
+    .eq('event_id', normalizedEventId)
     .eq('share_id', shareId)
     .eq('session_id', sessionId)
     .eq('event_type', eventType)
@@ -59,16 +65,21 @@ export async function recordViewerViewEvent({
     reservations.push(await reserveQuota('analytics-events-session', workspaceId, sessionId, 1, new Date(now), admin))
     reservations.push(await reserveQuota('analytics-events-workspace-daily', workspaceId, 'workspace', 1, new Date(now), admin))
 
-    const { error: insertError } = await admin.from('view_events').insert({
+    const { data: insertedEvents, error: insertError } = await admin.from('view_events').upsert({
       workspace_id: workspaceId,
       share_id: shareId,
       session_id: sessionId,
+      event_id: normalizedEventId,
       event_type: eventType,
       path,
       metadata: sanitizeViewEventMetadata(metadata),
-    } as never)
+    } as never, { onConflict: 'event_id', ignoreDuplicates: true }).select('id')
 
     if (insertError) throw insertError
+    if (!insertedEvents?.length) {
+      await Promise.all(reservations.reverse().map((reservation) => releaseQuota(reservation, admin)))
+      return { recorded: false }
+    }
   } catch (error) {
     await Promise.all(reservations.reverse().map((reservation) => releaseQuota(reservation, admin)))
     throw error

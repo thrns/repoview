@@ -44,7 +44,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ shar
       viewer.accessibleRepository.name,
       path,
       viewer.share.ref,
-      viewer.installationId,
+      viewer.installationRecordId,
+      viewer.repository.workspace_id,
+      'system',
     )
     if (file.kind !== 'text') return new NextResponse(null, { status: 404 })
     return new NextResponse(file.content, { headers: { 'Cache-Control': 'private, no-store', 'Content-Type': 'text/plain; charset=utf-8', 'Content-Disposition': `attachment; filename="${path.split('/').at(-1) || 'download.txt'}"` } })

@@ -30,7 +30,9 @@ export default async function ViewerFilePage({ params }: { params: Promise<{ sha
       data.repositorySlug,
       requestedPath,
       data.refName,
-      data.installationId,
+      data.installationRecordId,
+      data.workspaceId,
+      'system',
     )
     after(() => recordViewerViewEvent({
       shareId: data.internalShareId,

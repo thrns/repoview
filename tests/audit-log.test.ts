@@ -25,6 +25,8 @@ describe('workspace audit logging', () => {
         token: 'bearer-token-must-not-persist',
         source: 'private repository source must not persist',
         nested: { password: 'secret', count: 2 },
+        share_type: 'recipient',
+        expires_at: null,
       },
     }, admin as never)
 
@@ -33,7 +35,7 @@ describe('workspace audit logging', () => {
       actor_user_id: 'user-a',
       actor_id: 'user-a',
       resource_id: 'share-a',
-      metadata: { repository: 'octocat/hello-world', nested: { count: 2 } },
+      metadata: { repository: 'octocat/hello-world', share_type: 'recipient', expires_at: null },
     }))
   })
 
@@ -60,16 +62,34 @@ describe('workspace audit logging', () => {
     }, admin as never)).resolves.toBe(false)
   })
 
-  it('bounds metadata values even for future callers', () => {
-    const result = sanitizeAuditMetadata({
+  it('allows only the action schema and rejects arbitrary values', () => {
+    const result = sanitizeAuditMetadata('account_setting_changed', {
       long: 'x'.repeat(600),
       token_hash: 'secret',
       list: Array.from({ length: 30 }, (_, index) => index),
+      setting: 'profile',
+      fields: ['full_name'],
+      object_blob: { private: 'data' },
     }) as Record<string, unknown>
 
-    expect(result.long).toHaveLength(500)
+    expect(result).toEqual({ setting: 'profile', fields: ['full_name'] })
+    expect(result).not.toHaveProperty('long')
     expect(result).not.toHaveProperty('token_hash')
-    expect(result.list).toHaveLength(20)
+    expect(result).not.toHaveProperty('object_blob')
+  })
+
+  it('drops metadata fields that are not allowed for an otherwise valid action', () => {
+    const result = sanitizeAuditMetadata('share_revoked', {
+      repository: 'octocat/private-repo',
+      note: 'email body and repository source must not persist',
+    })
+
+    expect(result).toEqual({})
+  })
+
+  it('accepts only bounded failure codes for export failures', () => {
+    expect(sanitizeAuditMetadata('account_export_failed', { reason: 'stream_failed' })).toEqual({ reason: 'stream_failed' })
+    expect(sanitizeAuditMetadata('account_export_failed', { reason: 'email body: do not persist' })).toEqual({})
   })
 })
 

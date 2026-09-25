@@ -53,7 +53,8 @@ async function run(request: Request) {
     await admin.from('retention_cleanup_runs').update({
       status: 'failed',
       completed_at: new Date().toISOString(),
-      error: 'Retention cleanup failed.',
+      error: 'retention_cleanup_failed',
+      details: { failure_code: 'retention_cleanup_failed' },
     }).eq('id', runRecord.id)
     return NextResponse.json({ error: 'unavailable' }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
   }

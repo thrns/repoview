@@ -32,7 +32,6 @@ export function LoginForm() {
         return
       }
       router.replace('/dashboard')
-      router.refresh()
     } catch {
       setError('Sign-in is temporarily unavailable. Please try again shortly.')
     } finally {

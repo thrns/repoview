@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { createSupabaseAdminClient } from '../supabase/admin'
-import { sanitizeAuditMetadata } from '../audit-log'
+import { sanitizeMetadataWithSchema, type AuditMetadataSchema } from '../audit-log'
 
 export const SYSTEM_ADMIN_AUDIT_ACTIONS = {
   overviewViewed: 'system_overview_viewed',
@@ -10,6 +10,16 @@ export const SYSTEM_ADMIN_AUDIT_ACTIONS = {
   userSuspended: 'user_suspended',
   userUnsuspended: 'user_unsuspended',
 } as const
+
+type SystemAdminAuditAction = typeof SYSTEM_ADMIN_AUDIT_ACTIONS[keyof typeof SYSTEM_ADMIN_AUDIT_ACTIONS]
+
+const SYSTEM_ADMIN_METADATA_SCHEMAS: Record<SystemAdminAuditAction, AuditMetadataSchema> = {
+  [SYSTEM_ADMIN_AUDIT_ACTIONS.overviewViewed]: { failed_webhooks: 'number', failed_notifications: 'number' },
+  [SYSTEM_ADMIN_AUDIT_ACTIONS.testEmailSent]: { provider_message_id: 'string' },
+  [SYSTEM_ADMIN_AUDIT_ACTIONS.workspaceStatusChanged]: { status: 'string' },
+  [SYSTEM_ADMIN_AUDIT_ACTIONS.userSuspended]: { reason: 'string' },
+  [SYSTEM_ADMIN_AUDIT_ACTIONS.userUnsuspended]: {},
+}
 
 export type RecordSystemAdminAuditLogInput = {
   actorUserId: string
@@ -48,7 +58,7 @@ export async function recordSystemAdminAuditLog(
       action: input.action,
       resource_type: input.resourceType,
       resource_id: input.resourceId ?? null,
-      metadata: sanitizeAuditMetadata(input.metadata ?? {}),
+      metadata: sanitizeMetadataWithSchema(input.metadata ?? {}, SYSTEM_ADMIN_METADATA_SCHEMAS[input.action as SystemAdminAuditAction] ?? {}),
     })
 
   if (error) throw new Error('RepoView could not record system activity.')

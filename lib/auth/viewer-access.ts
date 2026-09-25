@@ -1,16 +1,15 @@
 import 'server-only'
 
-import { getGitHubInstallationIdForRepository } from '../github/client'
-import { listInstallationRepositories } from '../github/repositories'
+import { synchronizeRepositoryForGitHub } from '../repositories/synchronize'
 import { ViewerAuthorizationError, requireViewerSession } from './viewer-session'
 
 /**
  * Authorize a viewer request all the way through the current GitHub App
  * installation state before any repository content is loaded.
  *
- * The installation repository listing is intentionally resolved by the stable
- * GitHub repository id. Owner/name values are mutable display metadata and
- * must not be used as the access-control key.
+ * The current GitHub location is intentionally resolved by the stable
+ * repository id. Owner/name values are mutable display metadata and must not
+ * be used as the access-control key.
  */
 export async function requireViewerRepositoryAccess(shareIdentifier: string) {
   const viewer = await requireViewerSession(shareIdentifier)
@@ -20,36 +19,25 @@ export async function requireViewerRepositoryAccess(shareIdentifier: string) {
     throw new ViewerAuthorizationError()
   }
 
-  let installationId: number
+  let synchronized: Awaited<ReturnType<typeof synchronizeRepositoryForGitHub>>
   try {
-    installationId = await getGitHubInstallationIdForRepository(
+    synchronized = await synchronizeRepositoryForGitHub(
       viewer.repository.id,
       viewer.share.workspace_id,
+      'system',
     )
   } catch {
     throw new ViewerAuthorizationError()
   }
 
-  let accessibleRepository: Awaited<ReturnType<typeof listInstallationRepositories>>[number] | undefined
-  try {
-    const accessibleRepositories = await listInstallationRepositories(
-      installationId,
-      viewer.repository.github_installation_id,
-    )
-    accessibleRepository = accessibleRepositories.find(
-      (candidate) => candidate.githubRepositoryId === repositoryId && !candidate.disabled,
-    )
-  } catch {
-    throw new ViewerAuthorizationError()
-  }
-
-  if (!accessibleRepository) {
+  if (synchronized.githubRepository.githubRepositoryId !== repositoryId || synchronized.githubRepository.disabled || synchronized.repository.enabled === false) {
     throw new ViewerAuthorizationError()
   }
 
   return {
     ...viewer,
-    installationId,
-    accessibleRepository,
+    repository: synchronized.repository,
+    installationRecordId: synchronized.repository.github_installation_id,
+    accessibleRepository: synchronized.githubRepository,
   }
 }

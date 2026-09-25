@@ -6,6 +6,7 @@ import { isAllowedRequestOrigin } from '@/lib/security/origin'
 import { checkPublicRateLimit, rateLimitResponse, rateLimitUnavailableResponse } from '@/lib/security/rate-limit'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { isRequestBodyTooLarge, readJsonBody } from '../../../../../lib/security/body-limit'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -14,14 +15,16 @@ const requestSchema = z.object({
   operation: z.enum(['account-delete', 'account-export']),
   code: z.string().regex(/^\d{6}$/),
 })
+const MAX_ACCOUNT_BODY_BYTES = 16 * 1024
 
 export async function POST(request: Request) {
   if (!isAllowedRequestOrigin(request)) return json({ error: 'invalid_origin' }, 403)
 
   let input: z.infer<typeof requestSchema>
   try {
-    input = requestSchema.parse(await request.json())
-  } catch {
+    input = requestSchema.parse(await readJsonBody(request, MAX_ACCOUNT_BODY_BYTES))
+  } catch (error) {
+    if (isRequestBodyTooLarge(error)) return json({ error: 'payload_too_large' }, 413)
     return json({ error: 'invalid_request' }, 400)
   }
 

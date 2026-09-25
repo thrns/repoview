@@ -53,6 +53,15 @@ export type QuotaReservation = {
   resetAt: string
 }
 
+export type ResourceQuotaReservation = {
+  scope: Extract<QuotaScope, 'github-installations' | 'enabled-repositories' | 'active-shares'>
+  workspaceId: string
+  resourceKey: string
+  reservationId: string | null
+  owned: boolean
+  expiresAt: string
+}
+
 export class QuotaUnavailableError extends Error {
   constructor() {
     super('Quota protection is temporarily unavailable.')
@@ -131,7 +140,67 @@ export async function releaseQuota(reservation: QuotaReservation, admin = create
   if (error) throw new QuotaUnavailableError()
 }
 
-/** Enforce a live workspace resource count before creating/enabling it. */
+/** Reserve a finite resource slot atomically before the durable write. */
+export async function reserveResourceQuota(
+  scope: ResourceQuotaReservation['scope'],
+  workspaceId: string,
+  resourceKey: string,
+  admin = createSupabaseAdminClient(),
+  now = new Date(),
+): Promise<ResourceQuotaReservation> {
+  const policy = QUOTA_POLICIES[scope]
+  const expiresAt = new Date(now.getTime() + 5 * 60 * 1000).toISOString()
+  const { data, error } = await admin.rpc('reserve_workspace_resource_quota', {
+    target_scope: scope,
+    target_workspace_id: workspaceId,
+    target_resource_key: resourceKey,
+    target_limit: policy.limit,
+    target_expires_at: expiresAt,
+  })
+
+  if (error || !data?.[0]) throw new QuotaUnavailableError()
+  const row = data[0] as {
+    allowed: boolean
+    already_reserved: boolean
+    usage: number
+    remaining: number
+    retry_after_seconds: number
+    reservation_id: string | null
+  }
+  if (row.allowed !== true) {
+    throw new QuotaExceededError({
+      scope,
+      allowed: false,
+      usage: Math.max(0, Number(row.usage ?? policy.limit)),
+      limit: policy.limit,
+      remaining: Math.max(0, Number(row.remaining ?? 0)),
+      resetAt: null,
+      retryAfterSeconds: Math.max(1, Number(row.retry_after_seconds ?? 1)),
+    })
+  }
+
+  return {
+    scope,
+    workspaceId,
+    resourceKey,
+    reservationId: row.reservation_id,
+    owned: row.already_reserved !== true,
+    expiresAt,
+  }
+}
+
+/** Complete or release a resource reservation after the durable write. */
+export async function finalizeResourceQuota(reservation: ResourceQuotaReservation, admin = createSupabaseAdminClient()) {
+  if (!reservation.owned || !reservation.reservationId) return
+  const { error } = await admin.rpc('finalize_workspace_resource_quota', {
+    target_reservation_id: reservation.reservationId,
+  })
+  if (error) throw new QuotaUnavailableError()
+}
+
+export const releaseResourceQuota = finalizeResourceQuota
+
+/** Read-only capacity information. Mutations must use reserveResourceQuota. */
 export async function assertWorkspaceResourceQuota(
   scope: Extract<QuotaScope, 'github-installations' | 'enabled-repositories' | 'active-shares'>,
   workspaceId: string,

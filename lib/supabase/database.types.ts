@@ -206,6 +206,7 @@ type ViewerSession = {
 
 type ViewEvent = {
   id: number
+  event_id: string
   share_id: string
   session_id: string
   workspace_id: string
@@ -331,6 +332,15 @@ type QuotaCounter = {
   updated_at: string
 }
 
+type QuotaResourceReservation = {
+  id: string
+  scope: 'github-installations' | 'enabled-repositories' | 'active-shares'
+  workspace_id: string
+  resource_key: string
+  expires_at: string
+  created_at: string
+}
+
 type AccountStepUpConfirmation = {
   id: string
   user_id: string
@@ -363,6 +373,18 @@ type AccountDeletionJob = {
   updated_at: string
 }
 
+type AccountLifecycleAudit = {
+  id: string
+  deletion_job_id: string | null
+  account_key_hash: string
+  status: 'requested' | 'running' | 'failed' | 'completed'
+  deletion_requested_at: string
+  deletion_completed_at: string | null
+  error_code: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -390,8 +412,10 @@ export interface Database {
       retention_cleanup_runs: TableDefinition<RetentionCleanupRun, Partial<Omit<RetentionCleanupRun, 'id' | 'started_at'>> & Pick<RetentionCleanupRun, 'job_name'> & { id?: string; status?: RetentionCleanupRun['status']; batch_limit?: number; rows_processed?: number; details?: Json; error?: string | null; started_at?: string; completed_at?: string | null }, Partial<Omit<RetentionCleanupRun, 'id' | 'job_name' | 'started_at'>>>
       rate_limit_buckets: TableDefinition<RateLimitBucket, Partial<Omit<RateLimitBucket, 'updated_at'>> & Pick<RateLimitBucket, 'key_hash' | 'scope' | 'window_started_at'> & { request_count?: number; updated_at?: string }, Partial<Omit<RateLimitBucket, 'key_hash'>>>
       quota_counters: TableDefinition<QuotaCounter, Partial<Omit<QuotaCounter, 'created_at' | 'updated_at'>> & Pick<QuotaCounter, 'scope' | 'workspace_id' | 'subject_id' | 'period_start'> & { usage?: number; created_at?: string; updated_at?: string }, Partial<Omit<QuotaCounter, 'scope' | 'workspace_id' | 'subject_id' | 'period_start' | 'created_at'>>>
+      quota_resource_reservations: TableDefinition<QuotaResourceReservation, Partial<Omit<QuotaResourceReservation, 'id' | 'created_at'>> & Pick<QuotaResourceReservation, 'scope' | 'workspace_id' | 'resource_key' | 'expires_at'> & { id?: string; created_at?: string }, never>
       account_step_up_confirmations: TableDefinition<AccountStepUpConfirmation, Partial<Omit<AccountStepUpConfirmation, 'id'>> & Pick<AccountStepUpConfirmation, 'user_id' | 'operation' | 'token_hash' | 'assurance_level' | 'authentication_method' | 'expires_at'> & { id?: string; issued_at?: string; consumed_at?: string | null }, Partial<Pick<AccountStepUpConfirmation, 'consumed_at'>>>
       account_deletion_jobs: TableDefinition<AccountDeletionJob, Partial<Omit<AccountDeletionJob, 'id' | 'created_at' | 'updated_at'>> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<AccountDeletionJob, 'id' | 'user_id' | 'created_at'>>>
+      account_lifecycle_audit: TableDefinition<AccountLifecycleAudit, Partial<Omit<AccountLifecycleAudit, 'id' | 'created_at' | 'updated_at'>> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<AccountLifecycleAudit, 'id' | 'account_key_hash' | 'created_at'>>>
     }
     Views: Record<string, never>
     Functions: {
@@ -425,6 +449,14 @@ export interface Database {
       }
       release_workspace_quota: {
         Args: { target_scope: string; target_workspace_id: string; target_subject_id: string; target_period_start: string; target_increment: number }
+        Returns: undefined
+      }
+      reserve_workspace_resource_quota: {
+        Args: { target_scope: string; target_workspace_id: string; target_resource_key: string; target_limit: number; target_expires_at: string }
+        Returns: Array<{ allowed: boolean; already_reserved: boolean; usage: number; remaining: number; retry_after_seconds: number; reservation_id: string | null }>
+      }
+      finalize_workspace_resource_quota: {
+        Args: { target_reservation_id: string }
         Returns: undefined
       }
       request_account_deletion: {

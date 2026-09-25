@@ -1,10 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   getLinkOpenMetadata,
   sanitizeLinkOpenMetadata,
   toLinkOpenEventMetadata,
 } from '../lib/shares/link-open-metadata'
+
+beforeEach(() => vi.stubEnv('VERCEL', '1'))
+afterEach(() => vi.unstubAllEnvs())
 
 describe('link-open metadata', () => {
   it('keeps only a referrer host and coarse fetch context', () => {
@@ -15,7 +18,7 @@ describe('link-open metadata', () => {
         purpose: 'prefetch',
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128.0.0.0 Safari/537.36',
         'x-vercel-ip-country': 'ca',
-        'x-forwarded-for': '203.0.113.42',
+        'x-vercel-forwarded-for': '203.0.113.42',
       },
     })
 
@@ -43,6 +46,20 @@ describe('link-open metadata', () => {
       country: 'CA',
       probable_bot: false,
     })
+  })
+
+  it('ignores spoofable forwarding headers unless the deployment edge supplied its normalized header', () => {
+    expect(getLinkOpenMetadata(new Request('https://repoview.test/s/token', {
+      headers: { 'x-forwarded-for': '198.51.100.77', 'x-real-ip': '198.51.100.88' },
+    })).publicIp).toBeNull()
+
+    expect(getLinkOpenMetadata(new Request('https://repoview.test/s/token', {
+      headers: {
+        'x-vercel-forwarded-for': '203.0.113.42',
+        'x-forwarded-for': '198.51.100.77',
+        'x-real-ip': '198.51.100.88',
+      },
+    })).publicIp).toBe('203.0.113.42')
   })
 
   it('rejects unsafe or unknown metadata values', () => {

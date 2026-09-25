@@ -6,12 +6,23 @@ import {
   processGitHubWebhookDelivery,
   verifyGitHubWebhookSignature,
 } from '@/lib/github/webhooks'
+import { isRequestBodyTooLarge, readRequestBody } from '../../../../lib/security/body-limit'
 
 export const runtime = 'nodejs'
 
+// GitHub documents a 25 MB webhook payload cap. Keep a small unit conversion
+// margin so legitimate GitHub deliveries are not rejected by RepoView.
+const MAX_GITHUB_WEBHOOK_BODY_BYTES = 26 * 1024 * 1024
+
 export async function POST(request: Request) {
   // Read the body exactly once and verify that exact string before parsing it.
-  const rawBody = await request.text()
+  let rawBody: string
+  try {
+    rawBody = await readRequestBody(request, MAX_GITHUB_WEBHOOK_BODY_BYTES)
+  } catch (error) {
+    if (isRequestBodyTooLarge(error)) return json({ error: 'Webhook payload is too large.' }, 413)
+    return json({ error: 'Webhook payload could not be read.' }, 400)
+  }
   const signature = request.headers.get('x-hub-signature-256')
   const secret = getServerEnv().GITHUB_WEBHOOK_SECRET
 

@@ -5,6 +5,9 @@ import { requireViewerSession } from '../../../../lib/auth/viewer-session'
 import { createSupabaseAdminClient } from '../../../../lib/supabase/admin'
 import { isGlobalPrivacyControl } from '../../../../lib/viewer/privacy-shared'
 import { checkPublicRateLimit, checkRateLimits, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../lib/security/rate-limit'
+import { isRequestBodyTooLarge, readJsonBody } from '../../../../lib/security/body-limit'
+
+const MAX_HEARTBEAT_BODY_BYTES = 16 * 1024
 
 const heartbeatRequestSchema = z.object({
   shareId: z.string().uuid().or(z.string().regex(/^[A-Za-z0-9_-]{8}$/)),
@@ -15,8 +18,9 @@ const heartbeatRequestSchema = z.object({
 export async function POST(request: Request) {
   let parsedRequest: z.infer<typeof heartbeatRequestSchema>
   try {
-    parsedRequest = heartbeatRequestSchema.parse(await request.json())
-  } catch {
+    parsedRequest = heartbeatRequestSchema.parse(await readJsonBody(request, MAX_HEARTBEAT_BODY_BYTES))
+  } catch (error) {
+    if (isRequestBodyTooLarge(error)) return NextResponse.json({ error: 'payload_too_large' }, { status: 413, headers: { 'Cache-Control': 'no-store' } })
     return NextResponse.json({ error: 'invalid_request' }, { status: 400, headers: { 'Cache-Control': 'no-store' } })
   }
 

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const serverEnvSchema = z.object({
+const baseServerEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
   GITHUB_APP_ID: z.coerce.number().int().positive('GITHUB_APP_ID must be a positive integer'),
   GITHUB_APP_SLUG: z.string().trim().min(1, 'GITHUB_APP_SLUG is required'),
@@ -24,7 +24,9 @@ export const serverEnvSchema = z.object({
   SMTP_USER: z.string().email('SMTP_USER must be a valid email').optional(),
   SMTP_APP_PASSWORD: z.string().min(1).optional(),
   SMTP_FROM_NAME: z.string().min(1).default('RepoView'),
-}).superRefine((env, context) => {
+})
+
+export const serverEnvSchema = baseServerEnvSchema.superRefine((env, context) => {
   if (env.EMAIL_PROVIDER === 'smtp') {
     if (!env.SMTP_USER) context.addIssue({ code: z.ZodIssueCode.custom, path: ['SMTP_USER'], message: 'SMTP_USER is required when EMAIL_PROVIDER is smtp' })
     if (!env.SMTP_APP_PASSWORD) context.addIssue({ code: z.ZodIssueCode.custom, path: ['SMTP_APP_PASSWORD'], message: 'SMTP_APP_PASSWORD is required when EMAIL_PROVIDER is smtp' })
@@ -39,12 +41,29 @@ export const serverEnvSchema = z.object({
   }
 })
 
-export type ServerEnv = z.infer<typeof serverEnvSchema>
+const rateLimitEnvSchema = baseServerEnvSchema.pick({ IP_HASH_SALT: true })
+const supabaseAdminEnvSchema = baseServerEnvSchema.pick({ SUPABASE_SERVICE_ROLE_KEY: true })
 
-export function parseServerEnv(input: Record<string, string | undefined> = process.env): ServerEnv {
-  const result = serverEnvSchema.safeParse(input)
+export type ServerEnv = z.infer<typeof serverEnvSchema>
+export type RateLimitEnv = z.infer<typeof rateLimitEnvSchema>
+export type SupabaseAdminEnv = z.infer<typeof supabaseAdminEnvSchema>
+
+function parseEnv<T extends z.ZodTypeAny>(schema: T, input: Record<string, string | undefined>, label: string): z.infer<T> {
+  const result = schema.safeParse(input)
   if (!result.success) {
-    throw new Error(`Invalid server environment: ${result.error.issues.map((issue) => issue.message).join('; ')}`)
+    throw new Error(`Invalid ${label} environment: ${result.error.issues.map((issue) => issue.message).join('; ')}`)
   }
   return result.data
+}
+
+export function parseServerEnv(input: Record<string, string | undefined> = process.env): ServerEnv {
+  return parseEnv(serverEnvSchema, input, 'server')
+}
+
+export function parseRateLimitEnv(input: Record<string, string | undefined> = process.env): RateLimitEnv {
+  return parseEnv(rateLimitEnvSchema, input, 'rate-limit')
+}
+
+export function parseSupabaseAdminEnv(input: Record<string, string | undefined> = process.env): SupabaseAdminEnv {
+  return parseEnv(supabaseAdminEnvSchema, input, 'Supabase admin')
 }

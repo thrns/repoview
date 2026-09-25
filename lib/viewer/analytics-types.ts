@@ -23,6 +23,7 @@ export type ViewerClientContext = {
 }
 
 export type ViewerAnalyticsEvent = {
+  eventId?: string
   eventType: ViewerAnalyticsEventType
   path?: string | null
   metadata?: Record<string, string | number | boolean | null>

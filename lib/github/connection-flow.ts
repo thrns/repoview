@@ -6,7 +6,7 @@ import { getPublicEnv } from '../env/public'
 import { getServerEnv } from '../env/server'
 import { requireWorkspaceAdmin } from '../auth/workspace'
 import { createSupabaseAdminClient } from '../supabase/admin'
-import { getGitHubAppInstallation, GITHUB_API_BASE_URL, GITHUB_COMMON_HEADERS } from './client'
+import { getGitHubAppInstallationByProviderId, GITHUB_API_BASE_URL, GITHUB_COMMON_HEADERS } from './client'
 import { registerVerifiedGitHubInstallation } from './installations'
 import { listInstallationRepositories } from './repositories'
 import type { Tables } from '../supabase/database.types'
@@ -152,7 +152,7 @@ export async function completeGitHubConnection(state: string, code: string): Pro
     throw new GitHubConnectionError('verification')
   }
 
-  const installation = await getGitHubAppInstallation(transaction.claimed_installation_id)
+  const installation = await getGitHubAppInstallationByProviderId(transaction.claimed_installation_id)
   const env = getServerEnv()
   const canonicalAccount: Record<string, unknown> | null = isRecord(installation.account) ? installation.account : null
   if (installation.id !== transaction.claimed_installation_id || installation.app_id !== env.GITHUB_APP_ID || !canonicalAccount) {
@@ -171,8 +171,9 @@ export async function completeGitHubConnection(state: string, code: string): Pro
 
   const savedInstallation = await registerVerifiedGitHubInstallation(workspace.id, installation)
   const repositories = await listInstallationRepositories(
-    installation.id,
     savedInstallation.id,
+    workspace.id,
+    'member',
   )
 
   return { status: 'success', repositoryCount: repositories.length, returnPath: normalizeReturnPath(transaction.return_path) }

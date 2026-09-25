@@ -12,7 +12,7 @@ export async function getViewerPageData(shareIdentifier: string) {
   // Do not memoize private repository content across authorization checks.
   // Every page render starts with a fresh share, workspace, installation, and
   // stable-repository access validation before loading tree or file data.
-  const { repository, share, session, installationId, accessibleRepository } = await requireViewerRepositoryAccess(shareIdentifier)
+  const { repository, share, session, installationRecordId, accessibleRepository } = await requireViewerRepositoryAccess(shareIdentifier)
   const requestGpc = isGlobalPrivacyControl((await headers()).get('sec-gpc'))
   const tree = await loadAuthorizedViewerTree({
     owner: accessibleRepository.owner,
@@ -20,14 +20,16 @@ export async function getViewerPageData(shareIdentifier: string) {
     ref: share.ref,
     repositoryRules: repository.default_rules,
     shareRules: share.rules,
-    installationId,
+    installationRecordId,
+    workspaceId: repository.workspace_id,
   })
   const root = await loadAuthorizedViewerRoot({
     owner: accessibleRepository.owner,
     repository: accessibleRepository.name,
     ref: share.ref,
     tree,
-    installationId,
+    installationRecordId,
+    workspaceId: repository.workspace_id,
   })
 
   return {
@@ -37,7 +39,7 @@ export async function getViewerPageData(shareIdentifier: string) {
     repositoryOwner: accessibleRepository.owner,
     repositorySlug: accessibleRepository.name,
     workspaceId: repository.workspace_id,
-    installationId,
+    installationRecordId,
     repositoryName: accessibleRepository.fullName,
     refName: share.ref,
     allowDownload: share.allow_download,
