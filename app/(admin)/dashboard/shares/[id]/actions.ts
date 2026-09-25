@@ -15,6 +15,10 @@ const expiryInputSchema = z.object({
   shareId: shareIdSchema,
   expiresAt: z.string().datetime({ offset: true }).nullable(),
 })
+const noteInputSchema = z.object({
+  shareId: shareIdSchema,
+  note: z.string().trim().max(2000),
+})
 
 export async function revokeShare(input: unknown) {
   const shareId = shareIdSchema.parse(input)
@@ -120,4 +124,36 @@ export async function rotateShare(input: unknown) {
   revalidatePath(`/dashboard/shares/${shareId}`)
   const appUrl = getPublicEnv().NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
   return { shareUrl: `${appUrl}/s/${rawToken}` }
+}
+
+export async function updateShareNote(input: unknown) {
+  const parsed = noteInputSchema.parse(input)
+  const access = await requireShareAccess(parsed.shareId)
+  await requireWorkspaceRole(access.workspace.id, ['owner', 'admin'])
+  await enforceAuthenticatedRateLimit('authenticated-share-rotate', access.workspace.id, access.user.id)
+
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase
+    .from('shares')
+    .update({ note: parsed.note || null })
+    .eq('id', parsed.shareId)
+    .eq('workspace_id', access.workspace.id)
+    .select('id')
+    .maybeSingle()
+
+  if (error || !data) {
+    throw new Error('This share note could not be updated.')
+  }
+
+  await recordAuditLogBestEffort({
+    workspaceId: access.workspace.id,
+    actorUserId: access.user.id,
+    action: AUDIT_ACTIONS.shareNoteChanged,
+    resourceType: 'share',
+    resourceId: parsed.shareId,
+    metadata: { has_note: Boolean(parsed.note) },
+  })
+
+  revalidatePath(`/dashboard/shares/${parsed.shareId}`)
+  return { updated: true as const }
 }

@@ -13,6 +13,7 @@ export const AUDIT_ACTIONS = {
   shareRevoked: 'share_revoked',
   shareRotated: 'share_rotated',
   shareExpiryChanged: 'share_expiry_changed',
+  shareNoteChanged: 'share_note_changed',
   githubInstallationConnected: 'github_installation_connected',
   githubInstallationDisconnected: 'github_installation_disconnected',
   githubInstallationSuspended: 'github_installation_suspended',
@@ -48,6 +49,7 @@ export const AUDIT_METADATA_SCHEMAS: Record<AuditAction, AuditMetadataSchema> = 
   [AUDIT_ACTIONS.shareRevoked]: {},
   [AUDIT_ACTIONS.shareRotated]: { token_rotated: 'boolean' },
   [AUDIT_ACTIONS.shareExpiryChanged]: { expires_at: 'nullable-string' },
+  [AUDIT_ACTIONS.shareNoteChanged]: { has_note: 'boolean' },
   [AUDIT_ACTIONS.githubInstallationConnected]: {
     account: 'string',
     account_type: 'string',

@@ -7,7 +7,7 @@ import { useState, useTransition } from 'react'
 import { rotateShare } from '@/app/(admin)/dashboard/shares/[id]/actions'
 import { Alert, AlertDescription, AlertTitle, Button, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input } from '@/components/ui'
 
-export function RotateShareButton({ shareId }: { shareId: string }) {
+export function RotateShareButton({ shareId, compact = false }: { shareId: string; compact?: boolean }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -36,7 +36,7 @@ export function RotateShareButton({ shareId }: { shareId: string }) {
 
   return (
     <Dialog>
-      <DialogTrigger variant="outline" className="gap-2">
+      <DialogTrigger variant={compact ? 'text' : 'primary'} size={compact ? 'small' : undefined} className={compact ? 'w-full justify-start gap-2 px-2 text-xs' : 'gap-2'}>
         <RefreshCw className="size-4" aria-hidden="true" />
         Rotate link
       </DialogTrigger>
