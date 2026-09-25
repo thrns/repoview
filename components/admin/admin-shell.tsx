@@ -114,7 +114,10 @@ export function AdminShell({ email, children, onboardingIncomplete = false, work
   }
 
   return (
-    <div className="flex h-dvh min-h-0 overflow-hidden bg-background">
+    <div
+      data-admin-shell
+      className="fixed inset-0 flex min-h-0 overflow-hidden overscroll-none bg-background"
+    >
       <Sidebar>
         <SidebarHeader>
           <div className="flex items-center gap-3 px-2 py-2">
