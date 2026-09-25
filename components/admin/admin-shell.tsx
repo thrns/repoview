@@ -42,12 +42,19 @@ function Navigation({ pathname, onNavigate, onboardingIncomplete = false }: { pa
   )
 }
 
-function AccountFooter({ email, avatarLabel, pathname, onLogout, className }: { email: string; avatarLabel: string; pathname: string; onLogout: () => void; className?: string }) {
+function AccountFooter({ email, avatarLabel, pathname, onLogout, className, workspaceName, hasMultipleWorkspaces }: { email: string; avatarLabel: string; pathname: string; onLogout: () => void; className?: string; workspaceName: string; hasMultipleWorkspaces: boolean }) {
   const settingsActive = pathname === '/dashboard/settings' || pathname.startsWith('/dashboard/settings/')
 
   return (
     <div className={className}>
       <div className="rounded-lg border border-border/80 bg-muted/20 p-3">
+        <div className="mb-3 border-b border-border/70 pb-3">
+          <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-foreground-muted">Active workspace</div>
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <span className="truncate text-xs font-medium" title={workspaceName}>{workspaceName}</span>
+            {hasMultipleWorkspaces ? <Link href="/workspace/select" className="shrink-0 text-[11px] font-medium text-primary hover:underline">Switch</Link> : null}
+          </div>
+        </div>
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="relative flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-background font-mono text-[11px] font-semibold text-foreground" aria-hidden="true">
             {avatarLabel}
@@ -91,7 +98,7 @@ function AccountFooter({ email, avatarLabel, pathname, onLogout, className }: { 
   )
 }
 
-export function AdminShell({ email, children, onboardingIncomplete = false }: { email: string; children: ReactNode; onboardingIncomplete?: boolean }) {
+export function AdminShell({ email, children, onboardingIncomplete = false, workspaceName, workspaces = [] }: { email: string; children: ReactNode; onboardingIncomplete?: boolean; workspaceName: string; workspaces?: Array<{ id: string; name: string; role: string }> }) {
   const pathname = usePathname()
   const router = useRouter()
   const avatarLabel = email.slice(0, 1).toUpperCase() || 'R'
@@ -116,7 +123,7 @@ export function AdminShell({ email, children, onboardingIncomplete = false }: { 
         </SidebarHeader>
         <SidebarContent><Navigation pathname={pathname} onboardingIncomplete={onboardingIncomplete} /></SidebarContent>
         <SidebarFooter className="shrink-0 p-3">
-          <AccountFooter email={email} avatarLabel={avatarLabel} pathname={pathname} onLogout={handleLogout} />
+          <AccountFooter email={email} avatarLabel={avatarLabel} pathname={pathname} onLogout={handleLogout} workspaceName={workspaceName} hasMultipleWorkspaces={workspaces.length > 1} />
         </SidebarFooter>
       </Sidebar>
 
@@ -127,7 +134,7 @@ export function AdminShell({ email, children, onboardingIncomplete = false }: { 
             <SheetContent side="left" className="max-w-xs p-4">
               <div className="flex items-center gap-3 px-2 py-2"><BrandLogo size={32} /><span className="font-heading text-sm font-semibold">RepoView</span></div>
               <nav className="mt-8" aria-label="Primary navigation"><Navigation pathname={pathname} onboardingIncomplete={onboardingIncomplete} /></nav>
-              <AccountFooter className="mt-auto min-w-0 overflow-hidden pt-6" email={email} avatarLabel={avatarLabel} pathname={pathname} onLogout={handleLogout} />
+              <AccountFooter className="mt-auto min-w-0 overflow-hidden pt-6" email={email} avatarLabel={avatarLabel} pathname={pathname} onLogout={handleLogout} workspaceName={workspaceName} hasMultipleWorkspaces={workspaces.length > 1} />
             </SheetContent>
           </Sheet>
           <div className="flex items-center gap-2"><BrandLogo size={24} /><span className="font-heading text-sm font-semibold">RepoView</span></div>

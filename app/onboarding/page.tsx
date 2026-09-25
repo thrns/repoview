@@ -9,7 +9,8 @@ export default async function OnboardingPage({ searchParams }: { searchParams?: 
   let state
   try {
     state = await getOnboardingState()
-  } catch {
+  } catch (error) {
+    if (isRedirectError(error)) throw error
     redirect('/login')
   }
 
@@ -17,4 +18,8 @@ export default async function OnboardingPage({ searchParams }: { searchParams?: 
   const params = await searchParams
   const githubStatus = typeof params?.github === 'string' ? params.github : undefined
   return <OnboardingFlow state={state} githubStatus={githubStatus} />
+}
+
+function isRedirectError(error: unknown) {
+  return Boolean(error && typeof error === 'object' && 'digest' in error && String(error.digest).startsWith('NEXT_REDIRECT'))
 }

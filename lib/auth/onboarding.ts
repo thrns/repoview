@@ -2,6 +2,7 @@ import 'server-only'
 
 import type { User } from '@supabase/supabase-js'
 
+import { requireWorkspace } from './workspace'
 import { getCurrentLegalVersions } from '../legal-versions'
 import { createSupabaseAdminClient } from '../supabase/admin'
 import { createSupabaseServerClient } from '../supabase/server'
@@ -24,14 +25,9 @@ export type OnboardingState = {
 }
 
 export async function getOnboardingState(): Promise<OnboardingState> {
+  const context = await requireWorkspace()
   const supabase = await createSupabaseServerClient()
-  const { data: authData, error: authError } = await supabase.auth.getUser()
-
-  if (authError || !authData.user) {
-    throw new Error('Authentication is required.')
-  }
-
-  return loadOnboardingState(supabase, authData.user)
+  return loadOnboardingState(supabase, context.user, context.workspace)
 }
 
 export function getOnboardingLabel(step: OnboardingStep) {
@@ -48,48 +44,19 @@ export function getOnboardingLabel(step: OnboardingStep) {
 async function loadOnboardingState(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   user: User,
+  selectedWorkspace: Tables<'workspaces'>,
 ): Promise<OnboardingState> {
-  const [profileResult, membershipResult, legalVersions] = await Promise.all([
+  const [profileResult, legalVersions] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
-    supabase
-      .from('workspace_members')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle(),
     getCurrentLegalVersions(supabase),
   ])
 
-  if (profileResult.error || membershipResult.error) {
+  if (profileResult.error) {
     throw new Error('RepoView onboarding could not be loaded.')
   }
 
   const profile = profileResult.data as Tables<'profiles'> | null
-  const membership = membershipResult.data
-  const workspaceResult = membership
-    ? await supabase.from('workspaces').select('*').eq('id', membership.workspace_id).maybeSingle()
-    : null
-  if (workspaceResult?.error) {
-    throw new Error('RepoView onboarding could not be loaded.')
-  }
-  const workspace = workspaceResult?.data as Tables<'workspaces'> | null
-
-  if (!workspace) {
-    return {
-      step: 'profile',
-      isComplete: false,
-      emailVerified: isEmailVerified(user),
-      userEmail: user.email ?? '',
-      profile,
-      workspace: null,
-      installations: [],
-      hasPendingGitHubConnection: false,
-      hasSuspendedGitHubInstallation: false,
-      enabledRepositoryCount: 0,
-      shareCount: 0,
-    }
-  }
+  const workspace = selectedWorkspace
 
   if (workspace.status !== undefined && workspace.status !== 'active') {
     throw new Error('Workspace is unavailable.')

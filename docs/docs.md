@@ -265,7 +265,7 @@ Supabase email/password auth
         ↓
 server verifies authenticated user
         ↓
-server resolves the user's workspace membership and role
+server resolves the user's active workspace membership and role
         ↓
 dashboard
 ```

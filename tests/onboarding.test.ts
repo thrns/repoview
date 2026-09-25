@@ -1,15 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
+vi.mock('../lib/auth/workspace', () => ({ requireWorkspace: vi.fn() }))
 vi.mock('../lib/supabase/server', () => ({ createSupabaseServerClient: vi.fn() }))
 vi.mock('../lib/supabase/admin', () => ({ createSupabaseAdminClient: vi.fn() }))
 
 import { getOnboardingState } from '../lib/auth/onboarding'
+import { requireWorkspace } from '../lib/auth/workspace'
 import { createSupabaseAdminClient } from '../lib/supabase/admin'
 import { createSupabaseServerClient } from '../lib/supabase/server'
 
 const getServer = vi.mocked(createSupabaseServerClient)
 const getAdmin = vi.mocked(createSupabaseAdminClient)
+const getWorkspace = vi.mocked(requireWorkspace)
 const user = {
   id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   email: 'ada@example.com',
@@ -17,7 +20,7 @@ const user = {
   app_metadata: { provider: 'email' },
   identities: [],
 }
-const workspace = { id: '11111111-1111-4111-8111-111111111111', name: 'Ada Workspace', owner_id: user.id }
+const workspace = { id: '11111111-1111-4111-8111-111111111111', name: 'Ada Workspace', owner_id: user.id, status: 'active' }
 const membership = { workspace_id: workspace.id, user_id: user.id, role: 'owner' }
 const completedProfile = {
   id: user.id,
@@ -59,8 +62,6 @@ function configureState({ profile = completedProfile, installations = [], reposi
     }),
     from(table: string) {
       if (table === 'profiles') return queryResult(profile)
-      if (table === 'workspace_members') return queryResult(membership)
-      if (table === 'workspaces') return queryResult(workspace)
       if (table === 'github_installations') return queryResult(installations)
       if (table === 'repositories') return queryResult(repositories)
       if (table === 'shares') return queryResult(shares)
@@ -74,6 +75,7 @@ function configureState({ profile = completedProfile, installations = [], reposi
     },
   }
   getServer.mockResolvedValue(server as never)
+  getWorkspace.mockResolvedValue({ user, workspace, membership, availableWorkspaces: [{ workspace, membership }] } as never)
   getAdmin.mockReturnValue(admin as never)
 }
 

@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import type { User } from '@supabase/supabase-js'
 
 import type { Tables, WorkspaceRole } from '@/lib/supabase/database.types'
@@ -10,6 +11,17 @@ export type WorkspaceContext = {
   workspace: Tables<'workspaces'>
   membership: Tables<'workspace_members'>
 }
+
+export type WorkspaceSelection = {
+  workspace: Tables<'workspaces'>
+  membership: Tables<'workspace_members'>
+}
+
+export type ActiveWorkspaceContext = WorkspaceContext & {
+  availableWorkspaces: WorkspaceSelection[]
+}
+
+export const ACTIVE_WORKSPACE_COOKIE = 'repoview-active-workspace'
 
 export type AuthorizedRepository = WorkspaceContext & {
   repository: Tables<'repositories'>
@@ -52,29 +64,11 @@ export async function requireWorkspaceMember(workspaceId: string): Promise<Works
     throw new AuthorizationError('forbidden')
   }
 
-  const { supabase, user } = await getAuthenticatedClient()
-  const { data: membership, error: membershipError } = await supabase
-    .from('workspace_members')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
-    .maybeSingle()
-
-  if (membershipError || !membership) {
+  const context = await requireWorkspace()
+  if (context.workspace.id !== workspaceId) {
     throw new AuthorizationError('forbidden')
   }
-
-  const { data: workspace, error: workspaceError } = await supabase
-    .from('workspaces')
-    .select('*')
-    .eq('id', workspaceId)
-    .maybeSingle()
-
-  if (workspaceError || !workspace || (workspace.status !== undefined && workspace.status !== 'active')) {
-    throw new AuthorizationError('forbidden')
-  }
-
-  return { user, workspace: workspace as Tables<'workspaces'>, membership: membership as Tables<'workspace_members'> }
+  return context
 }
 
 export async function requireWorkspaceRole(workspaceId: string, allowedRoles: WorkspaceRole[]): Promise<WorkspaceContext> {
@@ -97,14 +91,17 @@ export async function requireRepositoryAccess(repositoryId: string): Promise<Aut
     .eq('id', repositoryId)
     .maybeSingle()
 
-  // The authenticated Supabase client is RLS-filtered, and the explicit
-  // membership lookup makes the authorization boundary clear to callers.
+  // The authenticated Supabase client is RLS-filtered, and the active
+  // workspace lookup makes the tenant boundary explicit to callers.
   if (error || !repository) {
     throw new AuthorizationError('not_found')
   }
 
   const authorizedRepository = repository as Tables<'repositories'>
-  const context = await requireWorkspaceMember(authorizedRepository.workspace_id)
+  const context = await requireWorkspace()
+  if (context.workspace.id !== authorizedRepository.workspace_id) {
+    throw new AuthorizationError('forbidden')
+  }
   return { ...context, repository: authorizedRepository }
 }
 
@@ -125,41 +122,85 @@ export async function requireShareAccess(shareId: string): Promise<AuthorizedSha
   }
 
   const authorizedShare = share as Tables<'shares'>
-  const context = await requireWorkspaceMember(authorizedShare.workspace_id)
+  const context = await requireWorkspace()
+  if (context.workspace.id !== authorizedShare.workspace_id) {
+    throw new AuthorizationError('forbidden')
+  }
   return { ...context, share: authorizedShare }
 }
 
-export async function requireWorkspace(options: { roles?: WorkspaceRole[] } = {}): Promise<WorkspaceContext> {
-  try {
-    const { supabase, user } = await getAuthenticatedClient()
-    const membershipResult = await supabase
-      .from('workspace_members')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle()
+export async function getUserWorkspaceMemberships(): Promise<{ user: User; workspaces: WorkspaceSelection[] }> {
+  const { supabase, user } = await getAuthenticatedClient()
+  const membershipsResult = await supabase
+    .from('workspace_members')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: true })
 
-    if (membershipResult.error || !membershipResult.data) {
-      throw new AuthorizationError('forbidden', 'No workspace membership is available.')
+  if (membershipsResult.error) {
+    throw new AuthorizationError('forbidden', 'Workspace memberships are unavailable.')
+  }
+
+  const memberships = (membershipsResult.data ?? []) as Tables<'workspace_members'>[]
+  if (memberships.length === 0) return { user, workspaces: [] }
+
+  const workspaceIds = memberships.map((membership) => membership.workspace_id)
+  const workspacesResult = await supabase
+    .from('workspaces')
+    .select('*')
+    .in('id', workspaceIds)
+
+  if (workspacesResult.error) {
+    throw new AuthorizationError('forbidden', 'Workspaces are unavailable.')
+  }
+
+  const workspacesById = new Map((workspacesResult.data ?? []).map((workspace) => [workspace.id, workspace as Tables<'workspaces'>]))
+  const allSelections = memberships
+    .map((membership) => {
+      const workspace = workspacesById.get(membership.workspace_id)
+      return workspace ? { workspace, membership } : null
+      })
+    .filter((selection): selection is WorkspaceSelection => Boolean(selection))
+
+  if (allSelections.length !== memberships.length) {
+    throw new AuthorizationError('forbidden', 'One or more workspace memberships are unavailable.')
+  }
+
+  const selections = allSelections
+    .filter((selection) => selection.workspace.status === 'active')
+
+  return { user, workspaces: selections }
+}
+
+export function resolveActiveWorkspaceId(workspaces: WorkspaceSelection[], requestedWorkspaceId: string | null | undefined) {
+  if (workspaces.length === 1) return workspaces[0].workspace.id
+  if (!requestedWorkspaceId) return null
+  return workspaces.some((selection) => selection.workspace.id === requestedWorkspaceId) ? requestedWorkspaceId : null
+}
+
+export async function requireWorkspace(options: { roles?: WorkspaceRole[] } = {}): Promise<ActiveWorkspaceContext> {
+  try {
+    const { user, workspaces } = await getUserWorkspaceMemberships()
+    if (workspaces.length === 0) {
+      redirect('/workspace/select')
     }
 
-    const membership = membershipResult.data as Tables<'workspace_members'>
+    const activeWorkspaceId = resolveActiveWorkspaceId(workspaces, (await cookies()).get(ACTIVE_WORKSPACE_COOKIE)?.value)
+    if (!activeWorkspaceId) {
+      redirect('/workspace/select')
+    }
+
+    const selected = workspaces.find((selection) => selection.workspace.id === activeWorkspaceId)
+    if (!selected) {
+      throw new AuthorizationError('forbidden', 'The active workspace is unavailable.')
+    }
+
+    const { workspace, membership } = selected
     if (options.roles && !options.roles.includes(membership.role)) {
       throw new AuthorizationError('forbidden')
     }
 
-    const workspaceResult = await supabase
-      .from('workspaces')
-      .select('*')
-      .eq('id', membership.workspace_id)
-      .maybeSingle()
-
-    if (workspaceResult.error || !workspaceResult.data || (workspaceResult.data.status !== undefined && workspaceResult.data.status !== 'active')) {
-      throw new AuthorizationError('forbidden', 'The workspace is unavailable.')
-    }
-
-    return { user, workspace: workspaceResult.data as Tables<'workspaces'>, membership }
+    return { user, workspace, membership, availableWorkspaces: workspaces }
   } catch (error) {
     if (isRedirectError(error)) throw error
     if (error instanceof AuthorizationError) {
@@ -171,7 +212,10 @@ export async function requireWorkspace(options: { roles?: WorkspaceRole[] } = {}
 
 export async function requireWorkspaceAdmin() {
   const context = await requireWorkspace()
-  return requireWorkspaceRole(context.workspace.id, ['owner', 'admin'])
+  if (!['owner', 'admin'].includes(context.membership.role)) {
+    throw new AuthorizationError('forbidden')
+  }
+  return context
 }
 
 function isUuid(value: string) {

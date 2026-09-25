@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { getAuthCallbackRedirectPath } from '../../../../lib/auth/redirect'
 import { getPublicEnv } from '../../../../lib/env/public'
 import { checkPublicRateLimit, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../lib/security/rate-limit'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
 }
 
 function normalizeNextPath(value: string | null) {
-  return value === '/onboarding' ? '/onboarding' : '/dashboard'
+  return getAuthCallbackRedirectPath(value)
 }
 
 function redirectToLogin(requestUrl: URL, error: string) {
