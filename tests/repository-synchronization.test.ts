@@ -21,6 +21,7 @@ import { listWorkspaceGitHubInstallations } from '../lib/github/client'
 import { getRepositoryMetadataById } from '../lib/github/repositories'
 import { GitHubRepositoryError } from '../lib/github/types'
 import { createSupabaseAdminClient } from '../lib/supabase/admin'
+import { createSupabaseServerClient } from '../lib/supabase/server'
 import {
   RepositorySynchronizationError,
   synchronizeRepositoryForGitHub,
@@ -29,6 +30,7 @@ import {
 const listInstallations = vi.mocked(listWorkspaceGitHubInstallations)
 const getMetadata = vi.mocked(getRepositoryMetadataById)
 const getAdmin = vi.mocked(createSupabaseAdminClient)
+const getServer = vi.mocked(createSupabaseServerClient)
 
 const repository = {
   id: 'repository-1',
@@ -69,6 +71,21 @@ function configureDatabase(updatedRepository = { ...repository }, storedReposito
   repositoryQuery.update.mockReturnValue(updateQuery)
 
   getAdmin.mockReturnValue({
+    from(table: string) {
+      if (table !== 'repositories') throw new Error(`Unexpected table ${table}`)
+      return repositoryQuery
+    },
+  } as never)
+
+  return { repositoryQuery, updateQuery }
+}
+
+function configureServerDatabase(updatedRepository = { ...repository }, storedRepository = repository) {
+  const updateQuery = createQuery({ data: updatedRepository, error: null })
+  const repositoryQuery = createQuery({ data: storedRepository, error: null })
+  repositoryQuery.update.mockReturnValue(updateQuery)
+
+  getServer.mockResolvedValue({
     from(table: string) {
       if (table !== 'repositories') throw new Error(`Unexpected table ${table}`)
       return repositoryQuery
@@ -147,6 +164,22 @@ describe('repository GitHub synchronization', () => {
       .rejects.toMatchObject({ code: 'identity_missing' })
     expect(listInstallations).not.toHaveBeenCalled()
     expect(getMetadata).not.toHaveBeenCalled()
+  })
+
+  it('uses the same verified installation path for system access as member share creation', async () => {
+    configureDatabase({ ...repository, ...githubRepository() })
+    const { updateQuery } = configureServerDatabase({ ...repository, ...githubRepository() })
+
+    await expect(synchronizeRepositoryForGitHub('repository-1', 'workspace-1', 'member')).resolves.toMatchObject({
+      githubRepository: { githubRepositoryId: 42 },
+    })
+    await expect(synchronizeRepositoryForGitHub('repository-1', 'workspace-1', 'system')).resolves.toMatchObject({
+      githubRepository: { githubRepositoryId: 42 },
+    })
+
+    expect(getMetadata).toHaveBeenNthCalledWith(1, 42, 'installation-old', 'workspace-1', 'member')
+    expect(getMetadata).toHaveBeenLastCalledWith(42, 'installation-old', 'workspace-1', 'system')
+    expect(updateQuery.single).toHaveBeenCalled()
   })
 })
 

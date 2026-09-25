@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
-import { ArrowRight, Check, Github, Mail, ShieldCheck } from 'lucide-react'
+import { ArrowRight, Check, CheckCircle2, Github, Mail } from 'lucide-react'
 
 import { completeOnboardingProfile } from '@/app/onboarding/actions'
 import { GitHubConnectionStatusAlert } from '@/components/admin/github-connection-card'
@@ -14,11 +14,9 @@ const stepLabels = [
   ['verify_email', 'Verify'],
   ['profile', 'Profile'],
   ['github', 'GitHub'],
-  ['repositories', 'Repositories'],
-  ['share', 'First share'],
 ] as const
 
-export function OnboardingFlow({ state, githubStatus }: { state: OnboardingState; githubStatus?: string }) {
+export function OnboardingFlow({ state, githubStatus, repositoryCount }: { state: OnboardingState; githubStatus?: string; repositoryCount?: number }) {
   const router = useRouter()
   const [fullName, setFullName] = useState(state.profile?.full_name ?? '')
   const [acceptTerms, setAcceptTerms] = useState(false)
@@ -39,13 +37,17 @@ export function OnboardingFlow({ state, githubStatus }: { state: OnboardingState
     })
   }
 
+  if (state.isComplete && githubStatus === 'success') {
+    return <OnboardingSuccess repositoryCount={repositoryCount} />
+  }
+
   return (
     <main className="min-h-dvh bg-background px-5 py-10 sm:px-8 lg:px-10 lg:py-16">
       <div className="mx-auto w-full max-w-3xl">
         <header className="space-y-3">
           <Badge variant="outline">Welcome to RepoView</Badge>
           <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">Set up your workspace</h1>
-          <p className="max-w-2xl text-sm leading-6 text-foreground-muted">A few quick steps and you’ll have a private repository share ready to send.</p>
+          <p className="max-w-2xl text-sm leading-6 text-foreground-muted">A few quick steps and you’ll have a secure RepoView workspace ready to use.</p>
         </header>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
@@ -73,13 +75,40 @@ export function OnboardingFlow({ state, githubStatus }: { state: OnboardingState
                 </form>
               ) : null}
               {state.step === 'github' ? <GitHubState state={state} /> : null}
-              {state.step === 'repositories' ? <RepositoriesState /> : null}
-              {state.step === 'share' ? <ShareState /> : null}
             </CardContent>
           </Card>
 
           <OnboardingChecklist state={state} />
         </div>
+      </div>
+    </main>
+  )
+}
+
+function OnboardingSuccess({ repositoryCount }: { repositoryCount?: number }) {
+  return (
+    <main className="min-h-dvh bg-background px-5 py-10 sm:px-8 lg:px-10 lg:py-16">
+      <div className="mx-auto flex min-h-[calc(100dvh-5rem)] w-full max-w-xl items-center justify-center sm:min-h-[calc(100dvh-8rem)]">
+        <Card className="w-full overflow-hidden rounded-md border-border/70 shadow-none">
+          <CardContent className="flex flex-col items-center px-6 py-12 text-center sm:px-10 sm:py-14">
+            <div className="mb-5 flex size-14 items-center justify-center rounded-full bg-success/10 text-success ring-8 ring-success/5">
+              <CheckCircle2 className="size-7" strokeWidth={2.2} aria-hidden="true" />
+            </div>
+            <div className="space-y-2">
+              <CardTitle className="text-2xl sm:text-3xl">You're all set</CardTitle>
+              <CardDescription className="mx-auto max-w-sm leading-6">GitHub is connected and your RepoView workspace is ready.</CardDescription>
+            </div>
+            {typeof repositoryCount === 'number' ? (
+              <p className="mt-5 text-xs text-foreground-muted">
+                {repositoryCount} {repositoryCount === 1 ? 'repository' : 'repositories'} discovered
+              </p>
+            ) : null}
+            <Link href="/dashboard" className="mt-8 inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <span>Go to dashboard</span>
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     </main>
   )
@@ -107,25 +136,17 @@ function GitHubState({ state }: { state: OnboardingState }) {
   )
 }
 
-function RepositoriesState() {
-  return <div className="space-y-5"><div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 size-5 text-success" aria-hidden="true" /><p className="text-sm leading-6 text-foreground-muted">Choose the repositories RepoView may use. You can change this selection later in Settings.</p></div><Link href="/dashboard/repositories?onboarding=1" className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"><span>Choose repositories</span><ArrowRight className="size-4" aria-hidden="true" /></Link></div>
-}
-
-function ShareState() {
-  return <div className="space-y-5"><div className="flex items-start gap-3"><Github className="mt-0.5 size-5 text-success" aria-hidden="true" /><p className="text-sm leading-6 text-foreground-muted">Your GitHub connection is ready. Create one share to see the full RepoView workflow.</p></div><Link href="/dashboard/shares/new?onboarding=1" className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"><span>Create first share</span><ArrowRight className="size-4" aria-hidden="true" /></Link></div>
-}
-
 function OnboardingChecklist({ state }: { state: OnboardingState }) {
   const current = currentStepNumber(state.step)
   return <aside className="space-y-3 rounded-md border border-border/70 bg-card p-4"><p className="text-xs font-medium uppercase tracking-[0.12em] text-foreground-muted">Getting started</p><ol className="space-y-1">{stepLabels.map(([key, label], index) => { const complete = current > index + 1 || state.step === 'complete'; const active = key === state.step; return <li key={key} className="flex items-center gap-2.5 py-1.5 text-sm"><span className={complete ? 'flex size-5 items-center justify-center rounded-full bg-success text-success-foreground' : active ? 'flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground font-mono text-[10px]' : 'flex size-5 items-center justify-center rounded-full border border-border font-mono text-[10px] text-foreground-muted'}>{complete ? <Check className="size-3" aria-hidden="true" /> : index + 1}</span><span className={active ? 'font-medium text-foreground' : 'text-foreground-muted'}>{label}</span></li> })}</ol></aside>
 }
 
 function getTitle(state: OnboardingState) {
-  return { verify_email: 'Verify your email', profile: 'Tell us about you', github: 'Connect GitHub', repositories: 'Choose your repositories', share: 'Create your first share', complete: 'Your workspace is ready' }[state.step]
+  return { verify_email: 'Verify your email', profile: 'Tell us about you', github: 'Connect GitHub', complete: 'Your workspace is ready' }[state.step]
 }
 
 function getDescription(state: OnboardingState) {
-  return { verify_email: 'One quick confirmation keeps your account secure.', profile: 'This is the name we’ll use for your personal workspace.', github: 'Connect the GitHub account or organization that owns your repositories.', repositories: 'Select what you want to make available for sharing.', share: 'Start with a secure, read-only link.', complete: 'You can now use RepoView.' }[state.step]
+  return { verify_email: 'One quick confirmation keeps your account secure.', profile: 'This is the name we’ll use for your personal workspace.', github: 'Connect the GitHub account or organization that owns your repositories.', complete: 'You can now use RepoView.' }[state.step]
 }
 
 function currentStepNumber(step: OnboardingState['step']) {

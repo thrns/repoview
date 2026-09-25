@@ -5,9 +5,14 @@ vi.mock('../lib/auth/viewer-session', () => ({
   ViewerAuthorizationError: class ViewerAuthorizationError extends Error {},
   requireViewerSession: vi.fn(),
 }))
-vi.mock('../lib/repositories/synchronize', () => ({ synchronizeRepositoryForGitHub: vi.fn() }))
+vi.mock('../lib/repositories/synchronize', () => ({
+  RepositorySynchronizationError: class RepositorySynchronizationError extends Error {
+    code = 'unavailable'
+  },
+  synchronizeRepositoryForGitHub: vi.fn(),
+}))
 
-import { requireViewerRepositoryAccess } from '../lib/auth/viewer-access'
+import { requireViewerRepositoryAccess, ViewerRepositoryAccessError } from '../lib/auth/viewer-access'
 import { requireViewerSession } from '../lib/auth/viewer-session'
 import { synchronizeRepositoryForGitHub } from '../lib/repositories/synchronize'
 
@@ -72,6 +77,27 @@ describe('viewer repository authorization', () => {
     } as never)],
   ])('denies access when %s', async (_label, configure) => {
     configure()
-    await expect(requireViewerRepositoryAccess('share-1')).rejects.toThrow()
+    await expect(requireViewerRepositoryAccess('share-1')).rejects.toBeInstanceOf(ViewerRepositoryAccessError)
+  })
+
+  it('does not relabel a synchronization failure as an invalid viewer session', async () => {
+    synchronizeRepository.mockRejectedValue(new Error('GitHub API unavailable'))
+
+    await expect(requireViewerRepositoryAccess('share-1')).rejects.toMatchObject({
+      name: 'ViewerRepositoryAccessError',
+      reason: 'unavailable',
+    })
+  })
+
+  it('reports a missing stable repository identity as repository unavailable', async () => {
+    requireSession.mockResolvedValue({
+      ...viewer,
+      repository: { ...viewer.repository, github_repository_id: null },
+    } as never)
+
+    await expect(requireViewerRepositoryAccess('share-1')).rejects.toMatchObject({
+      name: 'ViewerRepositoryAccessError',
+      reason: 'repository_unavailable',
+    })
   })
 })

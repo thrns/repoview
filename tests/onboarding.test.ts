@@ -48,12 +48,10 @@ function queryResult(data: unknown, error: unknown = null) {
 type StateFixtures = {
   profile?: Record<string, unknown>
   installations?: unknown[]
-  repositories?: unknown[]
-  shares?: unknown[]
   pending?: unknown[]
 }
 
-function configureState({ profile = completedProfile, installations = [], repositories = [], shares = [], pending = [] }: StateFixtures = {}) {
+function configureState({ profile = completedProfile, installations = [], pending = [] }: StateFixtures = {}) {
   const server = {
     auth: { getUser: vi.fn().mockResolvedValue({ data: { user }, error: null }) },
     rpc: vi.fn().mockResolvedValue({
@@ -63,8 +61,6 @@ function configureState({ profile = completedProfile, installations = [], reposi
     from(table: string) {
       if (table === 'profiles') return queryResult(profile)
       if (table === 'github_installations') return queryResult(installations)
-      if (table === 'repositories') return queryResult(repositories)
-      if (table === 'shares') return queryResult(shares)
       throw new Error(`Unexpected table ${table}`)
     },
   }
@@ -89,14 +85,11 @@ describe('onboarding state', () => {
 
   it('keeps organization approval resumable without granting repository access', async () => {
     configureState({ installations: [], pending: [{ id: 'connection-1' }] })
-    await expect(getOnboardingState()).resolves.toMatchObject({ step: 'github', hasPendingGitHubConnection: true, enabledRepositoryCount: 0 })
+    await expect(getOnboardingState()).resolves.toMatchObject({ step: 'github', hasPendingGitHubConnection: true })
   })
 
-  it('advances from repository selection to first share and then complete', async () => {
-    configureState({ installations: [{ status: 'active' }], repositories: [{ id: 'repo-1', enabled: true }], shares: [] })
-    await expect(getOnboardingState()).resolves.toMatchObject({ step: 'share', enabledRepositoryCount: 1 })
-
-    configureState({ installations: [{ status: 'active' }], repositories: [{ id: 'repo-1', enabled: true }], shares: [{ id: 'share-1' }] })
+  it('completes after an active GitHub installation without repository or share setup', async () => {
+    configureState({ installations: [{ status: 'active' }] })
     await expect(getOnboardingState()).resolves.toMatchObject({ step: 'complete', isComplete: true })
   })
 

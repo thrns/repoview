@@ -11,7 +11,7 @@ import {
   Settings2,
   SlidersHorizontal,
 } from 'lucide-react'
-import { useLayoutEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 
 import {
   setRepositoriesEnabled,
@@ -57,7 +57,6 @@ interface RepositoriesViewProps {
 type StatusFilter = 'all' | 'shareable' | 'disabled' | 'archived'
 type VisibilityFilter = 'all' | 'private' | 'public'
 type SortMode = 'name-asc' | 'name-desc' | 'branch' | 'status'
-type ScrollSnapshot = { dashboardTop: number; tableTop: number }
 
 export function RepositoriesView({ items }: RepositoriesViewProps) {
   const [isPending, startTransition] = useTransition()
@@ -69,18 +68,6 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all')
   const [sortMode, setSortMode] = useState<SortMode>('name-asc')
   const [error, setError] = useState<string | null>(null)
-  const tableScrollRef = useRef<HTMLDivElement | null>(null)
-  const scrollSnapshotRef = useRef<ScrollSnapshot | null>(null)
-
-  useLayoutEffect(() => {
-    const snapshot = scrollSnapshotRef.current
-    if (!snapshot) return
-
-    const dashboard = document.getElementById('main')
-    if (dashboard) dashboard.scrollTop = snapshot.dashboardTop
-    if (tableScrollRef.current) tableScrollRef.current.scrollTop = snapshot.tableTop
-    scrollSnapshotRef.current = null
-  }, [error, overrides, pendingKeys])
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -121,21 +108,12 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
   const allVisibleSelected = visibleKeys.length > 0 && visibleKeys.every((key) => selectedKeys.includes(key))
   const someVisibleSelected = visibleKeys.some((key) => selectedKeys.includes(key))
 
-  function preserveScrollPosition() {
-    if (scrollSnapshotRef.current) return
-    scrollSnapshotRef.current = {
-      dashboardTop: document.getElementById('main')?.scrollTop ?? 0,
-      tableTop: tableScrollRef.current?.scrollTop ?? 0,
-    }
-  }
-
   function toggleRepository(item: RepositoryDashboardItem, enabled: boolean) {
-    preserveScrollPosition()
     const key = repositoryKey(item)
     const previousValue = getEnabled(item, overrides)
     setError(null)
     setOverrides((current) => ({ ...current, [key]: enabled }))
-    setPendingKeys([key])
+    setPendingKeys((current) => current.includes(key) ? current : [...current, key])
 
     startTransition(async () => {
       try {
@@ -152,18 +130,17 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
         setOverrides((current) => ({ ...current, [key]: previousValue }))
         setError(actionError instanceof Error ? actionError.message : 'Repository status could not be updated.')
       } finally {
-        setPendingKeys([])
+        setPendingKeys((current) => current.filter((pendingKey) => pendingKey !== key))
       }
     })
   }
 
   function bulkToggle(repositories: RepositoryDashboardItem[], enabled: boolean) {
     if (repositories.length === 0) return
-    preserveScrollPosition()
     const keys = repositories.map(repositoryKey)
     const previousValues = Object.fromEntries(repositories.map((item) => [repositoryKey(item), getEnabled(item, overrides)]))
     setError(null)
-    setPendingKeys(keys)
+    setPendingKeys((current) => [...new Set([...current, ...keys])])
     setOverrides((current) => Object.fromEntries([
       ...Object.entries(current),
       ...keys.map((key) => [key, enabled]),
@@ -190,7 +167,7 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
         ]))
         setError(actionError instanceof Error ? actionError.message : 'Repository statuses could not be updated.')
       } finally {
-        setPendingKeys([])
+        setPendingKeys((current) => current.filter((pendingKey) => !keys.includes(pendingKey)))
       }
     })
   }
@@ -302,7 +279,7 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
             <Button type="button" variant="outline" size="small" className="mt-4" onClick={clearFilters}>Clear filters</Button>
           </div>
         ) : (
-          <div ref={tableScrollRef} className="min-h-0 flex-1 overflow-auto overscroll-contain">
+          <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
             <table className="w-full min-w-[1060px] table-fixed text-sm">
               <caption className="sr-only">Repositories available to the RepoView GitHub App installation</caption>
               <colgroup>
@@ -355,7 +332,7 @@ export function RepositoriesView({ items }: RepositoriesViewProps) {
                       </td>
                       <td className="px-3 py-3.5 align-middle">
                         <div className="flex items-center gap-2.5">
-                          <ShareToggle checked={enabled} disabled={isPending || item.github.disabled || item.github.archived} onBeforeChange={preserveScrollPosition} onChange={(event) => toggleRepository(item, event.target.checked)} label={`${enabled ? 'Disable' : 'Enable'} sharing for ${item.github.fullName}`} />
+                          <ShareToggle checked={enabled} disabled={rowPending || item.github.disabled || item.github.archived} onChange={(checked) => toggleRepository(item, checked)} label={`${enabled ? 'Disable' : 'Enable'} sharing for ${item.github.fullName}`} />
                           <div className="min-w-0"><Badge variant={shareable ? 'success' : 'secondary'}>{shareable ? 'Shareable' : 'Not shareable'}</Badge><p className="mt-1 truncate text-[11px] text-foreground-muted">{rowPending ? 'Saving…' : shareable ? 'Ready for new shares' : 'Enable to share'}</p></div>
                         </div>
                       </td>
@@ -383,8 +360,8 @@ function StatusTab({ active, onClick, count, children }: { active: boolean; onCl
   return <button type="button" role="tab" aria-selected={active} onClick={onClick} className={cn('inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', active ? 'bg-foreground text-background' : 'text-foreground-muted hover:bg-muted hover:text-foreground')}>{children}<span className={cn('font-mono text-[10px] tabular-nums', active ? 'text-background/70' : 'text-foreground-muted/75')}>{count}</span></button>
 }
 
-function ShareToggle({ checked, disabled, onBeforeChange, onChange, label }: { checked: boolean; disabled: boolean; onBeforeChange?: () => void; onChange: (event: React.ChangeEvent<HTMLInputElement>) => void; label: string }) {
-  return <label className={cn('inline-flex shrink-0 cursor-pointer items-center rounded-full', disabled && 'cursor-not-allowed opacity-50')} onPointerDown={disabled ? undefined : onBeforeChange}><input type="checkbox" checked={checked} disabled={disabled} onChange={onChange} onKeyDown={(event) => { if (!disabled && (event.key === ' ' || event.key === 'Enter')) onBeforeChange?.() }} className="peer sr-only" aria-label={label} /><span className="relative block h-5 w-9 rounded-full border border-input bg-muted transition-colors before:absolute before:left-0.5 before:top-0.5 before:size-3.5 before:rounded-full before:bg-background before:shadow-sm before:transition-transform peer-checked:bg-primary peer-checked:before:translate-x-4 peer-focus-visible:ring-2 peer-focus-visible:ring-ring" aria-hidden="true" /></label>
+function ShareToggle({ checked, disabled, onChange, label }: { checked: boolean; disabled: boolean; onChange: (checked: boolean) => void; label: string }) {
+  return <button type="button" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)} className={cn('relative block h-5 w-9 shrink-0 rounded-full border border-input transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', checked ? 'bg-primary' : 'bg-muted', disabled && 'cursor-not-allowed opacity-50')}><span aria-hidden="true" className={cn('absolute left-0.5 top-0.5 size-3.5 rounded-full bg-background shadow-sm transition-transform', checked && 'translate-x-4')} /></button>
 }
 
 function EmptyRepositories() {

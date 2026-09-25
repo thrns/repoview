@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 vi.mock('../lib/supabase/admin', () => ({ createSupabaseAdminClient: vi.fn() }))
@@ -24,6 +24,10 @@ import { checkPublicRateLimit } from '../lib/security/rate-limit'
 
 const exchange = vi.mocked(exchangeShareToken)
 const checkLimit = vi.mocked(checkPublicRateLimit)
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+})
 
 describe('share entry route', () => {
   it('returns a 429 with Retry-After before exchanging an over-limit share request', async () => {
@@ -61,5 +65,23 @@ describe('share entry route', () => {
     expect(response.status).toBe(303)
     expect(response.headers.get('location')).toBe('https://repoview.test/view/Ab3k9Qx2')
     expect(response.headers.get('set-cookie')).toContain('Path=/')
+  })
+
+  it('does not make the viewer session unusable for an HTTP production build', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    exchange.mockResolvedValue({
+      shareId: '22222222-2222-4222-8222-222222222222',
+      shareCode: 'Ab3k9Qx2',
+      rawSessionToken: 'session-token',
+      expiresAt: null,
+    })
+
+    const response = await GET(
+      new Request('http://repoview.test/s/long-secret-token') as never,
+      { params: Promise.resolve({ token: 'long-secret-token' }) },
+    )
+
+    expect(response.status).toBe(303)
+    expect(response.headers.get('set-cookie')).not.toContain('Secure')
   })
 })

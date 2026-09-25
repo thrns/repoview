@@ -8,7 +8,7 @@ import { createSupabaseAdminClient } from '../supabase/admin'
 import { createSupabaseServerClient } from '../supabase/server'
 import type { Tables } from '../supabase/database.types'
 
-export type OnboardingStep = 'verify_email' | 'profile' | 'github' | 'repositories' | 'share' | 'complete'
+export type OnboardingStep = 'verify_email' | 'profile' | 'github' | 'complete'
 
 export type OnboardingState = {
   step: OnboardingStep
@@ -20,8 +20,6 @@ export type OnboardingState = {
   installations: Tables<'github_installations'>[]
   hasPendingGitHubConnection: boolean
   hasSuspendedGitHubInstallation: boolean
-  enabledRepositoryCount: number
-  shareCount: number
 }
 
 export async function getOnboardingState(): Promise<OnboardingState> {
@@ -35,8 +33,6 @@ export function getOnboardingLabel(step: OnboardingStep) {
     verify_email: 'Verify your email',
     profile: 'Finish your profile',
     github: 'Connect GitHub',
-    repositories: 'Choose repositories',
-    share: 'Create your first share',
     complete: 'You are ready to go',
   }[step]
 }
@@ -62,20 +58,16 @@ async function loadOnboardingState(
     throw new Error('Workspace is unavailable.')
   }
 
-  const [installationsResult, repositoriesResult, sharesResult, pendingResult] = await Promise.all([
+  const [installationsResult, pendingResult] = await Promise.all([
     supabase.from('github_installations').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending: true }),
-    supabase.from('repositories').select('id, enabled').eq('workspace_id', workspace.id),
-    supabase.from('shares').select('id').eq('workspace_id', workspace.id),
     getPendingConnection(user.id),
   ])
 
-  if (installationsResult.error || repositoriesResult.error || sharesResult.error) {
+  if (installationsResult.error) {
     throw new Error('RepoView onboarding could not be loaded.')
   }
 
   const installations = (installationsResult.data ?? []) as Tables<'github_installations'>[]
-  const enabledRepositoryCount = (repositoriesResult.data ?? []).filter((repository) => repository.enabled).length
-  const shareCount = sharesResult.data?.length ?? 0
   const isLegacyComplete = Boolean(profile?.onboarding_completed_at)
   const emailVerified = isLegacyComplete || isEmailVerified(user)
   const profileComplete = isLegacyComplete || Boolean(
@@ -90,8 +82,6 @@ async function loadOnboardingState(
   if (!emailVerified) step = 'verify_email'
   else if (!profileComplete) step = 'profile'
   else if (!hasActiveInstallation) step = 'github'
-  else if (enabledRepositoryCount === 0) step = 'repositories'
-  else if (shareCount === 0) step = 'share'
 
   return {
     step,
@@ -103,8 +93,6 @@ async function loadOnboardingState(
     installations,
     hasPendingGitHubConnection: pendingResult || hasSuspendedInstallation,
     hasSuspendedGitHubInstallation: hasSuspendedInstallation,
-    enabledRepositoryCount,
-    shareCount,
   }
 }
 

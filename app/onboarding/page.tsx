@@ -5,7 +5,7 @@ import { getOnboardingState } from '@/lib/auth/onboarding'
 
 export const dynamic = 'force-dynamic'
 
-export default async function OnboardingPage({ searchParams }: { searchParams?: Promise<{ github?: string | string[] }> }) {
+export default async function OnboardingPage({ searchParams }: { searchParams?: Promise<{ github?: string | string[]; repositories?: string | string[] }> }) {
   let state
   try {
     state = await getOnboardingState()
@@ -14,10 +14,18 @@ export default async function OnboardingPage({ searchParams }: { searchParams?: 
     redirect('/login')
   }
 
-  if (state.isComplete) redirect('/dashboard')
   const params = await searchParams
   const githubStatus = typeof params?.github === 'string' ? params.github : undefined
-  return <OnboardingFlow state={state} githubStatus={githubStatus} />
+  const repositoryCount = parseRepositoryCount(params?.repositories)
+
+  if (state.isComplete && githubStatus !== 'success') redirect('/dashboard')
+  return <OnboardingFlow state={state} githubStatus={githubStatus} repositoryCount={repositoryCount} />
+}
+
+function parseRepositoryCount(value: string | string[] | undefined) {
+  if (typeof value !== 'string' || !/^\d+$/.test(value)) return undefined
+  const parsed = Number(value)
+  return Number.isSafeInteger(parsed) ? parsed : undefined
 }
 
 function isRedirectError(error: unknown) {

@@ -12,6 +12,7 @@ import { GitHubRepositoryError, type GitHubRepositorySummary } from '../github/t
 import { createSupabaseAdminClient } from '../supabase/admin'
 import { createSupabaseServerClient } from '../supabase/server'
 import type { Tables, TablesUpdate } from '../supabase/database.types'
+import { logViewerDiagnostic, summarizeViewerError } from '../viewer/diagnostics'
 
 export type RepositorySynchronizationCode =
   | 'identity_missing'
@@ -44,6 +45,12 @@ export async function synchronizeRepositoryForGitHub(
   workspaceId: string,
   access: GitHubInstallationAccess = 'system',
 ): Promise<SynchronizedRepository> {
+  logViewerDiagnostic('repository-sync-start', {
+    access,
+    repositoryId,
+    workspaceId,
+  })
+
   if (access === 'member') {
     await requireWorkspaceMember(workspaceId)
   }
@@ -59,21 +66,71 @@ export async function synchronizeRepositoryForGitHub(
     .maybeSingle()
 
   if (repositoryError || !repository) {
+    logViewerDiagnostic('repository-sync-record-missing', {
+      access,
+      repositoryId,
+      workspaceId,
+      databaseError: Boolean(repositoryError),
+      recordPresent: Boolean(repository),
+      ...(repositoryError ? { error: summarizeViewerError(repositoryError).message } : {}),
+    })
     throw new RepositorySynchronizationError('not_found')
   }
 
   if (!repository.github_repository_id || !Number.isSafeInteger(repository.github_repository_id) || repository.github_repository_id <= 0) {
+    logViewerDiagnostic('repository-sync-identity-missing', {
+      access,
+      repositoryId,
+      workspaceId,
+    })
     throw new RepositorySynchronizationError('identity_missing')
   }
 
-  const installations = await listWorkspaceGitHubInstallations(workspaceId, { access })
+  let installations: Awaited<ReturnType<typeof listWorkspaceGitHubInstallations>>
+  try {
+    installations = await listWorkspaceGitHubInstallations(workspaceId, { access })
+  } catch (error) {
+    logViewerDiagnostic('repository-sync-installations-failed', {
+      access,
+      repositoryId,
+      workspaceId,
+      error: summarizeViewerError(error).message,
+    })
+    throw error
+  }
+
+  logViewerDiagnostic('repository-sync-installations-loaded', {
+    access,
+    repositoryId,
+    workspaceId,
+    installationCount: installations.length,
+  })
+
   if (installations.length === 0) {
     throw new RepositorySynchronizationError('access')
   }
 
+  // The repository's current installation is the first candidate. This keeps
+  // the public viewer on the same verified GitHub App installation used by
+  // share creation while still allowing transfers to another active
+  // installation in the workspace to recover below.
+  const orderedInstallations = [...installations].sort((left, right) => {
+    const leftIsCurrent = left.id === repository.github_installation_id
+    const rightIsCurrent = right.id === repository.github_installation_id
+    return Number(rightIsCurrent) - Number(leftIsCurrent)
+  })
+
   let sawAccessFailure = false
-  for (const installation of installations) {
+  for (const [installationIndex, installation] of orderedInstallations.entries()) {
     if (installation.workspace_id !== workspaceId) continue
+
+    logViewerDiagnostic('repository-sync-installation-check', {
+      access,
+      repositoryId,
+      workspaceId,
+      installationIndex,
+      isCurrentInstallation: installation.id === repository.github_installation_id,
+    })
 
     let githubRepository: GitHubRepositorySummary
     try {
@@ -84,6 +141,13 @@ export async function synchronizeRepositoryForGitHub(
         access,
       )
     } catch (error) {
+      logViewerDiagnostic('repository-sync-installation-failed', {
+        access,
+        repositoryId,
+        workspaceId,
+        installationIndex,
+        error: summarizeViewerError(error).message,
+      })
       if (error instanceof GitHubRepositoryError && error.code === 'not_found') continue
       if (error instanceof GitHubRepositoryError && (error.code === 'forbidden' || error.code === 'unauthorized')) {
         sawAccessFailure = true
@@ -93,6 +157,12 @@ export async function synchronizeRepositoryForGitHub(
     }
 
     if (githubRepository.disabled) {
+      logViewerDiagnostic('repository-sync-github-disabled', {
+        access,
+        repositoryId,
+        workspaceId,
+        installationIndex,
+      })
       throw new RepositorySynchronizationError('disabled')
     }
 
@@ -113,8 +183,25 @@ export async function synchronizeRepositoryForGitHub(
       .single()
 
     if (updateError || !synchronized) {
+      logViewerDiagnostic('repository-sync-record-update-failed', {
+        access,
+        repositoryId,
+        workspaceId,
+        installationIndex,
+        databaseError: Boolean(updateError),
+        recordPresent: Boolean(synchronized),
+        ...(updateError ? { error: summarizeViewerError(updateError).message } : {}),
+      })
       throw new RepositorySynchronizationError('unavailable')
     }
+
+    logViewerDiagnostic('repository-sync-success', {
+      access,
+      repositoryId,
+      workspaceId,
+      installationIndex,
+      githubRepositoryIdentityMatches: synchronized.github_repository_id === repository.github_repository_id,
+    })
 
     return {
       repository: synchronized as Tables<'repositories'>,

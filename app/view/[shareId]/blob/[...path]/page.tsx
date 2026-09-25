@@ -1,5 +1,8 @@
 import { after } from 'next/server'
+import { redirect } from 'next/navigation'
 import { ViewerFilePreview, type ViewerFilePreviewState } from '@/components/viewer/viewer-file-preview'
+import { ViewerRepositoryAccessError } from '@/lib/auth/viewer-access'
+import { ViewerAuthorizationError } from '@/lib/auth/viewer-session'
 import { GitHubFileError, loadRepositoryFile } from '@/lib/github/contents'
 import { normalizeRepositoryPath } from '@/lib/security/path'
 import { isPathAllowedForShare } from '@/lib/security/visibility'
@@ -15,8 +18,11 @@ export default async function ViewerFilePage({ params }: { params: Promise<{ sha
   let data: Awaited<ReturnType<typeof getViewerPageData>>
   try {
     data = await getViewerPageData(shareId)
-  } catch {
-    return <ViewerFilePreview file={unavailableFile(path.join('/'), 'not-found')} shareId={shareId} />
+  } catch (error) {
+    if (error instanceof ViewerAuthorizationError || error instanceof ViewerRepositoryAccessError) {
+      redirect(`/view/error?reason=${error.reason}`)
+    }
+    throw error
   }
 
   const requestedPath = normalizeRepositoryPath(path.join('/'))

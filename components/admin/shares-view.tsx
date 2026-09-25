@@ -3,7 +3,8 @@
 import { BarChart3, Copy, Eye, GitBranch, Link2, MoreHorizontal, Plus, Search, SlidersHorizontal, X } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { RevokeShareButton } from '@/components/admin/revoke-share-button'
 import { UpdateShareExpiryButton } from '@/components/admin/update-share-expiry-button'
@@ -297,12 +298,48 @@ function ShareRow({ item, onCopyLink }: { item: ShareListItem; onCopyLink: () =>
 
 function ShareRowActions({ item, onCopyLink }: { item: ShareListItem; onCopyLink: () => void }) {
   const [open, setOpen] = useState(false)
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setMenuPosition(null)
+      return
+    }
+
+    if (!triggerRef.current) return
+
+    function updateMenuPosition() {
+      const trigger = triggerRef.current
+      if (!trigger) return
+
+      const triggerBounds = trigger.getBoundingClientRect()
+      const menuWidth = 192
+      const viewportPadding = 8
+      const maxLeft = Math.max(viewportPadding, window.innerWidth - menuWidth - viewportPadding)
+
+      setMenuPosition({
+        top: triggerBounds.bottom,
+        left: Math.min(Math.max(viewportPadding, triggerBounds.right - menuWidth), maxLeft),
+      })
+    }
+
+    updateMenuPosition()
+    window.addEventListener('resize', updateMenuPosition)
+    window.addEventListener('scroll', updateMenuPosition, true)
+
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition)
+      window.removeEventListener('scroll', updateMenuPosition, true)
+    }
+  }, [open])
 
   useEffect(() => {
     if (!open) return
     function handlePointerDown(event: PointerEvent) {
-      if (!menuRef.current?.contains(event.target as Node)) setOpen(false)
+      const target = event.target as Node
+      if (!triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false)
     }
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') setOpen(false)
@@ -316,8 +353,9 @@ function ShareRowActions({ item, onCopyLink }: { item: ShareListItem; onCopyLink
   }, [open])
 
   return (
-    <div ref={menuRef} className="relative flex justify-end" onClick={(event) => event.stopPropagation()}>
+    <div className="flex justify-end" onClick={(event) => event.stopPropagation()}>
       <button
+        ref={triggerRef}
         type="button"
         aria-label={`Actions for ${item.share.recipient_label || 'Generic share'}`}
         aria-haspopup="menu"
@@ -327,8 +365,8 @@ function ShareRowActions({ item, onCopyLink }: { item: ShareListItem; onCopyLink
       >
         <MoreHorizontal className="size-4" aria-hidden="true" />
       </button>
-      {open ? (
-        <div role="menu" className="absolute right-0 top-full z-30 mt-1 w-48 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md">
+      {open && menuPosition ? createPortal(
+        <div ref={menuRef} role="menu" style={{ top: menuPosition.top, left: menuPosition.left }} className="fixed z-[70] mt-1 w-48 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md">
           <button type="button" role="menuitem" onClick={() => { onCopyLink(); setOpen(false) }} className="flex h-8 w-full items-center gap-2 rounded-sm px-2 text-left text-xs text-foreground-muted transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title="The original recipient URL is not recoverable after creation">
             <Copy className="size-3.5" aria-hidden="true" />
             Copy link
@@ -345,7 +383,8 @@ function ShareRowActions({ item, onCopyLink }: { item: ShareListItem; onCopyLink
           <div className="[&>div>button]:h-8 [&>div>button]:w-full [&>div>button]:justify-start [&>div>button]:px-2 [&>div>button]:text-xs [&>div>button]:text-destructive [&>div>button]:hover:bg-destructive/10 [&>div>button]:hover:text-destructive">
             <RevokeShareButton shareId={item.share.id} disabled={item.status === 'revoked'} compact />
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   )

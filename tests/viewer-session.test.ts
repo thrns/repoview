@@ -77,6 +77,7 @@ function createAdminMock(overrides: {
   const repository = {
     id: repositoryId,
     workspace_id: 'workspace-1',
+    github_installation_id: '44444444-4444-4444-8444-444444444444',
     github_owner: 'octocat',
     github_repo: 'hello-world',
     default_branch: 'main',
@@ -93,6 +94,13 @@ function createAdminMock(overrides: {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
           maybeSingle: vi.fn().mockResolvedValue({ data: { status: overrides.workspaceStatus ?? 'active' }, error: null }),
+        }
+      }
+      if (table === 'github_installations') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: { status: 'active' }, error: null }),
         }
       }
       return {
