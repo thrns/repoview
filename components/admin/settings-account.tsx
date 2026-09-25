@@ -1,17 +1,24 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { CheckCircle2, CircleAlert, Download, LockKeyhole, Trash2 } from 'lucide-react'
 
 import { changePassword, updateProfile } from '@/app/(admin)/dashboard/settings/actions'
+import { AccountReauthenticationDialog } from '@/components/admin/account-reauthentication-dialog'
 import { Alert, AlertDescription, Button, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label } from '@/components/ui'
 import { getAccountDeletionConfirmation } from '@/lib/account/deletion-shared'
 
-export function SettingsAccount({ fullName, email, emailVerified }: { fullName: string; email: string; emailVerified: boolean }) {
+export function SettingsAccount({ fullName, email, emailVerified, reauthStatus, reauthOperation }: { fullName: string; email: string; emailVerified: boolean; reauthStatus?: string; reauthOperation?: string }) {
   const [name, setName] = useState(fullName)
   const [message, setMessage] = useState<string | null>(null)
   const [saved, setSaved] = useState<boolean | null>(null)
   const [pending, startTransition] = useTransition()
+
+  useEffect(() => {
+    if (reauthStatus === 'success' && reauthOperation === 'account-export') {
+      window.location.assign('/api/account/export')
+    }
+  }, [reauthOperation, reauthStatus])
 
   function saveProfile(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -60,12 +67,11 @@ export function SettingsAccount({ fullName, email, emailVerified }: { fullName: 
           </summary>
           <ChangePasswordForm />
         </details>
-        <a href="/api/account/export" className="flex min-h-16 items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
-          <div className="flex items-center gap-3"><Download className="size-4 text-foreground-muted" aria-hidden="true" /><div><p className="text-sm font-medium">Export account data</p><p className="mt-0.5 text-xs text-foreground-muted">Download your profile, workspaces, repositories, shares, recipient metadata, settings, and relevant analytics.</p></div></div>
-          <span className="text-xs font-medium text-foreground-muted">JSON</span>
-        </a>
+        <AccountReauthenticationDialog operation="account-export" trigger={<span className="flex w-full items-center justify-between gap-4 text-left"><span className="flex items-center gap-3"><Download className="size-4 text-foreground-muted" aria-hidden="true" /><span><span className="block text-sm font-medium">Export account data</span><span className="mt-0.5 block text-xs text-foreground-muted">Download your profile, workspaces, repositories, shares, recipient metadata, settings, and relevant analytics.</span></span></span><span className="text-xs font-medium text-foreground-muted">JSON</span></span>} onAuthorized={() => { window.location.assign('/api/account/export') }} />
       </div>
 
+      {reauthStatus === 'success' && reauthOperation === 'account-delete' ? <p className="text-xs text-success" role="status">Reauthentication complete. Reopen the deletion dialog to continue.</p> : null}
+      {reauthStatus === 'mfa' && reauthOperation ? <PendingMfaReauthentication operation={reauthOperation} /> : null}
       <DeleteAccountControl email={email} />
     </div>
   )
@@ -87,14 +93,14 @@ function DeleteAccountControl({ email }: { email: string }) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ confirmation: value }),
       })
-      const result = await response.json().catch(() => null) as { error?: string; deleted?: boolean } | null
-      if (!response.ok || !result?.deleted) {
+      const result = await response.json().catch(() => null) as { error?: string; queued?: boolean } | null
+      if (!response.ok || !result?.queued) {
         setMessage(formatDeletionError(result?.error))
         return
       }
-      window.location.assign('/login?deleted=1')
+      window.location.assign('/login?deletion=queued')
     } catch {
-      setMessage('Account cleanup could not finish. Your shares remain disabled while you retry.')
+      setMessage('Account cleanup could not be queued. Your shares remain disabled while you retry.')
     } finally {
       setPending(false)
     }
@@ -113,7 +119,7 @@ function DeleteAccountControl({ email }: { email: string }) {
               <DialogDescription>This is permanent. Your personal workspace will be disabled immediately, all active shares will stop working, GitHub connections will be forgotten, and account-owned metadata and analytics will be deleted.</DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-4 text-sm">
-              <p className="text-foreground-muted">For safety, you must have signed in recently and type this phrase exactly:</p>
+              <p className="text-foreground-muted">For safety, reauthenticate immediately before deletion and type this phrase exactly:</p>
               <p className="rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-foreground">{confirmation}</p>
               <div className="space-y-2">
                 <Label htmlFor="delete-account-confirmation">Confirmation phrase</Label>
@@ -123,7 +129,7 @@ function DeleteAccountControl({ email }: { email: string }) {
             </div>
             <DialogFooter>
               <DialogClose>Cancel</DialogClose>
-              <Button type="button" variant="destructive" loading={pending} disabled={value !== confirmation} onClick={deleteAccount}>Permanently delete</Button>
+              <AccountReauthenticationDialog operation="account-delete" trigger="Permanently delete" variant="destructive" disabled={value !== confirmation || pending} onAuthorized={deleteAccount} />
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -143,6 +149,37 @@ function formatDeletionError(error?: string) {
     default:
       return 'Account cleanup could not finish. Your shares remain disabled while you retry.'
   }
+}
+
+function PendingMfaReauthentication({ operation }: { operation: string }) {
+  const [code, setCode] = useState('')
+  const [message, setMessage] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
+
+  async function submit() {
+    setPending(true)
+    setMessage(null)
+    try {
+      const response = await fetch('/api/account/reauthenticate/mfa', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ operation, code }),
+      })
+      const result = await response.json().catch(() => null) as { error?: string; authenticated?: boolean } | null
+      if (!response.ok || !result?.authenticated) {
+        setMessage(result?.error === 'invalid_mfa' ? 'That MFA code was not accepted.' : 'MFA reauthentication could not be completed.')
+        return
+      }
+      if (operation === 'account-export') window.location.assign('/api/account/export')
+      else window.location.assign('/dashboard/settings?reauth=success&operation=account-delete')
+    } catch {
+      setMessage('MFA reauthentication is temporarily unavailable.')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return <div className="rounded-md border border-warning/30 bg-warning/5 p-4"><p className="text-sm font-medium">Complete MFA reauthentication</p><p className="mt-1 text-xs leading-5 text-foreground-muted">Enter the six-digit code from your configured authenticator to finish the sensitive account action.</p><div className="mt-3 flex flex-wrap items-end gap-3"><div className="space-y-2"><Label htmlFor="pending-reauth-mfa">MFA code</Label><Input id="pending-reauth-mfa" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} /></div><Button type="button" loading={pending} disabled={code.length !== 6} onClick={submit}>Verify MFA</Button></div>{message ? <p className="mt-2 text-xs text-destructive" role="alert">{message}</p> : null}</div>
 }
 
 function ChangePasswordForm() {

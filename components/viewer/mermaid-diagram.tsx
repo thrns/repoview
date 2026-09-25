@@ -12,6 +12,10 @@ const MAX_RENDERED_DIAGRAMS = 24
 let mermaidModulePromise: ReturnType<typeof importMermaid> | undefined
 let configuredTheme: 'light' | 'dark' | undefined
 
+export function clearMermaidDiagramCache() {
+  renderedDiagramCache.clear()
+}
+
 export function MermaidDiagram({ chart, analyticsPath }: { chart: string; analyticsPath?: string }) {
   const { resolvedTheme } = useTheme()
   const hostRef = useRef<HTMLDivElement | null>(null)

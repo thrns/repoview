@@ -27,7 +27,11 @@ describe('account export', () => {
       expect(route).toContain(`from('${table}')`)
     }
     expect(route).toContain('shareRecipients')
-    expect(route).toContain('analytics:')
+    expect(route).toContain('"analytics":')
+    expect(route).toContain('ACCOUNT_EXPORT_PAGE_SIZE')
+    expect(route).toContain('.range(from, to)')
+    expect(route).toContain('accountExportSucceeded')
+    expect(route).toContain('accountExportFailed')
   })
 
   it('does not export bearer or provider credentials', () => {
@@ -36,5 +40,19 @@ describe('account export', () => {
     expect(route).not.toContain('token_hash')
     expect(route).not.toContain('GITHUB_APP_PRIVATE_KEY')
     expect(route).not.toContain('SUPABASE_SERVICE_ROLE_KEY')
+  })
+
+  it('requires step-up confirmation and applies user/workspace throttles', () => {
+    expect(route).toContain("operation: 'account-export'")
+    expect(route).toContain("authenticated-account-export")
+    expect(route).toContain('user:${authData.user.id}')
+    expect(route).toContain('workspace:${workspaceId}')
+  })
+
+  it('bounds large exports to paged streaming reads', () => {
+    expect(route).toContain('const ACCOUNT_EXPORT_PAGE_SIZE = 500')
+    expect(route).toContain('new ReadableStream')
+    expect(route).toContain('range(from, to)')
+    expect(route).not.toContain('Promise.all([')
   })
 })

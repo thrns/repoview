@@ -23,6 +23,8 @@ export type RateLimitScope =
   | 'authenticated-github-connect'
   | 'authenticated-test-email'
   | 'authenticated-dashboard-analytics'
+  | 'authenticated-account-reauth'
+  | 'authenticated-account-export'
   | 'auth-signup'
   | 'auth-login'
   | 'auth-password-reset'
@@ -51,6 +53,8 @@ export const RATE_LIMIT_POLICIES: Record<RateLimitScope, RateLimitPolicy> = {
   'authenticated-github-connect': { limit: 10, windowSeconds: 300 },
   'authenticated-test-email': { limit: 3, windowSeconds: 3600 },
   'authenticated-dashboard-analytics': { limit: 60, windowSeconds: 60 },
+  'authenticated-account-reauth': { limit: 5, windowSeconds: 900 },
+  'authenticated-account-export': { limit: 3, windowSeconds: 3600 },
   'auth-signup': { limit: 5, windowSeconds: 3600 },
   'auth-login': { limit: 10, windowSeconds: 600 },
   'auth-password-reset': { limit: 5, windowSeconds: 3600 },

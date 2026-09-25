@@ -11,7 +11,10 @@ import { BrandLogo } from '@/components/shared/brand-logo'
 import { Badge, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui'
 import type { ViewerRootState } from '@/lib/viewer/root-model'
 import type { ViewerTreeState } from '@/lib/viewer/tree-model'
+import { ViewerAuthorizationFailure, isViewerAuthorizationFailure, revalidateViewerAuthorization } from '@/lib/viewer/client-authorization'
+import { ViewerFileCache } from '@/lib/viewer/client-file-cache'
 
+import { clearMermaidDiagramCache } from './mermaid-diagram'
 import { ViewerFileTree } from './viewer-file-tree'
 import type { ViewerFilePreviewState } from './viewer-file-preview'
 import { ViewerWorkspaceProvider } from './viewer-workspace-context'
@@ -30,8 +33,6 @@ interface ViewerShellProps {
   tree: ViewerTreeState
 }
 
-type CachedFile = ViewerFilePreviewState | Promise<ViewerFilePreviewState>
-
 const ViewerFileContent = dynamic(() => import('./viewer-file-content').then((module) => module.ViewerFileContent), {
   ssr: false,
   loading: () => <ViewerFileLoading path="Preparing preview…" />,
@@ -47,82 +48,110 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
   const requestSequenceRef = useRef(0)
   const cacheScope = `${shareId}\0${repositoryName}\0${refName}`
   const cacheScopeRef = useRef(cacheScope)
-  const fileCacheRef = useRef(new Map<string, CachedFile>())
+  const fileCacheRef = useRef(new ViewerFileCache<ViewerFilePreviewState>())
+  const authorizationFailedRef = useRef(false)
+  const [authorizationFailed, setAuthorizationFailed] = useState(false)
 
   if (cacheScopeRef.current !== cacheScope) {
     cacheScopeRef.current = cacheScope
     fileCacheRef.current.clear()
+    authorizationFailedRef.current = false
   }
 
   const activePath = selectedPath ?? pathnameSelectedPath ?? getRootPath(pathname, shareId, root)
   const getCacheKey = useCallback((path: string) => `${cacheScope}\0${path}`, [cacheScope])
 
   useEffect(() => {
+    authorizationFailedRef.current = false
+    setAuthorizationFailed(false)
+  }, [cacheScope])
+
+  useEffect(() => {
     if (root.status !== 'ready' || !root.readme) return
     const key = getCacheKey(root.readme.path)
-    if (!fileCacheRef.current.has(key)) {
-      fileCacheRef.current.set(key, { kind: 'text', ...root.readme })
-    }
+    fileCacheRef.current.seed(key, { kind: 'text', ...root.readme })
   }, [getCacheKey, root])
 
-  const requestFile = useCallback((path: string) => {
-    const key = getCacheKey(path)
-    const cached = fileCacheRef.current.get(key)
-    if (cached) {
-      return cached instanceof Promise ? cached : Promise.resolve(cached)
-    }
+  const invalidateAuthorization = useCallback(() => {
+    if (authorizationFailedRef.current) return
+    authorizationFailedRef.current = true
+    requestSequenceRef.current += 1
+    fileCacheRef.current.clear()
+    clearMermaidDiagramCache()
+    setAuthorizationFailed(true)
+    setSelectedPath(null)
+    setActiveFile(null)
+    setLoadingPath(null)
+  }, [])
 
-    const request = fetchViewerFile(shareId, path)
-    fileCacheRef.current.set(key, request)
-    void request.catch(() => {
-      if (fileCacheRef.current.get(key) === request) {
-        fileCacheRef.current.delete(key)
-      }
-    })
-    return request
-  }, [getCacheKey, shareId])
+  const ensureViewerAuthorization = useCallback(async () => {
+    if (authorizationFailedRef.current) throw new ViewerAuthorizationFailure()
+    await revalidateViewerAuthorization(shareId)
+  }, [shareId])
+
+  const handleAuthorizationError = useCallback((error: unknown) => {
+    if (!isViewerAuthorizationFailure(error)) return false
+    invalidateAuthorization()
+    return true
+  }, [invalidateAuthorization])
 
   const prefetchPath = useCallback((path: string) => {
+    if (authorizationFailedRef.current) return
     const key = getCacheKey(path)
     if (fileCacheRef.current.has(key)) return
-    void requestFile(path).catch(() => undefined)
-  }, [getCacheKey, requestFile])
+    void fileCacheRef.current.prefetch(key, () => fetchViewerFile(shareId, path)).catch((error: unknown) => {
+      handleAuthorizationError(error)
+    })
+  }, [getCacheKey, handleAuthorizationError, shareId])
 
   const showPath = useCallback((path: string) => {
+    if (authorizationFailedRef.current) return
     const requestId = ++requestSequenceRef.current
-    const cached = fileCacheRef.current.get(getCacheKey(path))
     setSelectedPath(path)
     setActiveFile(null)
     setLoadingPath(path)
 
-    void (cached instanceof Promise ? cached : requestFile(path)).then((file) => {
+    void fileCacheRef.current.navigate(
+      getCacheKey(path),
+      ensureViewerAuthorization,
+      () => fetchViewerFile(shareId, path),
+    ).then((file) => {
       if (requestId !== requestSequenceRef.current) return
       setActiveFile({ path, file })
       setLoadingPath(null)
-    }).catch(() => {
+    }).catch((error: unknown) => {
       if (requestId !== requestSequenceRef.current) return
+      if (handleAuthorizationError(error)) return
       setActiveFile({ path, file: unavailableFile(path) })
       setLoadingPath(null)
     })
-  }, [getCacheKey, requestFile])
+  }, [ensureViewerAuthorization, getCacheKey, handleAuthorizationError, shareId])
 
   const openPath = useCallback((path: string) => {
+    if (authorizationFailedRef.current) return
     const currentPath = getBlobPath(window.location.pathname, shareId)
-    if (currentPath === path) return
-
-    window.history.pushState({ repoViewPath: path }, '', getFileHref(shareId, path))
+    if (currentPath !== path) {
+      window.history.pushState({ repoViewPath: path }, '', getFileHref(shareId, path))
+    }
     showPath(path)
   }, [shareId, showPath])
 
   useEffect(() => {
     const handlePopState = () => {
       const path = getBlobPath(window.location.pathname, shareId)
-      requestSequenceRef.current += 1
+      const requestId = ++requestSequenceRef.current
 
       if (!path || path === initialPathRef.current) {
+        if (authorizationFailedRef.current) return
         setSelectedPath(null)
         setActiveFile(null)
-        setLoadingPath(null)
+        setLoadingPath('Checking viewer access…')
+        void ensureViewerAuthorization().catch((error: unknown) => {
+          handleAuthorizationError(error)
+        }).then(() => {
+          if (requestId !== requestSequenceRef.current || authorizationFailedRef.current) return
+          setLoadingPath(null)
+        })
         return
       }
 
@@ -131,7 +160,33 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
 
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [shareId, showPath])
+  }, [ensureViewerAuthorization, handleAuthorizationError, shareId, showPath])
+
+  useEffect(() => {
+    let cancelled = false
+    const revalidate = () => {
+      if (cancelled || authorizationFailedRef.current || document.visibilityState === 'hidden') return
+      void ensureViewerAuthorization().catch((error: unknown) => {
+        if (!cancelled) handleAuthorizationError(error)
+      })
+    }
+
+    revalidate()
+    const interval = window.setInterval(revalidate, 60_000)
+    const handleFocus = () => revalidate()
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') revalidate()
+    }
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [ensureViewerAuthorization, handleAuthorizationError])
 
   useEffect(() => {
     if (tree.status !== 'ready') return
@@ -189,12 +244,23 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
             <ViewerFileTree tree={tree} selectedPath={activePath} onSelectPath={openPath} onPrefetchPath={prefetchPath} />
           </aside>
           <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain md:ml-64">
-            {activeFile ? <ViewerFileContent file={activeFile.file} shareId={shareId} tree={tree} onOpenPath={openPath} allowDownload={allowDownload} /> : loadingPath ? <ViewerFileLoading path={loadingPath} /> : children}
+            {authorizationFailed ? <ViewerAccessUnavailable /> : activeFile ? <ViewerFileContent file={activeFile.file} shareId={shareId} tree={tree} onOpenPath={openPath} allowDownload={allowDownload} /> : loadingPath ? <ViewerFileLoading path={loadingPath} /> : children}
           </main>
         </div>
       </div>
       </ViewerWorkspaceProvider>
     </ViewerAnalyticsProvider>
+  )
+}
+
+function ViewerAccessUnavailable() {
+  return (
+    <section className="repository-file-page min-h-[calc(100vh-3rem)]" role="alert">
+      <div className="mx-auto max-w-2xl px-5 py-16 text-center">
+        <h1 className="font-heading text-lg font-semibold">Private preview unavailable</h1>
+        <p className="mt-2 text-sm leading-6 text-foreground-muted">The viewer session or repository access is no longer valid, or could not be revalidated. Private file content has been cleared from this page.</p>
+      </div>
+    </section>
   )
 }
 
@@ -214,11 +280,17 @@ function ViewerFileLoading({ path }: { path: string }) {
 async function fetchViewerFile(shareId: string, path: string): Promise<ViewerFilePreviewState> {
   const url = `/api/view/file/${encodeURIComponent(shareId)}?path=${encodeURIComponent(path)}`
   const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store', headers: { accept: 'application/json' } })
+  const payload = await response.json().catch(() => null) as { error?: string; file?: ViewerFilePreviewState } | null
+  if (response.status === 401 || response.status === 403 || payload?.error === 'not_authorized') {
+    throw new ViewerAuthorizationFailure()
+  }
   if (response.status === 404) return unavailableFile(path, 'not-found')
   if (!response.ok) throw new Error(`File request failed with ${response.status}`)
 
-  const payload = await response.json() as { file?: ViewerFilePreviewState }
-  if (!payload.file) throw new Error('File response did not include a preview')
+  if (!payload?.file) throw new Error('File response did not include a preview')
+  if (payload.file.kind === 'unavailable' && payload.file.reason === 'access') {
+    throw new ViewerAuthorizationFailure()
+  }
   return payload.file
 }
 

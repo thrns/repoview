@@ -33,7 +33,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ shar
   try {
     viewer = await requireViewerRepositoryAccess(shareId)
   } catch {
-    return fileResponse({ error: 'not_found' }, 404, {
+    return fileResponse({ error: 'not_authorized' }, 404, {
       auth: performance.now() - authStartedAt,
       total: performance.now() - requestStartedAt,
     })

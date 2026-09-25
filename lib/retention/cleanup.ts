@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { createSupabaseAdminClient } from '../supabase/admin'
+import { runAccountDeletionCleanup } from '../account/deletion-job'
 import {
   getRetentionCutoff,
   normalizeAnalyticsRetentionDays,
@@ -42,6 +43,7 @@ export type RetentionCleanupSummary = {
   cutoffs: Record<string, string>
   processed: Record<string, number>
   totalProcessed: number
+  accountDeletion: Awaited<ReturnType<typeof runAccountDeletionCleanup>>
 }
 
 const SHARE_DEPENDENCY_TABLES: Array<{ table: RetentionTable; column: string }> = [
@@ -115,6 +117,9 @@ export async function runRetentionCleanup({
   processed.viewerSessions = await deleteOldViewerSessions(admin, analyticsRetentionGroups, now, batchSize, maxBatches)
   processed.persistentViewerIdentifiers = await deleteOldViewerIdentifiers(admin, analyticsRetentionGroups, now, batchSize, maxBatches)
   processed.revokedExpiredShares = await scrubAndDeleteRevokedExpiredShares(admin, cutoffs.revokedExpiredShareMetadata, referenceTime, batchSize)
+  const accountDeletion = await runAccountDeletionCleanup({ admin, batchSize })
+  processed.accountDeletionJobs = accountDeletion.jobsCompleted + accountDeletion.jobsFailed
+  processed.accountDeletionRows = accountDeletion.rowsDeleted
   processed.deletedAccountsWorkspaces = await finalizeDeletedWorkspaces(admin, cutoffs.deletedAccountsWorkspaces, batchSize)
 
   const totalProcessed = Object.values(processed).reduce((total, count) => total + count, 0)
@@ -123,6 +128,7 @@ export async function runRetentionCleanup({
     cutoffs: Object.fromEntries(Object.entries(cutoffs).map(([key, value]) => [key, value.toISOString()])),
     processed,
     totalProcessed,
+    accountDeletion,
   }
 }
 
@@ -344,7 +350,7 @@ async function finalizeDeletedWorkspaces(admin: AdminClient, cutoff: Date, batch
   const { data, error } = await admin
     .from('workspaces')
     .select('id')
-    .in('status', ['deleting', 'deleted'])
+    .eq('status', 'deleted')
     .lt('deletion_started_at', cutoff.toISOString())
     .order('deletion_started_at', { ascending: true })
     .limit(batchSize)

@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { BarChart3, Database, Mail, Save } from 'lucide-react'
+import { BarChart3, Database, Save } from 'lucide-react'
 
 import { updateNotificationSettings } from '@/app/(admin)/dashboard/settings/actions'
+import { AccountReauthenticationDialog } from '@/components/admin/account-reauthentication-dialog'
 import { Button, Checkbox, Input, Label, Select } from '@/components/ui'
 import type { Tables } from '@/lib/supabase/database.types'
 
@@ -67,7 +68,7 @@ export function SettingsPrivacy({ settings, canManage }: { settings: Settings; c
       <div className="flex flex-col gap-4 rounded-md border border-border/70 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><BarChart3 className="mt-0.5 size-4 text-foreground-muted" aria-hidden="true" /><div><p className="text-sm font-medium">Optional viewer analytics</p><p className="mt-1 text-xs leading-5 text-foreground-muted">Enable analytics for this workspace and choose how long they are retained.</p></div></div><Checkbox aria-label="Enable optional viewer analytics" checked={values.analytics_enabled} onChange={(event) => setValues((current) => ({ ...current, analytics_enabled: event.target.checked }))} disabled={!canManage} /></div>
       <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="analytics-retention">Analytics retention</Label><Select id="analytics-retention" value={String(values.analytics_retention_days)} onChange={(event) => setValues((current) => ({ ...current, analytics_retention_days: Number(event.target.value) as Settings['analytics_retention_days'] }))} disabled={!canManage}><option value="30">30 days</option><option value="90">90 days</option><option value="180">180 days</option></Select><p className="text-xs leading-5 text-foreground-muted">Security and legal records may need to remain longer.</p></div></div>
       {canManage ? <div className="flex flex-wrap items-center gap-3"><Button type="button" variant="outline" loading={pending} icon={<Save className="size-3.5" aria-hidden="true" />} onClick={save}>Save privacy defaults</Button>{message ? <span className="text-xs text-foreground-muted" role="status">{message}</span> : null}</div> : <p className="text-xs text-foreground-muted">Only workspace owners and admins can change workspace privacy defaults.</p>}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border/60 pt-4 text-xs"><a href="/privacy" className="font-medium underline-offset-4 hover:underline">Privacy Policy</a><a href="/terms" className="font-medium underline-offset-4 hover:underline">Terms</a><a href="/api/account/export" className="inline-flex items-center gap-1.5 text-foreground-muted underline-offset-4 hover:text-foreground hover:underline"><Mail className="size-3.5" aria-hidden="true" />Export data</a><a href="mailto:tharunpranav.ubc@gmail.com?subject=RepoView%20data%20deletion%20request" className="text-destructive underline-offset-4 hover:underline">Delete analytics data</a></div>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border/60 pt-4 text-xs"><a href="/privacy" className="font-medium underline-offset-4 hover:underline">Privacy Policy</a><a href="/terms" className="font-medium underline-offset-4 hover:underline">Terms</a><AccountReauthenticationDialog operation="account-export" trigger={<span className="text-foreground-muted underline-offset-4 hover:text-foreground hover:underline">Export data</span>} onAuthorized={() => { window.location.assign('/api/account/export') }} /><a href="mailto:tharunpranav.ubc@gmail.com?subject=RepoView%20data%20deletion%20request" className="text-destructive underline-offset-4 hover:underline">Delete analytics data</a></div>
     </div>
   )
 }

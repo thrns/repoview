@@ -22,6 +22,8 @@ export const AUDIT_ACTIONS = {
   accountSettingChanged: 'account_setting_changed',
   securitySettingChanged: 'security_setting_changed',
   accountExportRequested: 'account_export_requested',
+  accountExportSucceeded: 'account_export_succeeded',
+  accountExportFailed: 'account_export_failed',
   accountDeletionRequested: 'account_deletion_requested',
 } as const
 

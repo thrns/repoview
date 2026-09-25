@@ -710,10 +710,15 @@ create table public.notification_deliveries (
 );
 ```
 
-The current migration adds a unique event key so view and session-summary emails
-are idempotent. Notification decisions and composition happen before enqueue;
-provider delivery is dispatched after the viewer response and retried through
-the trusted dispatcher route. Do not put provider credentials or full provider
+The current migrations add a unique event key plus a durable outbound attempt
+key. Notification decisions and composition happen before enqueue; the trusted
+dispatcher revalidates the active workspace, destination, preference, share,
+repository, installation, and qualifying session immediately before the provider
+call. Revoked shares, disabled notification settings, and deleting workspaces
+cancel queued deliveries. Resend receives the outbound key as its provider
+idempotency key. SMTP and Postmark do not provide the same guarantee in this
+abstraction, so a lost/ambiguous response becomes `provider_result_unknown` and
+is not automatically resent. Do not put provider credentials or full provider
 response bodies in `last_error`.
 
 ### Recommended indexes
@@ -1361,12 +1366,11 @@ Never put:
 
 ### Failure behavior
 
-If SMTP fails:
-- catch;
-- insert failed notification delivery;
-- leave the share usable;
-- surface failure in admin dashboard;
-- optionally allow “send test email” from Settings.
+If a provider rejects a request explicitly, the delivery is retryable or
+permanent according to the provider response. If the provider call has an
+ambiguous outcome, the delivery becomes `provider_result_unknown`; the worker
+must not resend it automatically because the provider may already have accepted
+the message. Surface this state to operators for provider reconciliation.
 
 ---
 
@@ -1814,6 +1818,34 @@ metadata in `github_installations`; link every repository to its installation
 row. Run the one-time legacy migration command with the old installation ID
 before removing that value from deployment secrets.
 
+Before deployment or public signup, use this exact production order:
+
+```text
+database migrations
+→ legacy installation migration if needed
+→ repository identity migration if needed
+→ prelaunch check
+→ deploy/open signup
+```
+
+```bash
+npx supabase db push
+GITHUB_APP_INSTALLATION_ID=... pnpm migrate:github-installation # only if needed
+pnpm migrate:github-repository-identities # only if needed
+pnpm prelaunch:check
+```
+
+The prelaunch check is read-only. It must pass before deploy/open-signup and
+does not silently repair production data; fix any reported invariant and rerun
+it.
+
+Account deletion is a fail-closed, resumable job. The request immediately
+disables the account's workspaces, repositories, shares, and notifications;
+the scheduled `/api/cron/retention` job then removes tenant rows in bounded
+batches and retries failures, including a failed Auth-user deletion. Keep the
+cron secret configured and the Vercel cron enabled so queued deletion jobs do
+not remain pending.
+
 The client accepts an installation ID only after server-side workspace and
 repository authorization. Multiple workspaces can therefore connect separate
 GitHub users or organizations without sharing installation access.
@@ -2039,6 +2071,10 @@ These can distract from the core portfolio-sharing experience.
 
 ### Deployment
 
+- [ ] Database migrations applied with `npx supabase db push`.
+- [ ] Legacy installation migration completed if required.
+- [ ] Repository identity migration completed if required.
+- [ ] `pnpm prelaunch:check` passes.
 - [ ] Next.js exactly 16.3.3.
 - [ ] `pnpm lint` passes.
 - [ ] `pnpm typecheck` passes.

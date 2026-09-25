@@ -91,6 +91,10 @@ async function loadOnboardingState(
     }
   }
 
+  if (workspace.status !== undefined && workspace.status !== 'active') {
+    throw new Error('Workspace is unavailable.')
+  }
+
   const [installationsResult, repositoriesResult, sharesResult, pendingResult] = await Promise.all([
     supabase.from('github_installations').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending: true }),
     supabase.from('repositories').select('id, enabled').eq('workspace_id', workspace.id),

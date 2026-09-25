@@ -13,19 +13,29 @@ export type SmtpMessage = {
 
 export class SmtpTransportError extends Error {
   readonly retryable: boolean
+  readonly outcomeUnknown: boolean
 
-  constructor(retryable = true) {
+  constructor(retryable = true, outcomeUnknown = true) {
     super('SMTP delivery failed.')
     this.retryable = retryable
+    this.outcomeUnknown = outcomeUnknown
     this.name = 'SmtpTransportError'
   }
 }
 
-function isRetryableSmtpError(error: unknown) {
-  if (!error || typeof error !== 'object') return true
+function classifySmtpError(error: unknown) {
+  if (!error || typeof error !== 'object') return { retryable: true, outcomeUnknown: true }
   const candidate = error as { responseCode?: unknown; code?: unknown }
-  if (typeof candidate.responseCode === 'number') return candidate.responseCode === 408 || candidate.responseCode === 421 || candidate.responseCode >= 500
-  return ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EAI_AGAIN', 'ENETUNREACH'].includes(String(candidate.code ?? ''))
+  if (typeof candidate.responseCode === 'number') {
+    return {
+      retryable: candidate.responseCode === 408 || candidate.responseCode === 421 || candidate.responseCode >= 500,
+      outcomeUnknown: false,
+    }
+  }
+  return {
+    retryable: true,
+    outcomeUnknown: true,
+  }
 }
 
 let transporter: Transporter | undefined
@@ -62,6 +72,7 @@ export async function sendSmtpEmail(message: SmtpMessage) {
       ...(message.html ? { html: message.html } : {}),
     })
   } catch (error) {
-    throw new SmtpTransportError(isRetryableSmtpError(error))
+    const classification = classifySmtpError(error)
+    throw new SmtpTransportError(classification.retryable, classification.outcomeUnknown)
   }
 }

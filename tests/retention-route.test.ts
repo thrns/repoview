@@ -21,6 +21,7 @@ beforeEach(() => {
     cutoffs: {},
     processed: { repositoryViewEvents: 1 },
     totalProcessed: 1,
+    accountDeletion: { jobsConsidered: 0, jobsClaimed: 0, jobsCompleted: 0, jobsFailed: 0, rowsDeleted: 0 },
   })
   getAdmin.mockReturnValue(createAdminMock() as never)
 })

@@ -31,6 +31,14 @@ export type SystemAdminOverview = {
     error: string | null
     createdAt: string
   }>
+  deletionJobs: Array<{
+    jobId: string
+    status: string
+    phase: string
+    attempts: number
+    error: string | null
+    updatedAt: string
+  }>
   rateLimitScopes: Array<{ scope: string; bucketCount: number }>
   quotaUsage: Array<{ scope: string; usage: number }>
   generatedAt: string
@@ -42,7 +50,7 @@ export type SystemAdminOverview = {
  * notification recipients, IP hashes, or any other customer content.
  */
 export async function getSystemAdminOverview(admin: AdminClient = createSupabaseAdminClient()): Promise<SystemAdminOverview> {
-  const [workspacesResult, installationsResult, webhooksResult, notificationsResult, rateLimitsResult, quotasResult] = await Promise.all([
+  const [workspacesResult, installationsResult, webhooksResult, notificationsResult, deletionJobsResult, rateLimitsResult, quotasResult] = await Promise.all([
     admin.from('workspaces').select('status').limit(5000),
     admin.from('github_installations').select('status').limit(5000),
     admin
@@ -54,14 +62,20 @@ export async function getSystemAdminOverview(admin: AdminClient = createSupabase
     admin
       .from('notification_deliveries')
       .select('workspace_id, notification_kind, status, last_error, created_at')
-      .in('status', ['failed', 'permanent'])
+      .in('status', ['permanent', 'provider_result_unknown', 'cancelled'])
       .order('created_at', { ascending: false })
+      .limit(12),
+    admin
+      .from('account_deletion_jobs')
+      .select('id, status, phase, attempt_count, last_error, updated_at')
+      .in('status', ['queued', 'running', 'failed'])
+      .order('updated_at', { ascending: false })
       .limit(12),
     admin.from('rate_limit_buckets').select('scope').limit(5000),
     admin.from('quota_counters').select('scope, usage').limit(5000),
   ])
 
-  if (workspacesResult.error || installationsResult.error || webhooksResult.error || notificationsResult.error || rateLimitsResult.error || quotasResult.error) {
+  if (workspacesResult.error || installationsResult.error || webhooksResult.error || notificationsResult.error || deletionJobsResult.error || rateLimitsResult.error || quotasResult.error) {
     throw new Error('RepoView system telemetry could not be loaded.')
   }
 
@@ -96,6 +110,14 @@ export async function getSystemAdminOverview(admin: AdminClient = createSupabase
       status: row.status,
       error: row.last_error,
       createdAt: row.created_at,
+    })),
+    deletionJobs: (deletionJobsResult.data ?? []).map((row) => ({
+      jobId: row.id,
+      status: row.status,
+      phase: row.phase,
+      attempts: row.attempt_count,
+      error: row.last_error,
+      updatedAt: row.updated_at,
     })),
     rateLimitScopes,
     quotaUsage,

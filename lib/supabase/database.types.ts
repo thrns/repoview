@@ -257,11 +257,13 @@ type NotificationDelivery = {
   channel: string
   recipient: string
   notification_kind: string
-  status: 'pending' | 'processing' | 'sent' | 'retryable' | 'permanent' | 'failed'
+  status: 'pending' | 'processing' | 'sent' | 'retryable' | 'permanent' | 'cancelled' | 'provider_result_unknown'
   attempt_count: number
   provider_message_id: string | null
   last_error: string | null
   next_retry_at: string | null
+  outbound_attempt_key: string
+  outbound_attempt_started_at: string | null
   idempotency_key: string | null
   payload: Json
   created_at: string
@@ -329,6 +331,38 @@ type QuotaCounter = {
   updated_at: string
 }
 
+type AccountStepUpConfirmation = {
+  id: string
+  user_id: string
+  operation: 'account-delete' | 'account-export'
+  token_hash: string
+  assurance_level: 'aal1' | 'aal2'
+  authentication_method: 'password' | 'google'
+  issued_at: string
+  expires_at: string
+  consumed_at: string | null
+}
+
+type AccountDeletionJob = {
+  id: string
+  user_id: string | null
+  workspace_ids: string[]
+  status: 'queued' | 'running' | 'failed' | 'completed'
+  phase: 'workspace_cleanup' | 'account_memberships' | 'account_security' | 'profile' | 'auth_delete' | 'completed'
+  cleanup_table_index: number
+  attempt_count: number
+  rows_deleted: number
+  requested_at: string
+  started_at: string | null
+  completed_at: string | null
+  locked_at: string | null
+  lock_token: string | null
+  next_attempt_at: string
+  last_error: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -356,12 +390,18 @@ export interface Database {
       retention_cleanup_runs: TableDefinition<RetentionCleanupRun, Partial<Omit<RetentionCleanupRun, 'id' | 'started_at'>> & Pick<RetentionCleanupRun, 'job_name'> & { id?: string; status?: RetentionCleanupRun['status']; batch_limit?: number; rows_processed?: number; details?: Json; error?: string | null; started_at?: string; completed_at?: string | null }, Partial<Omit<RetentionCleanupRun, 'id' | 'job_name' | 'started_at'>>>
       rate_limit_buckets: TableDefinition<RateLimitBucket, Partial<Omit<RateLimitBucket, 'updated_at'>> & Pick<RateLimitBucket, 'key_hash' | 'scope' | 'window_started_at'> & { request_count?: number; updated_at?: string }, Partial<Omit<RateLimitBucket, 'key_hash'>>>
       quota_counters: TableDefinition<QuotaCounter, Partial<Omit<QuotaCounter, 'created_at' | 'updated_at'>> & Pick<QuotaCounter, 'scope' | 'workspace_id' | 'subject_id' | 'period_start'> & { usage?: number; created_at?: string; updated_at?: string }, Partial<Omit<QuotaCounter, 'scope' | 'workspace_id' | 'subject_id' | 'period_start' | 'created_at'>>>
+      account_step_up_confirmations: TableDefinition<AccountStepUpConfirmation, Partial<Omit<AccountStepUpConfirmation, 'id'>> & Pick<AccountStepUpConfirmation, 'user_id' | 'operation' | 'token_hash' | 'assurance_level' | 'authentication_method' | 'expires_at'> & { id?: string; issued_at?: string; consumed_at?: string | null }, Partial<Pick<AccountStepUpConfirmation, 'consumed_at'>>>
+      account_deletion_jobs: TableDefinition<AccountDeletionJob, Partial<Omit<AccountDeletionJob, 'id' | 'created_at' | 'updated_at'>> & { id?: string; created_at?: string; updated_at?: string }, Partial<Omit<AccountDeletionJob, 'id' | 'user_id' | 'created_at'>>>
     }
     Views: Record<string, never>
     Functions: {
       current_legal_versions: {
         Args: Record<string, never>
         Returns: Array<{ terms_version: string; privacy_version: string }>
+      }
+      prelaunch_check: {
+        Args: Record<string, never>
+        Returns: Array<{ check_name: string; passed: boolean; details: string }>
       }
       claim_github_connection_installation: {
         Args: { target_state_hash: string; target_user_id: string; target_installation_id: number }
@@ -386,6 +426,18 @@ export interface Database {
       release_workspace_quota: {
         Args: { target_scope: string; target_workspace_id: string; target_subject_id: string; target_period_start: string; target_increment: number }
         Returns: undefined
+      }
+      request_account_deletion: {
+        Args: { target_user_id: string }
+        Returns: AccountDeletionJob
+      }
+      claim_account_deletion_job: {
+        Args: { target_job_id: string; target_lock_token: string }
+        Returns: AccountDeletionJob
+      }
+      claim_notification_delivery: {
+        Args: { target_delivery_id: string; target_now?: string }
+        Returns: NotificationDelivery[]
       }
     }
     Enums: Record<string, never>

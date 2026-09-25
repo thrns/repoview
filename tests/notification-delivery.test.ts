@@ -51,16 +51,11 @@ function chain(result: unknown) {
   return builder
 }
 
-function createDeliveryAdmin(claimResult: unknown) {
-  const updates = [claimResult, { error: null }, { error: null }]
-  let fromCalls = 0
-  const from = vi.fn(() => {
-    const updateIndex = fromCalls++
-    const update = vi.fn(() => chain(updates[updateIndex] ?? { error: null }))
-    return { update, from }
-  })
-  const admin = { from } as never
-  return { admin, from }
+function createDeliveryAdmin(claimResult: unknown, updateResult: unknown = { data: { id: 'delivery-1' }, error: null }) {
+  const from = vi.fn(() => ({ update: vi.fn(() => chain(updateResult)) }))
+  const rpc = vi.fn().mockResolvedValue({ data: [claimResult], error: null })
+  const admin = { from, rpc } as never
+  return { admin, from, rpc }
 }
 
 beforeEach(() => {
@@ -104,20 +99,23 @@ describe('notification delivery ledger', () => {
     const delivery = {
       id: 'delivery-1',
       attempt_count: 0,
+      status: 'processing',
+      outbound_attempt_key: 'outbound-1',
       payload: { email },
     }
-    const { admin, from } = createDeliveryAdmin({ data: delivery, error: null })
+    const { admin, from, rpc } = createDeliveryAdmin(delivery)
     getAdmin.mockReturnValue(admin)
 
     await expect(dispatchNotificationDelivery('delivery-1', admin, new Date('2026-09-24T10:00:00.000Z')))
       .resolves.toEqual({ status: 'sent', deliveryId: 'delivery-1' })
-    expect(sendEmail).toHaveBeenCalledWith(email)
+    expect(sendEmail).toHaveBeenCalledWith(email, { idempotencyKey: 'outbound-1' })
+    expect(rpc).toHaveBeenCalledWith('claim_notification_delivery', expect.objectContaining({ target_delivery_id: 'delivery-1' }))
     expect(from).toHaveBeenCalled()
   })
 
   it('schedules retryable provider failures without exposing provider details', async () => {
     sendEmail.mockRejectedValue(new TransactionalEmailProviderError('resend', true))
-    const { admin } = createDeliveryAdmin({ data: { id: 'delivery-1', attempt_count: 0, payload: { email } }, error: null })
+    const { admin } = createDeliveryAdmin({ id: 'delivery-1', status: 'processing', attempt_count: 1, outbound_attempt_key: 'outbound-1', payload: { email } })
 
     await expect(dispatchNotificationDelivery('delivery-1', admin, new Date('2026-09-24T10:00:00.000Z')))
       .resolves.toEqual({ status: 'retryable', deliveryId: 'delivery-1', nextRetryAt: '2026-09-24T10:01:00.000Z' })
@@ -125,9 +123,52 @@ describe('notification delivery ledger', () => {
 
   it('marks permanent provider failures without retrying them', async () => {
     sendEmail.mockRejectedValue(new TransactionalEmailProviderError('resend', false))
-    const { admin } = createDeliveryAdmin({ data: { id: 'delivery-1', attempt_count: 0, payload: { email } }, error: null })
+    const { admin } = createDeliveryAdmin({ id: 'delivery-1', status: 'processing', attempt_count: 1, outbound_attempt_key: 'outbound-1', payload: { email } })
 
     await expect(dispatchNotificationDelivery('delivery-1', admin, new Date('2026-09-24T10:00:00.000Z')))
       .resolves.toEqual({ status: 'permanent', deliveryId: 'delivery-1' })
+  })
+
+  it('does not send a cancelled delivery returned by pre-send revalidation', async () => {
+    const { admin } = createDeliveryAdmin({ id: 'delivery-1', status: 'cancelled', attempt_count: 0, outbound_attempt_key: 'outbound-1', payload: { email } })
+
+    await expect(dispatchNotificationDelivery('delivery-1', admin, new Date('2026-09-24T10:00:00.000Z')))
+      .resolves.toEqual({ status: 'cancelled', deliveryId: 'delivery-1' })
+    expect(sendEmail).not.toHaveBeenCalled()
+  })
+
+  it('does not resend a delivery whose provider result is unknown', async () => {
+    const { admin } = createDeliveryAdmin({ id: 'delivery-1', status: 'provider_result_unknown', attempt_count: 1, outbound_attempt_key: 'outbound-1', payload: { email } })
+
+    await expect(dispatchNotificationDelivery('delivery-1', admin, new Date('2026-09-24T10:00:00.000Z')))
+      .resolves.toEqual({ status: 'provider_result_unknown', deliveryId: 'delivery-1' })
+    expect(sendEmail).not.toHaveBeenCalled()
+  })
+
+  it('records an unknown provider result instead of retrying a transport ambiguity', async () => {
+    const error = new TransactionalEmailProviderError('resend', true)
+    Object.assign(error, { outcomeUnknown: true })
+    sendEmail.mockRejectedValue(error)
+    const { admin, from } = createDeliveryAdmin({ id: 'delivery-1', status: 'processing', attempt_count: 1, outbound_attempt_key: 'outbound-1', payload: { email } })
+
+    await expect(dispatchNotificationDelivery('delivery-1', admin, new Date('2026-09-24T10:00:00.000Z')))
+      .resolves.toEqual({ status: 'provider_result_unknown', deliveryId: 'delivery-1' })
+    expect(from).toHaveBeenCalled()
+  })
+
+  it('does not retry after the provider accepted but the sent-state update failed', async () => {
+    const { admin } = createDeliveryAdmin(
+      { id: 'delivery-1', status: 'processing', attempt_count: 1, outbound_attempt_key: 'outbound-1', payload: { email } },
+      { data: null, error: { message: 'database connection lost' } },
+    )
+
+    await expect(dispatchNotificationDelivery('delivery-1', admin, new Date('2026-09-24T10:00:00.000Z')))
+      .resolves.toEqual({ status: 'provider_result_unknown', deliveryId: 'delivery-1' })
+    expect(sendEmail).toHaveBeenCalledTimes(1)
+
+    const retryAdmin = createDeliveryAdmin({ id: 'delivery-1', status: 'provider_result_unknown', attempt_count: 1, outbound_attempt_key: 'outbound-1', payload: { email } }).admin
+    await expect(dispatchNotificationDelivery('delivery-1', retryAdmin, new Date('2026-09-24T10:06:00.000Z')))
+      .resolves.toEqual({ status: 'provider_result_unknown', deliveryId: 'delivery-1' })
+    expect(sendEmail).toHaveBeenCalledTimes(1)
   })
 })

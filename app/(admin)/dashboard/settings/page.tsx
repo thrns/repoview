@@ -20,10 +20,12 @@ const sections = [
   { id: 'privacy', label: 'Privacy & Data', icon: LockKeyhole },
 ]
 
-export default async function SettingsPage({ searchParams }: { searchParams?: Promise<{ github?: string | string[] }> }) {
+export default async function SettingsPage({ searchParams }: { searchParams?: Promise<{ github?: string | string[]; reauth?: string | string[]; operation?: string | string[] }> }) {
   const data = await getSettingsPageData()
   const params = await searchParams
   const githubStatus = typeof params?.github === 'string' ? params.github : undefined
+  const reauthStatus = typeof params?.reauth === 'string' ? params.reauth : undefined
+  const reauthOperation = typeof params?.operation === 'string' ? params.operation : undefined
   const canManageWorkspace = data.context.membership.role === 'owner' || data.context.membership.role === 'admin'
   const fullName = data.profile?.full_name ?? getMetadataName(data.context.user.user_metadata)
 
@@ -47,7 +49,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
           {githubStatus ? <GitHubConnectionStatusAlert status={githubStatus} /> : null}
 
           <SettingsSection id="account" icon={UserRound} title="Account" description="Keep your identity and sign-in details up to date.">
-            <SettingsAccount fullName={fullName} email={data.context.user.email ?? ''} emailVerified={data.emailVerified} />
+            <SettingsAccount fullName={fullName} email={data.context.user.email ?? ''} emailVerified={data.emailVerified} reauthStatus={reauthStatus} reauthOperation={reauthOperation} />
           </SettingsSection>
 
           <SettingsSection id="security" icon={ShieldCheck} title="Security" description="Review account protection and the sessions that can access this workspace.">

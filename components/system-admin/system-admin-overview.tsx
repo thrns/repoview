@@ -18,7 +18,7 @@ export function SystemAdminOverviewView({ overview }: { overview: SystemAdminOve
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard icon={Boxes} label="Active workspaces" value={overview.workspaceCounts.active} detail={`${overview.workspaceCounts.deleting} deleting · ${overview.workspaceCounts.deleted} deleted`} />
           <MetricCard icon={Github} label="Active installations" value={overview.installationCounts.active} detail={`${overview.installationCounts.suspended} suspended · ${overview.installationCounts.pending} pending`} />
-          <MetricCard icon={MailWarning} label="Failed notifications" value={overview.failedNotifications.length} detail="Recent permanent or failed deliveries" tone={overview.failedNotifications.length > 0 ? 'warning' : 'default'} />
+          <MetricCard icon={MailWarning} label="Notification exceptions" value={overview.failedNotifications.length} detail="Recent blocked or unresolved deliveries" tone={overview.failedNotifications.length > 0 ? 'warning' : 'default'} />
           <MetricCard icon={ShieldAlert} label="Failed webhooks" value={overview.failedWebhooks.length} detail="Recent GitHub deliveries" tone={overview.failedWebhooks.length > 0 ? 'warning' : 'default'} />
         </div>
       </section>
@@ -27,8 +27,11 @@ export function SystemAdminOverviewView({ overview }: { overview: SystemAdminOve
         <FailurePanel title="GitHub webhook failures" icon={ShieldAlert} empty="No failed GitHub webhook deliveries in the current window.">
           {overview.failedWebhooks.map((item) => <FailureRow key={item.deliveryId} title={`${item.event}.${item.action}`} detail={item.error ?? 'Processing failed'} meta={`Delivery ${item.deliveryId} · ${formatDateTime(item.receivedAt)}`} />)}
         </FailurePanel>
-        <FailurePanel title="Notification failures" icon={MailWarning} empty="No failed notification deliveries in the current window.">
+        <FailurePanel title="Notification exceptions" icon={MailWarning} empty="No blocked or unresolved notification deliveries in the current window.">
           {overview.failedNotifications.map((item, index) => <FailureRow key={`${item.workspaceId}-${item.createdAt}-${index}`} title={item.notificationKind} detail={item.error ?? item.status} meta={`Workspace ${shortId(item.workspaceId)} · ${formatDateTime(item.createdAt)}`} />)}
+        </FailurePanel>
+        <FailurePanel title="Account deletion jobs" icon={AlertTriangle} empty="No queued or failed account deletion jobs.">
+          {overview.deletionJobs.map((item) => <FailureRow key={item.jobId} title={`${item.status} · ${item.phase}`} detail={item.error ?? `${item.attempts} attempt${item.attempts === 1 ? '' : 's'}`} meta={`Job ${shortId(item.jobId)} · ${formatDateTime(item.updatedAt)}`} />)}
         </FailurePanel>
       </div>
 

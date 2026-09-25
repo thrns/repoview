@@ -110,6 +110,40 @@ Database policy tests live in `supabase/tests/rls_workspace.test.sql` and run wi
 pnpm test:db
 ```
 
+## Production pre-launch gate
+
+Run these steps in this exact order before deploying or opening public signup:
+
+```text
+database migrations
+→ legacy installation migration if needed
+→ repository identity migration if needed
+→ prelaunch check
+→ deploy/open signup
+```
+
+The concrete commands are:
+
+```bash
+npx supabase db push
+
+# Only when a legacy github_installations row is still pending migration:
+GITHUB_APP_INSTALLATION_ID=... pnpm migrate:github-installation
+
+# Run when existing repository rows still need stable GitHub identities:
+pnpm migrate:github-repository-identities
+
+pnpm prelaunch:check
+```
+
+`pnpm prelaunch:check` uses `NEXT_PUBLIC_SUPABASE_URL` and the server-only
+`SUPABASE_SERVICE_ROLE_KEY` to run a read-only database verification. It fails
+with actionable errors for missing migrations, incomplete GitHub installation or
+repository identity migrations, broken workspace boundaries, orphaned shares or
+memberships, and incomplete personal-workspace/settings provisioning. It never
+repairs, deletes, reassigns, or rewrites production data. Do not deploy or open
+signup until it passes.
+
 ## GitHub App setup
 
 Create a public GitHub App and configure both its **Setup URL** (`/api/github/setup`) and **Callback URL** (`/api/github/callback`) using the production `NEXT_PUBLIC_APP_URL`. Leave “Request user authorization (OAuth) during installation” disabled so the setup URL can hand off to RepoView’s PKCE authorization step. Installations can be made on personal accounts or organizations; organization requests may wait for owner approval. RepoView stores each verified installation and its GitHub account metadata in `github_installations`; each repository record points to exactly one installation row.
@@ -148,7 +182,7 @@ health and failure metadata only; it does not load private repository source,
 share tokens, or workspace content. `system_admin_audit_logs` records sensitive
 operator activity separately from tenant `audit_logs`.
 
-RepoView composes low-volume, deduplicated first-meaningful-view and session-summary notifications into the workspace-scoped `notification_deliveries` ledger. The viewer request only queues a message; an after-response dispatch performs the provider call, while the protected dispatcher endpoint retries transient failures. Permanent failures and safe error summaries remain visible to workspace admins without exposing provider credentials or response bodies.
+RepoView composes low-volume, deduplicated first-meaningful-view and session-summary notifications into the workspace-scoped `notification_deliveries` ledger. The viewer request only queues a message; an after-response dispatch revalidates workspace/share/session/settings authorization immediately before contacting the provider. Revoked shares, disabled destinations/preferences, and deleting workspaces cancel queued work. Each delivery has one durable outbound attempt key; Resend receives it as `Idempotency-Key`, while SMTP/Postmark transport ambiguity is recorded as `provider_result_unknown` and is never blindly resent. Permanent, cancelled, and unknown outcomes remain visible to operators without exposing provider credentials or response bodies.
 
 ## Security model
 

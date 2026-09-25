@@ -1,12 +1,13 @@
 import 'server-only'
 
+import { randomUUID } from 'node:crypto'
+
 import { createSupabaseAdminClient } from '../supabase/admin'
-import type { Json } from '../supabase/database.types'
+import type { Json, Tables } from '../supabase/database.types'
 import { sendTransactionalEmail, TransactionalEmailProviderError, type TransactionalEmail } from './email-provider'
 import { QuotaExceededError, releaseQuota, reserveQuota } from '../security/quotas'
 
 const MAX_ATTEMPTS = 5
-const PROCESSING_LEASE_MS = 5 * 60_000
 const RETRY_DELAYS_MS = [60_000, 5 * 60_000, 30 * 60_000, 2 * 60 * 60_000]
 
 export type QueueNotificationInput = {
@@ -60,6 +61,8 @@ export async function queueNotificationDelivery(
     provider_message_id: null,
     last_error: null,
     next_retry_at: null,
+    outbound_attempt_key: randomUUID(),
+    outbound_attempt_started_at: null,
     idempotency_key: input.idempotencyKey,
     payload,
     sent_at: null,
@@ -80,6 +83,7 @@ export type NotificationDispatchResult =
   | { status: 'sent'; deliveryId: string }
   | { status: 'retryable'; deliveryId: string; nextRetryAt: string }
   | { status: 'permanent'; deliveryId: string }
+  | { status: 'cancelled' | 'provider_result_unknown'; deliveryId: string }
   | { status: 'not-due' | 'missing'; deliveryId: string }
 
 export async function dispatchNotificationDelivery(
@@ -87,26 +91,16 @@ export async function dispatchNotificationDelivery(
   admin = createSupabaseAdminClient(),
   now = new Date(),
 ): Promise<NotificationDispatchResult> {
-  const leaseUntil = new Date(now.getTime() + PROCESSING_LEASE_MS).toISOString()
-  const { data: delivery, error: claimError } = await admin
-    .from('notification_deliveries')
-    .update({ status: 'processing', next_retry_at: leaseUntil })
-    .eq('id', deliveryId)
-    .in('status', ['pending', 'retryable', 'processing'])
-    .or(`next_retry_at.is.null,next_retry_at.lte.${now.toISOString()}`)
-    .select('*')
-    .maybeSingle()
-
+  const { data: claimedData, error: claimError } = await admin.rpc('claim_notification_delivery', {
+    target_delivery_id: deliveryId,
+    target_now: now.toISOString(),
+  })
   if (claimError) throw claimError
+  const delivery = firstRow(claimedData)
   if (!delivery) return { status: 'not-due', deliveryId }
-
-  const attemptCount = Number(delivery.attempt_count ?? 0) + 1
-  const { error: attemptError } = await admin
-    .from('notification_deliveries')
-    .update({ attempt_count: attemptCount })
-    .eq('id', deliveryId)
-    .eq('status', 'processing')
-  if (attemptError) throw attemptError
+  if (delivery.status === 'cancelled') return { status: 'cancelled', deliveryId }
+  if (delivery.status === 'provider_result_unknown') return { status: 'provider_result_unknown', deliveryId }
+  if (delivery.status !== 'processing') return { status: 'not-due', deliveryId }
 
   const email = extractEmail(delivery.payload)
   if (!email) {
@@ -115,18 +109,26 @@ export async function dispatchNotificationDelivery(
   }
 
   try {
-    const result = await sendTransactionalEmail(email)
-    const { error } = await admin.from('notification_deliveries').update({
+    const result = await sendTransactionalEmail(email, { idempotencyKey: delivery.outbound_attempt_key })
+    const { data: sentDelivery, error } = await admin.from('notification_deliveries').update({
       status: 'sent',
       provider_message_id: result.providerMessageId,
       last_error: null,
       next_retry_at: null,
       sent_at: now.toISOString(),
-    }).eq('id', deliveryId).eq('status', 'processing')
-    if (error) throw error
+    }).eq('id', deliveryId).eq('status', 'processing').eq('outbound_attempt_key', delivery.outbound_attempt_key).select('id').maybeSingle()
+    if (error || !sentDelivery) {
+      await markProviderResultUnknown(admin, deliveryId, error)
+      return { status: 'provider_result_unknown', deliveryId }
+    }
     return { status: 'sent', deliveryId }
   } catch (error) {
+    if (error instanceof TransactionalEmailProviderError && error.outcomeUnknown) {
+      await markProviderResultUnknown(admin, deliveryId, error)
+      return { status: 'provider_result_unknown', deliveryId }
+    }
     const retryable = error instanceof TransactionalEmailProviderError ? error.retryable : true
+    const attemptCount = Number(delivery.attempt_count ?? 0)
     const shouldRetry = retryable && attemptCount < MAX_ATTEMPTS
     const nextRetryAt = shouldRetry ? new Date(now.getTime() + (RETRY_DELAYS_MS[attemptCount - 1] ?? RETRY_DELAYS_MS.at(-1)!)).toISOString() : null
     const status = shouldRetry ? 'retryable' : 'permanent'
@@ -134,8 +136,11 @@ export async function dispatchNotificationDelivery(
       status,
       last_error: safeErrorMessage(error),
       next_retry_at: nextRetryAt,
-    }).eq('id', deliveryId).eq('status', 'processing')
-    if (updateError) throw updateError
+    }).eq('id', deliveryId).eq('status', 'processing').eq('outbound_attempt_key', delivery.outbound_attempt_key)
+    if (updateError) {
+      await markProviderResultUnknown(admin, deliveryId, updateError)
+      return { status: 'provider_result_unknown', deliveryId }
+    }
     return shouldRetry
       ? { status: 'retryable', deliveryId, nextRetryAt: nextRetryAt! }
       : { status: 'permanent', deliveryId }
@@ -172,6 +177,22 @@ async function markPermanentFailure(admin: ReturnType<typeof createSupabaseAdmin
   if (error) throw error
 }
 
+async function markProviderResultUnknown(admin: ReturnType<typeof createSupabaseAdminClient>, deliveryId: string, cause: unknown) {
+  // This update is deliberately best-effort. If the database connection died
+  // after the provider call, the persisted outbound_attempt_started_at makes
+  // the next claim fail closed once its processing lease expires.
+  await admin.from('notification_deliveries').update({
+    status: 'provider_result_unknown',
+    last_error: safeUnknownErrorMessage(cause),
+    next_retry_at: null,
+  }).eq('id', deliveryId).eq('status', 'processing')
+}
+
+function firstRow(value: unknown): Tables<'notification_deliveries'> | null {
+  if (Array.isArray(value)) return (value[0] as Tables<'notification_deliveries'> | undefined) ?? null
+  return value && typeof value === 'object' ? value as Tables<'notification_deliveries'> : null
+}
+
 function extractEmail(payload: unknown): TransactionalEmail | null {
   if (!isRecord(payload) || !isRecord(payload.email)) return null
   const email = payload.email
@@ -186,6 +207,11 @@ function extractEmail(payload: unknown): TransactionalEmail | null {
 
 function safeErrorMessage(error: unknown) {
   return error instanceof TransactionalEmailProviderError ? error.message : 'Transactional email delivery failed.'
+}
+
+function safeUnknownErrorMessage(error: unknown) {
+  if (error instanceof TransactionalEmailProviderError) return error.outcomeUnknown ? 'Provider result is unknown; manual reconciliation is required.' : error.message
+  return 'Provider result is unknown; manual reconciliation is required.'
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

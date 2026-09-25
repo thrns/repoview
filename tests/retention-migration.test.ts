@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const migration = readFileSync('supabase/migrations/20260924210000_retention_cleanup.sql', 'utf8')
 const cleanup = readFileSync('lib/retention/cleanup.ts', 'utf8')
+const deletionJob = readFileSync('lib/account/deletion-job.ts', 'utf8')
 const cron = readFileSync('app/api/cron/retention/route.ts', 'utf8')
 const vercel = JSON.parse(readFileSync('vercel.json', 'utf8')) as { crons: Array<{ path: string; schedule: string }> }
 
@@ -26,6 +27,10 @@ describe('retention cleanup integration', () => {
     expect(cleanup).toContain('hasAnyRows')
     expect(cleanup).toContain('network_metadata_scrubbed_at')
     expect(cleanup).toContain('retention_scrubbed_at')
+    expect(cleanup).toContain('runAccountDeletionCleanup')
+    expect(deletionJob).toContain('claim_account_deletion_job')
+    expect(deletionJob).toContain('ACCOUNT_DELETION_BATCH_SIZE')
+    expect(cleanup).toContain(".eq('status', 'deleted')")
   })
 
   it('only permits the scheduled endpoint with a server secret', () => {
