@@ -116,7 +116,7 @@ export function AdminShell({ email, children, onboardingIncomplete = false, work
   return (
     <div
       data-admin-shell
-      className="fixed inset-0 flex min-h-0 overflow-hidden overscroll-none bg-background"
+      className="flex h-dvh w-full min-h-0 overflow-hidden overscroll-none bg-background"
     >
       <Sidebar>
         <SidebarHeader>
