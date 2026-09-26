@@ -54,7 +54,7 @@ export function SettingsAccount({ fullName, email, emailVerified, reauthStatus, 
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" loading={pending}>Save changes</Button>
+          <Button type="submit" variant="primary" loading={pending}>Save changes</Button>
           {message ? <p className={`text-sm ${saved ? 'text-success' : 'text-destructive'}`} role="status">{message}</p> : null}
         </div>
       </form>
@@ -67,7 +67,7 @@ export function SettingsAccount({ fullName, email, emailVerified, reauthStatus, 
           </summary>
           <ChangePasswordForm />
         </details>
-        <AccountReauthenticationDialog operation="account-export" trigger={<span className="flex w-full items-center justify-between gap-4 text-left"><span className="flex items-center gap-3"><Download className="size-4 text-foreground-muted" aria-hidden="true" /><span><span className="block text-sm font-medium">Export account data</span><span className="mt-0.5 block text-xs text-foreground-muted">Download your profile, workspaces, repositories, shares, recipient metadata, settings, and relevant analytics.</span></span></span><span className="text-xs font-medium text-foreground-muted">JSON</span></span>} onAuthorized={() => { window.location.assign('/api/account/export') }} />
+        <AccountReauthenticationDialog operation="account-export" variant="text" trigger={<span className="flex w-full items-center justify-between gap-4 text-left"><span className="flex items-center gap-3"><Download className="size-4 text-foreground-muted" aria-hidden="true" /><span><span className="block text-sm font-medium">Export account data</span><span className="mt-0.5 block text-xs text-foreground-muted">Download your profile, workspaces, repositories, shares, recipient metadata, settings, and relevant analytics.</span></span></span><span className="text-xs font-medium text-foreground-muted">JSON</span></span>} onAuthorized={() => { window.location.assign('/api/account/export') }} />
       </div>
 
       {reauthStatus === 'success' && reauthOperation === 'account-delete' ? <p className="text-xs text-success" role="status">Reauthentication complete. Reopen the deletion dialog to continue.</p> : null}
@@ -179,7 +179,7 @@ function PendingMfaReauthentication({ operation }: { operation: string }) {
     }
   }
 
-  return <div className="rounded-md border border-warning/30 bg-warning/5 p-4"><p className="text-sm font-medium">Complete MFA reauthentication</p><p className="mt-1 text-xs leading-5 text-foreground-muted">Enter the six-digit code from your configured authenticator to finish the sensitive account action.</p><div className="mt-3 flex flex-wrap items-end gap-3"><div className="space-y-2"><Label htmlFor="pending-reauth-mfa">MFA code</Label><Input id="pending-reauth-mfa" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} /></div><Button type="button" loading={pending} disabled={code.length !== 6} onClick={submit}>Verify MFA</Button></div>{message ? <p className="mt-2 text-xs text-destructive" role="alert">{message}</p> : null}</div>
+  return <div className="rounded-md border border-warning/30 bg-warning/5 p-4"><p className="text-sm font-medium">Complete MFA reauthentication</p><p className="mt-1 text-xs leading-5 text-foreground-muted">Enter the six-digit code from your configured authenticator to finish the sensitive account action.</p><div className="mt-3 flex flex-wrap items-end gap-3"><div className="space-y-2"><Label htmlFor="pending-reauth-mfa">MFA code</Label><Input id="pending-reauth-mfa" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} /></div><Button type="button" variant="primary" loading={pending} disabled={code.length !== 6} onClick={submit}>Verify MFA</Button></div>{message ? <p className="mt-2 text-xs text-destructive" role="alert">{message}</p> : null}</div>
 }
 
 function ChangePasswordForm() {

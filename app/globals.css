@@ -35,6 +35,11 @@ body:has([data-admin-shell]) {
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
   --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+  --color-border-strong: hsl(var(--border-strong));
+  --color-link: hsl(var(--link));
   --color-default: hsl(var(--background));
   --color-foreground-muted: hsl(var(--muted-foreground));
   --color-foreground-lighter: hsl(var(--muted-foreground));
@@ -52,23 +57,28 @@ body:has([data-admin-shell]) {
   --card-foreground: 240 10% 3.9%;
   --popover: 0 0% 100%;
   --popover-foreground: 240 10% 3.9%;
-  --primary: 240 5.9% 10%;
-  --primary-foreground: 0 0% 98%;
+  /* Cool blue is reserved for actions, selection, links, and focus. */
+  --primary: 221 83% 53%;
+  --primary-foreground: 0 0% 100%;
   --secondary: 240 4.8% 95.9%;
   --secondary-foreground: 240 5.9% 10%;
   --muted: 240 4.8% 95.9%;
   --muted-foreground: 240 3.8% 46.1%;
-  --accent: 240 4.8% 95.9%;
-  --accent-foreground: 240 5.9% 10%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
+  --accent: 221 100% 96%;
+  --accent-foreground: 221 39% 25%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
   --success: 142 71% 30%;
+  --success-foreground: 0 0% 100%;
+  --warning: 29 83% 37%;
+  --warning-foreground: 29 90% 12%;
   --border: 240 5.9% 90%;
   --border-strong: 240 5.9% 78%;
   --input: 240 5.9% 90%;
-  --ring: 240 5.9% 10%;
-  --markdown-link: 221 83% 53%;
-  --markdown-link-hover: 221 83% 45%;
+  --ring: 221 83% 53%;
+  --link: 221 83% 43%;
+  --markdown-link: 221 83% 43%;
+  --markdown-link-hover: 221 83% 35%;
   --radius: 0.5rem;
 }
 
@@ -76,27 +86,31 @@ body:has([data-admin-shell]) {
   color-scheme: dark;
   --background: 240 10% 3.9%;
   --foreground: 0 0% 98%;
-  --card: 240 10% 3.9%;
+  --card: 240 6% 7%;
   --card-foreground: 0 0% 98%;
-  --popover: 240 10% 3.9%;
+  --popover: 240 6% 9%;
   --popover-foreground: 0 0% 98%;
-  --primary: 0 0% 98%;
-  --primary-foreground: 240 5.9% 10%;
+  --primary: 213 94% 68%;
+  --primary-foreground: 222 47% 11%;
   --secondary: 240 3.7% 15.9%;
   --secondary-foreground: 0 0% 98%;
   --muted: 240 3.7% 15.9%;
   --muted-foreground: 240 5% 64.9%;
-  --accent: 240 3.7% 15.9%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
+  --accent: 213 30% 19%;
+  --accent-foreground: 213 100% 91%;
+  --destructive: 0 63% 38%;
+  --destructive-foreground: 0 0% 100%;
   --success: 142 70% 45%;
-  --border: 240 3.7% 15.9%;
-  --border-strong: 240 3.7% 27%;
-  --input: 240 3.7% 15.9%;
-  --ring: 240 4.9% 83.9%;
-  --markdown-link: 213 94% 68%;
-  --markdown-link-hover: 213 94% 76%;
+  --success-foreground: 142 80% 10%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 38 90% 10%;
+  --border: 240 3.7% 22%;
+  --border-strong: 240 3.7% 31%;
+  --input: 240 3.7% 25%;
+  --ring: 213 94% 68%;
+  --link: 213 94% 76%;
+  --markdown-link: 213 94% 76%;
+  --markdown-link-hover: 213 94% 84%;
 }
 
 @layer base {
@@ -111,6 +125,13 @@ body:has([data-admin-shell]) {
   }
   h1, h2, h3, h4, h5, h6 { @apply font-heading font-semibold; }
   code, pre, kbd, samp, .font-mono { @apply font-mono; }
+  ::selection { background: hsl(var(--primary) / 0.2); color: hsl(var(--foreground)); }
+  :where(a, button, input, select, textarea, summary, [role='button'], [tabindex]):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+  :where(button, [role='button']) { cursor: pointer; }
+  :where(button:disabled, [role='button'][aria-disabled='true']) { cursor: not-allowed; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -486,41 +507,7 @@ body:has([data-admin-shell]) {
 @media (max-width: 560px) {
   .login-content { min-height: auto; padding: 3.5rem 1rem 4rem; }
 }
-/* RepoView public surface */
-/* RepoView landing refinement: compact, product-led, monochrome. */
-.landing-page {
-  --landing-background: #FFFFFF;
-  --landing-foreground: #09090B;
-  --landing-primary: #18181B;
-  --landing-primary-foreground: #FAFAFA;
-  --landing-muted: #F4F4F5;
-  --landing-muted-foreground: #71717A;
-  --landing-border: #E4E4E7;
-  --landing-success: #16833E;
-  --landing-destructive: #EF4444;
-  --landing-ring: #18181B;
-  --landing-surface-raised: #FFFFFF;
-  --landing-code: #18181B;
-  background: var(--landing-background);
-  color: var(--landing-foreground);
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-}
-
-.dark .landing-page {
-  --landing-background: #09090B;
-  --landing-foreground: #FAFAFA;
-  --landing-primary: #FAFAFA;
-  --landing-primary-foreground: #18181B;
-  --landing-muted: #27272A;
-  --landing-muted-foreground: #A1A1AA;
-  --landing-border: #27272A;
-  --landing-success: #22C35D;
-  --landing-destructive: #7F1D1D;
-  --landing-ring: #D4D4D8;
-  --landing-surface-raised: #18181B;
-  --landing-code: #09090B;
-}
-
+/* Public landing surface: keep selectors scoped; theme values live in one token block below. */
 .landing-page *, .landing-page *::before, .landing-page *::after { box-sizing: border-box; }
 .landing-page a { color: inherit; text-decoration: none; }
 .landing-page button { font: inherit; }
@@ -811,10 +798,6 @@ body:has([data-admin-shell]) {
 }
 
 /* Final density pass: keep the existing product language, remove the marketing drag. */
-.landing-page {
-  font-family: Geist, Inter, ui-sans-serif, system-ui, sans-serif;
-}
-
 .landing-page .landing-container { width: min(1080px, calc(100% - 48px)); }
 .landing-page .nav-inner { min-height: 54px; gap: 1.5rem; }
 .landing-page .brand-mark { font-size: 0.8125rem; }
@@ -1101,6 +1084,7 @@ body:has([data-admin-shell]) {
   --landing-success: #16833E;
   --landing-ring: #18181B;
   --landing-surface-raised: #FFFFFF;
+  --landing-code: #18181B;
   --landing-shadow: 0 12px 32px rgba(24, 24, 27, 0.06), 0 2px 6px rgba(24, 24, 27, 0.04);
   background: var(--landing-background);
   color: var(--landing-foreground);
@@ -1119,6 +1103,7 @@ body:has([data-admin-shell]) {
   --landing-success: #22C35D;
   --landing-ring: #D4D4D8;
   --landing-surface-raised: #111113;
+  --landing-code: #09090B;
   --landing-shadow: 0 12px 32px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.14);
 }
 

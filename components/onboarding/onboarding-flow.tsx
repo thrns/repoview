@@ -71,7 +71,7 @@ export function OnboardingFlow({ state, githubStatus, repositoryCount }: { state
                     <label className="flex items-start gap-3 text-sm leading-5"><Checkbox checked={acceptTerms} onChange={(event) => setAcceptTerms(event.target.checked)} /><span>I agree to the <Link className="underline underline-offset-2" href="/terms" target="_blank">current Terms of Service</Link>.</span></label>
                     <label className="flex items-start gap-3 text-sm leading-5"><Checkbox checked={acknowledgePrivacy} onChange={(event) => setAcknowledgePrivacy(event.target.checked)} /><span>I acknowledge the <Link className="underline underline-offset-2" href="/privacy" target="_blank">current Privacy Policy</Link>.</span></label>
                   </div>
-                  <Button type="submit" loading={isPending} iconRight={<ArrowRight className="size-4" aria-hidden="true" />}>Save and continue</Button>
+                  <Button type="submit" variant="primary" loading={isPending} iconRight={<ArrowRight className="size-4" aria-hidden="true" />}>Save and continue</Button>
                 </form>
               ) : null}
               {state.step === 'github' ? <GitHubState state={state} /> : null}

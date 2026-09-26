@@ -20,7 +20,7 @@ export default function ErrorBoundary({ reset }: { reset: () => void }) {
           </div>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Button onClick={reset}>Try again</Button>
+          <Button variant="primary" onClick={reset}>Try again</Button>
           <Button variant="outline" onClick={() => { window.location.href = '/' }}>Return home</Button>
         </CardContent>
       </Card>

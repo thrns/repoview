@@ -46,7 +46,7 @@ export function UpdateShareNoteButton({ shareId, note, compact = false }: { shar
         {completed ? <Alert className="mt-4 border-success/40"><AlertTitle>Note updated</AlertTitle><AlertDescription>The private note is now saved to this share.</AlertDescription></Alert> : null}
         <DialogFooter>
           <DialogClose>{completed ? 'Done' : 'Cancel'}</DialogClose>
-          {!completed ? <Button type="button" loading={isPending} onClick={saveNote}>Save note</Button> : null}
+          {!completed ? <Button type="button" variant="primary" loading={isPending} onClick={saveNote}>Save note</Button> : null}
         </DialogFooter>
       </DialogContent>
     </Dialog>

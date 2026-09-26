@@ -1,17 +1,20 @@
 'use client'
 
-import { createContext, useContext, useEffect, useId, useRef, useState, type HTMLAttributes, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useId, useRef, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react'
 
 import { Button, type ButtonProps } from './button'
+import { useModalFocus } from './modal-focus'
 import { cn } from './utils'
 
-const DialogContext = createContext<{
+type DialogContextValue = {
   open: boolean
   setOpen: (open: boolean) => void
   titleId: string
   descriptionId: string
   triggerRef: React.RefObject<HTMLButtonElement | null>
-} | null>(null)
+}
+
+const DialogContext = createContext<DialogContextValue | null>(null)
 
 export function Dialog({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
@@ -20,41 +23,33 @@ export function Dialog({ children }: { children: ReactNode }) {
   return <DialogContext.Provider value={{ open, setOpen, titleId: `${id}-title`, descriptionId: `${id}-description`, triggerRef }}>{children}</DialogContext.Provider>
 }
 
-export function DialogTrigger({ children, className, variant = 'default', size, icon, iconRight, disabled }: { children: ReactNode; className?: string; variant?: ButtonProps['variant']; size?: ButtonProps['size']; icon?: ReactNode; iconRight?: ReactNode; disabled?: boolean }) {
+export function DialogTrigger({ children, className, variant = 'default', size, icon, iconRight, disabled, onClick, ...props }: Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> & { children: ReactNode; className?: string; variant?: ButtonProps['variant']; size?: ButtonProps['size']; icon?: ReactNode; iconRight?: ReactNode; disabled?: boolean }) {
   const dialog = useContext(DialogContext)
-  return <Button ref={dialog?.triggerRef} type="button" variant={variant} size={size} icon={icon} iconRight={iconRight} disabled={disabled} className={className} onClick={() => dialog?.setOpen(true)}>{children}</Button>
+  return <Button {...props} ref={dialog?.triggerRef} type="button" variant={variant} size={size} icon={icon} iconRight={iconRight} disabled={disabled} className={className} onClick={(event) => { onClick?.(event); if (!event.defaultPrevented) dialog?.setOpen(true) }}>{children}</Button>
 }
 
-export function DialogContent({ children, className }: HTMLAttributes<HTMLDivElement>) {
+export function DialogContent({ children, className, 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledby, 'aria-describedby': ariaDescribedby, ...props }: HTMLAttributes<HTMLElement>) {
   const dialog = useContext(DialogContext)
   const contentRef = useRef<HTMLElement | null>(null)
+  const close = useCallback(() => dialog?.setOpen(false), [dialog?.setOpen])
 
-  useEffect(() => {
-    if (!dialog?.open) {
-      return
-    }
-
-    contentRef.current?.focus()
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        dialog.setOpen(false)
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-      dialog.triggerRef.current?.focus()
-    }
-  }, [dialog])
+  useModalFocus({ open: Boolean(dialog?.open), containerRef: contentRef, triggerRef: dialog?.triggerRef ?? { current: null }, onClose: close })
 
   if (!dialog?.open) return null
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) dialog.setOpen(false) }}><section ref={contentRef} role="dialog" aria-modal="true" aria-labelledby={dialog.titleId} aria-describedby={dialog.descriptionId} tabIndex={-1} className={cn('relative w-full max-w-lg rounded-lg border border-border bg-background p-6 shadow-lg', className)}>{children}</section></div>
+  const labelledby = ariaLabel ? undefined : ariaLabelledby ?? dialog.titleId
+  const describedby = ariaDescribedby ?? dialog.descriptionId
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/45 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) dialog.setOpen(false) }}><section {...props} ref={contentRef} role="dialog" aria-modal="true" aria-label={ariaLabel ?? (!labelledby ? 'Dialog' : undefined)} aria-labelledby={labelledby} aria-describedby={describedby} tabIndex={-1} className={cn('relative w-full max-w-lg rounded-lg border border-border bg-background p-6 shadow-xl', className)}>{children}</section></div>
 }
 
 export function DialogHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn('flex flex-col space-y-1.5 text-left', className)} {...props} /> }
-export function DialogTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) { return <h2 id={useContext(DialogContext)?.titleId} className={cn('font-heading text-lg font-semibold', className)} {...props} /> }
-export function DialogDescription({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) { return <p id={useContext(DialogContext)?.descriptionId} className={cn('text-sm text-foreground-muted', className)} {...props} /> }
+export function DialogTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
+  const dialog = useContext(DialogContext)
+  return <h2 id={dialog?.titleId} className={cn('font-heading text-lg font-semibold', className)} {...props} />
+}
+export function DialogDescription({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {
+  const dialog = useContext(DialogContext)
+  return <p id={dialog?.descriptionId} className={cn('text-sm text-foreground-muted', className)} {...props} />
+}
 export function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn('mt-6 flex justify-end gap-2', className)} {...props} /> }
 export function DialogSection({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn('py-4', className)} {...props} /> }
 export function DialogSectionSeparator() { return <div className="my-4 h-px bg-border" /> }

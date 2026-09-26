@@ -56,7 +56,7 @@ export function UpdateShareExpiryButton({ shareId, currentExpiresAt, disabled = 
         {completed ? <Alert className="mt-4 border-success/40"><AlertTitle>Expiry updated</AlertTitle><AlertDescription>The new expiry is now active for viewer requests.</AlertDescription></Alert> : null}
         <DialogFooter>
           <DialogClose>Cancel</DialogClose>
-          <Button type="button" loading={isPending} onClick={saveExpiry}>Save expiry</Button>
+          <Button type="button" variant="primary" loading={isPending} onClick={saveExpiry}>Save expiry</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -16,6 +16,6 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
     await enforceAuthenticatedRateLimit('authenticated-dashboard-analytics', context.workspace.id, context.user.id)
     return <ActivityView items={await getDashboardActivity(filter)} filter={filter} />
   } catch {
-    return <section className="mx-auto w-full max-w-5xl px-6 py-10 lg:px-10 lg:py-14"><div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Activity could not be loaded. Try refreshing after checking the data connection.</div></section>
+    return <section className="mx-auto w-full max-w-5xl px-5 py-7 sm:px-8 lg:px-10 lg:py-10"><div className="rounded-md border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">Activity could not be loaded. Try refreshing after checking the data connection.</div></section>
   }
 }

@@ -16,11 +16,8 @@ export default function ActivityLoading() {
         </header>
 
         <div className="mt-5 flex items-center gap-2">
-          <Skeleton className="h-9 w-full max-w-xs" />
-          <div className="hidden flex-1 gap-2 lg:flex">
-            {Array.from({ length: 5 }, (_, index) => <Skeleton key={index} className="h-9 min-w-0 flex-1" />)}
-          </div>
-          <Skeleton className="h-9 w-20 lg:hidden" />
+          <Skeleton className="h-10 w-full max-w-sm" />
+          <Skeleton className="h-10 w-32" />
         </div>
       </div>
 
@@ -29,7 +26,7 @@ export default function ActivityLoading() {
         <Skeleton className="h-3 w-20" />
       </div>
 
-      <div className="mt-3 overflow-hidden rounded-lg border border-border bg-card">
+      <div className="mt-3 overflow-hidden border-y border-border/70 bg-card">
         {Array.from({ length: 4 }, (_, index) => <ActivitySessionSkeleton key={index} expanded={index < 2} />)}
       </div>
     </section>

@@ -121,7 +121,7 @@ export function SignupForm() {
                   </button>
                 </div>
               </div>
-              <Button type="submit" size="large" className="login-submit-button w-full" loading={isSubmitting} iconRight={<ArrowRight className="size-4" aria-hidden="true" />}>
+              <Button type="submit" variant="primary" size="large" className="login-submit-button w-full" loading={isSubmitting} iconRight={<ArrowRight className="size-4" aria-hidden="true" />}>
                 Create account
               </Button>
               <p className="login-form-note">After you verify your email, RepoView will ask you to accept the current <Link href="/terms">Terms</Link> and acknowledge the <Link href="/privacy">Privacy Policy</Link>.</p>

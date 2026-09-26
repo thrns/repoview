@@ -1,8 +1,9 @@
 'use client'
 
-import { createContext, useContext, useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react'
 
 import { Button, type ButtonProps } from './button'
+import { useModalFocus } from './modal-focus'
 import { cn } from './utils'
 
 const SheetContext = createContext<{
@@ -20,36 +21,22 @@ export function Sheet({ children }: { children: ReactNode }) {
   return <SheetContext.Provider value={{ open, setOpen, titleId: `${id}-title`, descriptionId: `${id}-description`, triggerRef }}>{children}</SheetContext.Provider>
 }
 
-export function SheetTrigger({ children, className, variant = 'outline', size = 'default', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode; variant?: ButtonProps['variant']; size?: ButtonProps['size'] }) {
+export function SheetTrigger({ children, className, variant = 'outline', size = 'default', onClick, ...props }: Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> & { children: ReactNode; variant?: ButtonProps['variant']; size?: ButtonProps['size'] }) {
   const sheet = useContext(SheetContext)
-  return <Button ref={sheet?.triggerRef} type="button" variant={variant} size={size} className={className} onClick={() => sheet?.setOpen(true)} {...props}>{children}</Button>
+  return <Button {...props} ref={sheet?.triggerRef} type="button" variant={variant} size={size} className={className} onClick={(event) => { onClick?.(event); if (!event.defaultPrevented) sheet?.setOpen(true) }}>{children}</Button>
 }
 
-export function SheetContent({ children, className, side = 'right' }: HTMLAttributes<HTMLElement> & { side?: 'left' | 'right' }) {
+export function SheetContent({ children, className, side = 'right', 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledby, 'aria-describedby': ariaDescribedby, ...props }: HTMLAttributes<HTMLElement> & { side?: 'left' | 'right' }) {
   const sheet = useContext(SheetContext)
   const contentRef = useRef<HTMLElement | null>(null)
+  const close = useCallback(() => sheet?.setOpen(false), [sheet?.setOpen])
 
-  useEffect(() => {
-    if (!sheet?.open) {
-      return
-    }
-
-    contentRef.current?.focus()
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        sheet.setOpen(false)
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-      sheet.triggerRef.current?.focus()
-    }
-  }, [sheet])
+  useModalFocus({ open: Boolean(sheet?.open), containerRef: contentRef, triggerRef: sheet?.triggerRef ?? { current: null }, onClose: close })
 
   if (!sheet?.open) return null
-  return <div className="fixed inset-0 z-50 bg-black/50" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) sheet.setOpen(false) }}><aside ref={contentRef} role="dialog" aria-modal="true" aria-labelledby={sheet.titleId} aria-describedby={sheet.descriptionId} tabIndex={-1} className={cn('absolute inset-y-0 flex w-full max-w-sm flex-col border-border bg-background p-6 shadow-lg', side === 'left' ? 'left-0 border-r' : 'right-0 border-l', className)}>{children}</aside></div>
+  const labelledby = ariaLabel ? undefined : ariaLabelledby ?? sheet.titleId
+  const describedby = ariaDescribedby ?? (ariaLabel ? undefined : sheet.descriptionId)
+  return <div className="fixed inset-0 z-50 bg-foreground/45" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) sheet.setOpen(false) }}><aside {...props} ref={contentRef} role="dialog" aria-modal="true" aria-label={ariaLabel ?? (!labelledby ? 'Panel' : undefined)} aria-labelledby={labelledby} aria-describedby={describedby} tabIndex={-1} className={cn('absolute inset-y-0 flex w-full max-w-sm flex-col border-border bg-background p-6 shadow-xl', side === 'left' ? 'left-0 border-r' : 'right-0 border-l', className)}>{children}</aside></div>
 }
 
 export function SheetHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn('flex flex-col space-y-1.5', className)} {...props} /> }
@@ -62,9 +49,94 @@ export function SheetClose({ children = 'Close', className }: { children?: React
   return <Button type="button" variant="outline" className={className} onClick={() => sheet?.setOpen(false)}>{children}</Button>
 }
 
-export function DropdownMenu({ children }: { children: ReactNode }) { return <details className="relative">{children}</details> }
-export function DropdownMenuTrigger({ children, className }: { children: ReactNode; className?: string }) { return <summary className="list-none [&::-webkit-details-marker]:hidden"><Button type="button" variant="outline" className={className}>{children}</Button></summary> }
-export function DropdownMenuContent({ children, className }: HTMLAttributes<HTMLDivElement>) { return <div className={cn('absolute right-0 z-50 mt-2 min-w-48 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md', className)}>{children}</div> }
+type DropdownMenuContextValue = { open: boolean; setOpen: (open: boolean) => void; triggerRef: React.RefObject<HTMLButtonElement | null>; contentRef: React.RefObject<HTMLDivElement | null> }
+const DropdownMenuContext = createContext<DropdownMenuContextValue | null>(null)
+
+export function DropdownMenu({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const contentRef = useRef<HTMLDivElement | null>(null)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handlePointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [open])
+
+  return <DropdownMenuContext.Provider value={{ open, setOpen, triggerRef, contentRef }}><div ref={rootRef} className="relative">{children}</div></DropdownMenuContext.Provider>
+}
+
+export function DropdownMenuTrigger({ children, className, onKeyDown, onClick, 'aria-haspopup': ariaHaspopup, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode; className?: string }) {
+  const menu = useContext(DropdownMenuContext)
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+    onKeyDown?.(event)
+    if (event.defaultPrevented || !menu) return
+    if (event.key === 'ArrowDown' || event.key === 'Home' || event.key === 'End') {
+      event.preventDefault()
+      menu.setOpen(true)
+      window.setTimeout(() => focusMenuItem(menu.contentRef.current, event.key === 'End' ? 'last' : 'first'), 0)
+    }
+  }
+
+  return <Button {...props} ref={menu?.triggerRef} type="button" variant="outline" aria-haspopup={ariaHaspopup ?? 'menu'} aria-expanded={menu?.open ?? false} className={className} onClick={(event) => { onClick?.(event); if (event.defaultPrevented || !menu) return; const nextOpen = !menu.open; menu.setOpen(nextOpen); if (nextOpen) window.setTimeout(() => focusMenuItem(menu.contentRef.current, 'first'), 0) }} onKeyDown={handleKeyDown}>{children}</Button>
+}
+
+export function DropdownMenuContent({ children, className, onKeyDown, role = 'menu', ...props }: HTMLAttributes<HTMLDivElement>) {
+  const menu = useContext(DropdownMenuContext)
+  if (!menu?.open) return null
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    onKeyDown?.(event)
+    if (event.defaultPrevented || !menu) return
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      menu.setOpen(false)
+      menu.triggerRef.current?.focus()
+      return
+    }
+    if (role === 'menu' && (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End')) {
+      event.preventDefault()
+      const direction = event.key === 'ArrowUp' ? 'previous' : event.key === 'Home' ? 'first' : event.key === 'End' ? 'last' : 'next'
+      focusMenuItem(menu.contentRef.current, direction)
+    }
+  }
+
+  return <div {...props} ref={menu.contentRef} role={role} onKeyDown={handleKeyDown} className={cn('absolute right-0 z-50 mt-2 min-w-48 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg', className)}>{children}</div>
+}
 export function DropdownMenuLabel({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn('px-2 py-1.5 text-xs font-medium text-foreground-muted', className)} {...props} /> }
 export function DropdownMenuSeparator({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn('my-1 h-px bg-border', className)} {...props} /> }
-export function DropdownMenuItem({ className, children, ...props }: HTMLAttributes<HTMLButtonElement>) { return <button type="button" className={cn('flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent', className)} {...props}>{children}</button> }
+export function DropdownMenuItem({ className, children, onClick, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
+  const menu = useContext(DropdownMenuContext)
+  return <button {...props} type="button" role="menuitem" className={cn('flex min-h-9 w-full items-center rounded-sm px-2 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent', className)} onClick={(event) => { onClick?.(event); if (!event.defaultPrevented) menu?.setOpen(false) }}>{children}</button>
+}
+
+function focusMenuItem(content: HTMLDivElement | null, direction: 'first' | 'last' | 'next' | 'previous') {
+  if (!content) return
+  const items = [...content.querySelectorAll<HTMLElement>('[role="menuitem"], button:not([disabled]), a[href], input:not([disabled]), select:not([disabled])')]
+  if (items.length === 0) return
+  const currentIndex = items.indexOf(document.activeElement as HTMLElement)
+  const nextIndex = direction === 'first'
+    ? 0
+    : direction === 'last'
+      ? items.length - 1
+      : direction === 'previous'
+        ? (currentIndex - 1 + items.length) % items.length
+        : (currentIndex + 1) % items.length
+  items[nextIndex]?.focus()
+}

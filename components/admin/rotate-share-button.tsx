@@ -56,7 +56,7 @@ export function RotateShareButton({ shareId, compact = false }: { shareId: strin
         )}
         <DialogFooter>
           <DialogClose>{shareUrl ? 'Done' : 'Cancel'}</DialogClose>
-          {!shareUrl ? <Button type="button" loading={isPending} onClick={confirmRotate}>Rotate now</Button> : null}
+          {!shareUrl ? <Button type="button" variant="primary" loading={isPending} onClick={confirmRotate}>Rotate now</Button> : null}
         </DialogFooter>
       </DialogContent>
     </Dialog>

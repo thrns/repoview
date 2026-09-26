@@ -66,7 +66,7 @@ export function LoginForm() {
               </button>
             </div>
           </div>
-          <Button type="submit" size="large" className="login-submit-button w-full" loading={isSubmitting} iconRight={<ArrowRight className="size-4" aria-hidden="true" />}>
+          <Button type="submit" variant="primary" size="large" className="login-submit-button w-full" loading={isSubmitting} iconRight={<ArrowRight className="size-4" aria-hidden="true" />}>
             Sign in
           </Button>
           <p className="login-form-note">Your workspace determines the repositories and shares you can access.</p>

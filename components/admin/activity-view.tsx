@@ -15,16 +15,15 @@ import {
   FolderOpen,
   Link2,
   Play,
-  Search,
-  SlidersHorizontal,
   Square,
   UserRound,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 
-import { Badge, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Input, Select } from '@/components/ui'
+import { Select } from '@/components/ui'
 import type { ActivityFilter, DashboardActivityItem } from '@/lib/dashboard/activity'
+import { ActiveFilterSummary, OwnerFilterDialog, OwnerFilterField, OwnerSearchField } from './owner-workspace-controls'
 
 type EventFilter = 'all' | 'view' | 'file_opened' | 'copy' | 'download' | 'share' | 'session' | 'notification'
 type DateFilter = 'default' | 'all' | 'today' | '7d' | '30d'
@@ -104,8 +103,8 @@ export function ActivityView({ items, filter }: { items: DashboardActivityItem[]
   }
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-6 pb-10 lg:px-10 lg:pb-14">
-      <div className="sticky top-14 z-30 -mx-6 bg-background/95 px-6 pb-4 pt-7 backdrop-blur-sm lg:top-0 lg:-mx-10 lg:px-10 lg:pb-5 lg:pt-10">
+    <section className="mx-auto w-full max-w-6xl px-5 pb-10 sm:px-8 lg:px-10 lg:pb-14">
+      <div className="sticky top-14 z-30 -mx-5 bg-background/95 px-5 pb-4 pt-7 backdrop-blur-sm sm:-mx-8 sm:px-8 lg:top-0 lg:-mx-10 lg:px-10 lg:pb-5 lg:pt-10">
         <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -135,14 +134,22 @@ export function ActivityView({ items, filter }: { items: DashboardActivityItem[]
           setEventFilter={setEventFilter}
           setDateFilter={setDateFilter}
         />
+        <ActiveFilterSummary filters={[
+          ...(query ? [{ label: 'Search', value: query, onClear: () => setQuery('') }] : []),
+          ...(repository !== 'all' ? [{ label: 'Repository', value: repository, onClear: () => setRepository('all') }] : []),
+          ...(share !== 'all' ? [{ label: 'Share', value: share, onClear: () => setShare('all') }] : []),
+          ...(viewer !== 'all' ? [{ label: 'Viewer', value: viewer, onClear: () => setViewer('all') }] : []),
+          ...(eventFilter !== 'all' ? [{ label: 'Event', value: eventFilterLabel(eventFilter), onClear: () => setEventFilter('all') }] : []),
+          ...(dateFilter !== 'default' ? [{ label: 'Date', value: dateFilterLabel(dateFilter), onClear: () => setDateFilter('default') }] : []),
+        ]} onClear={clearFilters} />
       </div>
 
       <div className="mt-5 flex items-center justify-between gap-4 border-b border-border/70 pb-3">
         <p className="text-xs text-foreground-muted"><span className="font-mono tabular-nums text-foreground">{sessions.length}</span> {sessions.length === 1 ? 'session' : 'sessions'} <span className="px-1 text-foreground-muted/50">·</span> <span className="font-mono tabular-nums text-foreground">{totalEventCount}</span> {totalEventCount === 1 ? 'event' : 'events'}</p>
-        {activeFilterCount > 0 || query ? <button type="button" onClick={clearFilters} className="text-xs text-foreground-muted underline-offset-4 hover:text-foreground hover:underline">Clear filters</button> : null}
+        <span className="hidden text-xs text-foreground-muted sm:inline">Latest sessions first</span>
       </div>
 
-      <section className="mt-3 overflow-hidden rounded-lg border border-border bg-card" aria-label="Activity sessions">
+      <section className="mt-3 overflow-hidden border-y border-border/70 bg-card" aria-label="Activity sessions">
         {visibleSessions.length === 0 ? (
           <EmptyActivity hasFilters={Boolean(activeFilterCount || query)} onClear={clearFilters} />
         ) : (
@@ -207,35 +214,19 @@ function ActivityToolbar({
 }) {
   return (
     <div className="mt-5 flex items-center gap-2">
-      <label className="relative min-w-0 flex-1 lg:max-w-xs">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-foreground-muted" aria-hidden="true" />
-        <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search activity" aria-label="Search activity" className="h-9 pl-8 text-xs" />
-      </label>
-
-      <div className="hidden min-w-0 flex-1 gap-2 lg:flex">
-        <FilterSelect ariaLabel="Filter by repository" value={repository} onChange={setRepository} placeholder="Repository" options={repositories} />
-        <FilterSelect ariaLabel="Filter by share" value={share} onChange={setShare} placeholder="Share" options={shares} />
-        <FilterSelect ariaLabel="Filter by viewer" value={viewer} onChange={setViewer} placeholder="Viewer" options={viewers} />
-        <EventSelect value={eventFilter} onChange={setEventFilter} />
-        <DateSelect value={dateFilter} onChange={setDateFilter} />
-      </div>
-
-      <div className="lg:hidden">
-        <DropdownMenu>
-          <DropdownMenuTrigger className="h-9 gap-1.5 px-2.5 text-xs" aria-label="Open activity filters">
-            <SlidersHorizontal className="size-3.5" aria-hidden="true" />
-            <span>Filters</span>
-            {activeFilterCount > 0 ? <Badge className="ml-0.5 px-1.5 py-0 text-[10px]">{activeFilterCount}</Badge> : null}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="right-0 mt-1 w-[min(21rem,calc(100vw-3rem))] space-y-3 p-3">
-            <FilterSelect ariaLabel="Filter by repository" value={repository} onChange={setRepository} placeholder="Repository" options={repositories} fullWidth />
-            <FilterSelect ariaLabel="Filter by share" value={share} onChange={setShare} placeholder="Share" options={shares} fullWidth />
-            <FilterSelect ariaLabel="Filter by viewer" value={viewer} onChange={setViewer} placeholder="Viewer" options={viewers} fullWidth />
-            <EventSelect value={eventFilter} onChange={setEventFilter} fullWidth />
-            <DateSelect value={dateFilter} onChange={setDateFilter} fullWidth />
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      <OwnerSearchField value={query} onChange={setQuery} label="Search activity" placeholder="Search activity" className="lg:max-w-sm" />
+      <OwnerFilterDialog
+        title="Activity filters"
+        description="Narrow sessions by repository, share, anonymous viewer, event, or date."
+        activeCount={activeFilterCount}
+        onClear={() => { setRepository('all'); setShare('all'); setViewer('all'); setEventFilter('all'); setDateFilter('default') }}
+      >
+        <OwnerFilterField label="Repository"><FilterSelect ariaLabel="Filter by repository" value={repository} onChange={setRepository} placeholder="All repositories" options={repositories} fullWidth /></OwnerFilterField>
+        <OwnerFilterField label="Share"><FilterSelect ariaLabel="Filter by share" value={share} onChange={setShare} placeholder="All shares" options={shares} fullWidth /></OwnerFilterField>
+        <OwnerFilterField label="Viewer"><FilterSelect ariaLabel="Filter by viewer" value={viewer} onChange={setViewer} placeholder="All viewers" options={viewers} fullWidth /></OwnerFilterField>
+        <OwnerFilterField label="Event"><EventSelect value={eventFilter} onChange={setEventFilter} fullWidth /></OwnerFilterField>
+        <OwnerFilterField label="Date"><DateSelect value={dateFilter} onChange={setDateFilter} fullWidth /></OwnerFilterField>
+      </OwnerFilterDialog>
     </div>
   )
 }
@@ -304,6 +295,11 @@ function SessionBlock({ session, index, isOpen, now, onToggle }: { session: Acti
 
       {isOpen ? (
         <div className="border-t border-border/50 bg-muted/20 px-4 py-2.5 sm:px-5">
+          <div className="mb-2 grid gap-3 border-b border-border/50 pb-3 text-xs sm:ml-9 sm:grid-cols-3">
+            <ContextValue label="Browser" value={first.browser} />
+            <ContextValue label="Device" value={first.deviceType} />
+            <ContextValue label="Country" value={first.country} />
+          </div>
           <div className="ml-0 divide-y divide-border/60 sm:ml-9">
             {displayEvents.map((event) => <EventRow key={event.kind === 'event' ? event.item.id : `summary-${event.items[0].id}`} event={event} />)}
           </div>
@@ -315,7 +311,6 @@ function SessionBlock({ session, index, isOpen, now, onToggle }: { session: Acti
 }
 
 function SessionHeaderContent({ first, viewer, duration, eventCount, lastActivity, now }: { first: DashboardActivityItem; viewer: string; duration: string; eventCount: number; lastActivity: string; now: number }) {
-  const context = [first.browser, first.deviceType, first.country].filter(Boolean).join(' · ')
   return (
     <div className="min-w-0">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -325,7 +320,6 @@ function SessionHeaderContent({ first, viewer, duration, eventCount, lastActivit
       </div>
       <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-foreground-muted">
         <span className="truncate font-mono">{first.repositoryName}</span>
-        {context ? <><span className="text-foreground-muted/50" aria-hidden="true">·</span><span>{context}</span></> : null}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] tabular-nums text-foreground-muted">
         <span>{duration}</span>
@@ -334,6 +328,10 @@ function SessionHeaderContent({ first, viewer, duration, eventCount, lastActivit
       </div>
     </div>
   )
+}
+
+function ContextValue({ label, value }: { label: string; value: string | null }) {
+  return <div><span className="block text-[11px] text-foreground-muted">{label}</span><span className="mt-0.5 block truncate text-foreground" title={value ?? undefined}>{value || 'Not available'}</span></div>
 }
 
 function EventRow({ event }: { event: DisplayEvent }) {
@@ -536,4 +534,12 @@ function uniqueOptions(values: Array<string | null | undefined>) {
 
 function viewerLabel(item: DashboardActivityItem) {
   return item.viewerCode ? `Anonymous #${item.viewerCode}` : 'Unidentified session'
+}
+
+function eventFilterLabel(value: EventFilter) {
+  return { all: 'All events', view: 'Views', file_opened: 'File opens', copy: 'Copies', download: 'Downloads', share: 'Share opens', session: 'Session events', notification: 'Notifications' }[value]
+}
+
+function dateFilterLabel(value: DateFilter) {
+  return { default: 'Default', all: 'All time', today: 'Today', '7d': 'Last 7 days', '30d': 'Last 30 days' }[value]
 }

@@ -1,0 +1,136 @@
+'use client'
+
+import { ListFilter, Search, X } from 'lucide-react'
+import type { ReactNode } from 'react'
+
+import {
+  Badge,
+  Button,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  Input,
+  Label,
+} from '@/components/ui'
+
+export function OwnerPageHeader({
+  title,
+  description,
+  meta,
+  actions,
+}: {
+  title: string
+  description: string
+  meta?: ReactNode
+  actions?: ReactNode
+}) {
+  return (
+    <header className="flex flex-col gap-4 border-b border-border/70 pb-6 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="font-heading text-3xl font-semibold tracking-[-0.04em] text-wrap-balance">{title}</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-foreground-muted text-pretty">{description}</p>
+      </div>
+      {actions || meta ? <div className="flex shrink-0 items-center gap-3 sm:pb-0.5">{meta ? <span className="text-xs tabular-nums text-foreground-muted">{meta}</span> : null}{actions}</div> : null}
+    </header>
+  )
+}
+
+export function OwnerSearchField({
+  value,
+  onChange,
+  label,
+  placeholder,
+  className = '',
+}: {
+  value: string
+  onChange: (value: string) => void
+  label: string
+  placeholder: string
+  className?: string
+}) {
+  return (
+    <label className={`relative min-w-0 flex-1 ${className}`}>
+      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-foreground-muted" aria-hidden="true" />
+      <Input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} aria-label={label} className="h-10 pl-9" />
+    </label>
+  )
+}
+
+export function OwnerFilterDialog({
+  title,
+  description,
+  activeCount,
+  onClear,
+  children,
+}: {
+  title: string
+  description: string
+  activeCount: number
+  onClear: () => void
+  children: ReactNode
+}) {
+  return (
+    <Dialog>
+      <DialogTrigger variant="outline" size="default" className="h-10 gap-2 px-3">
+        <ListFilter className="size-4" aria-hidden="true" />
+        Filters / view
+        {activeCount > 0 ? <Badge className="min-h-5 rounded-full px-1.5 py-0 text-[10px] tabular-nums">{activeCount}</Badge> : null}
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-5">{children}</div>
+        <DialogFooter>
+          {activeCount > 0 ? <Button type="button" variant="text" size="small" className="mr-auto px-0" onClick={onClear}>Clear all</Button> : null}
+          <DialogClose>Done</DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export function OwnerFilterField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-foreground-muted">{label}</Label>
+      {children}
+    </div>
+  )
+}
+
+export function ActiveFilterSummary({
+  filters,
+  onClear,
+}: {
+  filters: Array<{ label: string; value: string; onClear: () => void }>
+  onClear: () => void
+}) {
+  if (filters.length === 0) return null
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs" role="status" aria-label="Active filters">
+      <span className="text-foreground-muted">Active:</span>
+      {filters.map((filter) => (
+        <button
+          key={`${filter.label}-${filter.value}`}
+          type="button"
+          onClick={filter.onClear}
+          className="inline-flex min-h-7 items-center gap-1.5 rounded-md border border-border-strong/70 bg-accent/60 px-2 text-accent-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={`Clear ${filter.label} filter: ${filter.value}`}
+        >
+          <span className="text-foreground-muted">{filter.label}</span>
+          <span className="max-w-44 truncate font-medium">{filter.value}</span>
+          <X className="size-3" aria-hidden="true" />
+        </button>
+      ))}
+      <button type="button" onClick={onClear} className="min-h-7 px-1 text-foreground-muted underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Clear all</button>
+    </div>
+  )
+}

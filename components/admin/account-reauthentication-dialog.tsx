@@ -18,7 +18,7 @@ export function AccountReauthenticationDialog({
   trigger: ReactNode
   onAuthorized: () => void | Promise<void>
   disabled?: boolean
-  variant?: 'default' | 'destructive' | 'outline'
+  variant?: 'default' | 'destructive' | 'outline' | 'text'
   size?: 'small' | 'default' | 'large'
 }) {
   const id = useId()
@@ -83,7 +83,7 @@ export function AccountReauthenticationDialog({
         </div>
         <DialogFooter>
           <DialogClose>Cancel</DialogClose>
-          <Button type="button" loading={pending} onClick={submit}>{operation === 'account-delete' ? 'Verify and continue' : 'Verify and export'}</Button>
+          <Button type="button" variant="primary" loading={pending} onClick={submit}>{operation === 'account-delete' ? 'Verify and continue' : 'Verify and export'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
