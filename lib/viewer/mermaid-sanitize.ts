@@ -2,8 +2,6 @@ import DOMPurify from 'dompurify'
 
 const MERMAID_FORBIDDEN_TAGS = [
   'script',
-  'foreignObject',
-  'foreignobject',
   'iframe',
   'object',
   'embed',
@@ -105,9 +103,14 @@ const MERMAID_URL_ATTRIBUTES = new Set([
 ])
 
 const SAFE_SVG_FRAGMENT = /^#[a-z0-9_.:-]*$/i
+// DOMPurify applies ALLOWED_URI_REGEXP to SVG attributes such as viewBox and
+// transform as well as actual URL attributes. The hook below keeps URL-valued
+// Mermaid attributes fragment-only; this matcher prevents non-URL SVG
+// structure from being removed while still rejecting executable protocols.
+const SAFE_MERMAID_ATTRIBUTE_VALUE = /^(?!(?:javascript:|data:))[\s\S]*$/i
 const SVG_TAG_PATTERN = /<[^>]*>/g
 const SVG_ATTRIBUTE_PATTERN = /([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g
-const FORBIDDEN_TAG_PATTERN = /<\s*(?:script|foreignobject|iframe|object|embed|link|animate(?:color|motion|transform)?|set)\b/i
+const FORBIDDEN_TAG_PATTERN = /<\s*(?:script|iframe|object|embed|link|animate(?:color|motion|transform)?|set)\b/i
 
 /**
  * The Mermaid result is generated HTML, not a trusted static asset. Keep the
@@ -132,10 +135,15 @@ export function sanitizeMermaidSvg(svg: string): string | null {
   })
 
   const sanitized = purifier.sanitize(svg, {
-    USE_PROFILES: { svg: true, svgFilters: true },
+    USE_PROFILES: { svg: true, svgFilters: true, html: true },
+    ADD_TAGS: ['foreignobject'],
+    ADD_ATTR: ['dominant-baseline'],
+    HTML_INTEGRATION_POINTS: {
+      foreignobject: true,
+    },
     FORBID_TAGS: [...MERMAID_FORBIDDEN_TAGS],
     FORBID_ATTR: [...MERMAID_FORBIDDEN_ATTRIBUTES],
-    ALLOWED_URI_REGEXP: SAFE_SVG_FRAGMENT,
+    ALLOWED_URI_REGEXP: SAFE_MERMAID_ATTRIBUTE_VALUE,
     KEEP_CONTENT: false,
     SAFE_FOR_XML: true,
     SANITIZE_DOM: true,

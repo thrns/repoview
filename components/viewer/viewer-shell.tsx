@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { ThemeSwitcher } from '@/components/shared/theme-switcher'
 import { BrandLogo } from '@/components/shared/brand-logo'
-import { Badge, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui'
+import { Badge, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, Skeleton } from '@/components/ui'
 import type { ViewerRootState } from '@/lib/viewer/root-model'
 import type { ViewerTreeState } from '@/lib/viewer/tree-model'
 import { ViewerAuthorizationFailure, isViewerAuthorizationFailure, revalidateViewerAuthorization } from '@/lib/viewer/client-authorization'
@@ -271,7 +271,7 @@ function ViewerFileLoading({ path }: { path: string }) {
         <p className="font-mono text-xs text-foreground-muted">{path}</p>
       </div>
       <div className="source-code space-y-3 p-6 sm:p-8">
-        {Array.from({ length: 10 }, (_, index) => <div key={index} className="h-4 animate-pulse rounded bg-muted/50" style={{ width: `${55 + (index % 4) * 10}%` }} />)}
+        {Array.from({ length: 10 }, (_, index) => <Skeleton key={index} className="h-4 rounded bg-muted/50" style={{ width: `${55 + (index % 4) * 10}%` }} />)}
       </div>
     </section>
   )

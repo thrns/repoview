@@ -6,10 +6,6 @@ export function Separator({ className, orientation = 'horizontal', ...props }: H
   return <div role="separator" aria-orientation={orientation} className={cn(orientation === 'horizontal' ? 'h-px w-full' : 'h-full w-px', 'shrink-0 bg-border', className)} {...props} />
 }
 
-export function Skeleton({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('animate-pulse rounded-md bg-muted', className)} aria-hidden="true" {...props} />
-}
-
 export function ScrollArea({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return <div className={cn('overflow-auto', className)} {...props} />
 }
