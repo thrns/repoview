@@ -1,14 +1,13 @@
 'use client'
 
-import { GitBranch, Menu } from 'lucide-react'
+import { GitBranch, Menu, MoreHorizontal, X } from 'lucide-react'
 import dynamic from 'next/dynamic'
-import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { ThemeSwitcher } from '@/components/shared/theme-switcher'
 import { BrandLogo } from '@/components/shared/brand-logo'
-import { Badge, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, Skeleton } from '@/components/ui'
+import { Badge, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, Skeleton } from '@/components/ui'
 import type { ViewerRootState } from '@/lib/viewer/root-model'
 import type { ViewerTreeState } from '@/lib/viewer/tree-model'
 import { ViewerAuthorizationFailure, isViewerAuthorizationFailure, revalidateViewerAuthorization } from '@/lib/viewer/client-authorization'
@@ -43,6 +42,7 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [activeFile, setActiveFile] = useState<{ path: string; file: ViewerFilePreviewState } | null>(null)
   const [loadingPath, setLoadingPath] = useState<string | null>(null)
+  const [mobileTreeOpen, setMobileTreeOpen] = useState(false)
   const pathnameSelectedPath = getBlobPath(pathname, shareId)
   const initialPathRef = useRef(pathnameSelectedPath)
   const requestSequenceRef = useRef(0)
@@ -207,40 +207,46 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
       <ViewerWorkspaceProvider value={{ tree, root, selectedPath, openPath, prefetchPath }}>
       <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-background text-foreground">
         <header className="sticky top-0 z-40 shrink-0 border-b border-border bg-background">
-          <div className="flex h-12 items-center gap-3 px-3 sm:px-5">
+          <div className="flex h-11 items-center gap-2.5 px-3 sm:gap-3 sm:px-5">
             <div className="md:hidden">
-              <Sheet>
+              <Sheet open={mobileTreeOpen} onOpenChange={setMobileTreeOpen}>
                 <SheetTrigger size="icon" variant="ghost" aria-label="Open file tree">
                   <Menu className="size-4" aria-hidden="true" />
                 </SheetTrigger>
                 <SheetContent side="left" className="h-full overscroll-none p-0">
-                  <SheetHeader className="border-b border-border/80 p-5">
-                    <SheetTitle>Explorer</SheetTitle>
-                    <SheetDescription>{repositoryName}</SheetDescription>
+                  <SheetHeader className="border-b border-border/80 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <SheetTitle>Explorer</SheetTitle>
+                        <SheetDescription className="truncate">{repositoryName}</SheetDescription>
+                      </div>
+                      <SheetClose className="size-9 shrink-0 border-transparent bg-transparent p-0 text-foreground-muted hover:bg-accent hover:text-foreground" aria-label="Close file tree">
+                        <X className="size-4" aria-hidden="true" />
+                      </SheetClose>
+                    </div>
                   </SheetHeader>
-                  <ViewerFileTree tree={tree} selectedPath={activePath} onSelectPath={openPath} onPrefetchPath={prefetchPath} />
+                  <ViewerFileTree tree={tree} selectedPath={activePath} onSelectPath={(path) => { setMobileTreeOpen(false); openPath(path) }} onPrefetchPath={prefetchPath} />
                 </SheetContent>
               </Sheet>
             </div>
-            <div className="flex min-w-0 items-center gap-2">
-              <BrandLogo size={28} />
-              <span className="hidden font-heading text-sm font-semibold tracking-tight sm:inline">RepoView</span>
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <BrandLogo size={24} />
               <span aria-hidden="true" className="hidden text-foreground-muted sm:inline">/</span>
-              <span className="truncate font-mono text-[13px] font-medium text-foreground">{repositoryName}</span>
+              <span className="min-w-0 truncate font-mono text-[13px] font-medium text-foreground" title={repositoryName}>{repositoryName}</span>
             </div>
-            <div className="ml-auto flex items-center gap-2">
-              <ViewerPrivacySettings shareId={shareId} />
-              <Link href="/terms" className="hidden text-xs text-foreground-muted underline-offset-4 hover:text-foreground hover:underline sm:inline">Terms</Link>
-              <Badge variant="outline" className="hidden items-center gap-1.5 rounded px-2 font-mono text-[11px] sm:inline-flex">
+            <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5">
+              <ViewerPrivacySettings shareId={shareId} compact />
+              <Badge variant="outline" className="flex max-w-[5rem] items-center gap-1 rounded px-1.5 font-mono text-[10px] sm:max-w-[12rem] sm:px-2 sm:text-[11px]">
                 <GitBranch className="size-3.5" aria-hidden="true" />
-                {refName}
+                <span className="truncate" title={refName}>{refName}</span>
               </Badge>
-              <ThemeSwitcher />
+              <ThemeSwitcher className="text-foreground-muted hover:text-foreground" />
+              <ViewerUtilityMenu />
             </div>
           </div>
         </header>
         <div className="relative flex min-h-0 flex-1 overflow-hidden">
-          <aside className="fixed bottom-0 left-0 top-12 z-30 hidden w-64 overflow-hidden overscroll-none border-r border-border bg-background md:flex md:flex-col">
+          <aside className="fixed bottom-0 left-0 top-11 z-30 hidden w-64 overflow-hidden overscroll-none border-r border-border bg-background md:flex md:flex-col">
             <ViewerFileTree tree={tree} selectedPath={activePath} onSelectPath={openPath} onPrefetchPath={prefetchPath} />
           </aside>
           <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain md:ml-64">
@@ -255,10 +261,11 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
 
 function ViewerAccessUnavailable() {
   return (
-    <section className="repository-file-page min-h-[calc(100vh-3rem)]" role="alert">
+    <section className="repository-file-page min-h-[calc(100vh-2.75rem)]" role="alert">
       <div className="mx-auto max-w-2xl px-5 py-16 text-center">
         <h1 className="font-heading text-lg font-semibold">Private preview unavailable</h1>
         <p className="mt-2 text-sm leading-6 text-foreground-muted">The viewer session or repository access is no longer valid, or could not be revalidated. Private file content has been cleared from this page.</p>
+        <p className="mt-4 text-xs leading-5 text-foreground-muted">Ask the share owner to check access or issue a new share link.</p>
       </div>
     </section>
   )
@@ -266,14 +273,28 @@ function ViewerAccessUnavailable() {
 
 function ViewerFileLoading({ path }: { path: string }) {
   return (
-    <section className="repository-file-page min-h-[calc(100vh-3rem)]" aria-busy="true" aria-label={`Loading ${path}`}>
-      <div className="border-b border-border px-3 py-3 sm:px-5">
-        <p className="font-mono text-xs text-foreground-muted">{path}</p>
+    <section className="repository-file-page min-h-[calc(100vh-2.75rem)]" aria-busy="true" aria-label={`Loading ${path}`}>
+      <div className="border-b border-border px-3 py-2.5 sm:px-5">
+        <p className="truncate font-mono text-xs text-foreground-muted" title={path}>{path}</p>
       </div>
       <div className="source-code space-y-3 p-6 sm:p-8">
         {Array.from({ length: 10 }, (_, index) => <Skeleton key={index} className="h-4 rounded bg-muted/50" style={{ width: `${55 + (index % 4) * 10}%` }} />)}
       </div>
     </section>
+  )
+}
+
+function ViewerUtilityMenu() {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="h-9 w-9 border-transparent bg-transparent px-0 text-foreground-muted hover:bg-accent hover:text-foreground" aria-label="More viewer options">
+        <MoreHorizontal className="size-4" aria-hidden="true" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="right-0 mt-1 w-44 p-1.5">
+        <DropdownMenuLabel className="px-2 py-1.5 text-[11px] font-medium text-foreground-muted">Viewer</DropdownMenuLabel>
+        <DropdownMenuItem onClick={() => window.location.assign('/terms')}>Terms</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 

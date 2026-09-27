@@ -2,8 +2,8 @@ import { Skeleton } from '@/components/ui'
 
 export default function ViewerLoading() {
   return (
-    <section className="repository-file-page min-h-[calc(100vh-3rem)]" aria-busy="true" aria-label="Loading README preview">
-      <div className="flex min-h-12 items-center justify-between gap-4 border-b border-border px-3 py-2 sm:px-5">
+    <section className="repository-file-page min-h-[calc(100vh-2.75rem)]" aria-busy="true" aria-label="Loading README preview">
+      <div className="flex min-h-11 items-center justify-between gap-4 border-b border-border px-3 py-2 sm:px-5">
         <Skeleton className="h-4 w-36" />
         <Skeleton className="h-5 w-20" />
       </div>

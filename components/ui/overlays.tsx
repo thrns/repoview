@@ -14,8 +14,13 @@ const SheetContext = createContext<{
   triggerRef: React.RefObject<HTMLButtonElement | null>
 } | null>(null)
 
-export function Sheet({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(false)
+export function Sheet({ children, open: controlledOpen, onOpenChange }: { children: ReactNode; open?: boolean; onOpenChange?: (open: boolean) => void }) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const open = controlledOpen ?? uncontrolledOpen
+  const setOpen = useCallback((nextOpen: boolean) => {
+    setUncontrolledOpen(nextOpen)
+    onOpenChange?.(nextOpen)
+  }, [onOpenChange])
   const id = useId()
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   return <SheetContext.Provider value={{ open, setOpen, titleId: `${id}-title`, descriptionId: `${id}-description`, triggerRef }}>{children}</SheetContext.Provider>
@@ -44,9 +49,9 @@ export function SheetTitle({ className, ...props }: HTMLAttributes<HTMLHeadingEl
 export function SheetDescription({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) { return <p id={useContext(SheetContext)?.descriptionId} className={cn('text-sm text-foreground-muted', className)} {...props} /> }
 export function SheetFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn('mt-auto flex justify-end gap-2 pt-6', className)} {...props} /> }
 export function SheetSection({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn('py-4', className)} {...props} /> }
-export function SheetClose({ children = 'Close', className }: { children?: ReactNode; className?: string }) {
+export function SheetClose({ children = 'Close', className, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { children?: ReactNode; className?: string }) {
   const sheet = useContext(SheetContext)
-  return <Button type="button" variant="outline" className={className} onClick={() => sheet?.setOpen(false)}>{children}</Button>
+  return <Button {...props} type="button" variant="outline" className={className} onClick={(event) => { props.onClick?.(event); if (!event.defaultPrevented) sheet?.setOpen(false) }}>{children}</Button>
 }
 
 type DropdownMenuContextValue = { open: boolean; setOpen: (open: boolean) => void; triggerRef: React.RefObject<HTMLButtonElement | null>; contentRef: React.RefObject<HTMLDivElement | null> }

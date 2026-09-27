@@ -6,12 +6,13 @@ import {
   FolderTree,
   ListCollapse,
   ListTree,
+  MoreHorizontal,
   Search,
   TriangleAlert,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 
-import { Button, Input, ScrollArea } from '@/components/ui'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, Input, ScrollArea } from '@/components/ui'
 import type { ViewerTreeNode, ViewerTreeState } from '@/lib/viewer/tree-model'
 
 import { cn } from '@/components/ui/utils'
@@ -31,6 +32,7 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
   const [query, setQuery] = useState('')
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => getInitialExpandedPaths(tree))
   const [focusedPath, setFocusedPath] = useState<string | null>(null)
+  const searchRef = useRef<HTMLInputElement | null>(null)
   const rowRefs = useRef<Record<string, HTMLButtonElement | null>>({})
   const analytics = useViewerAnalytics()
 
@@ -49,6 +51,20 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
     const timer = window.setTimeout(() => analytics.track('search', null, { query_length: normalizedQuery.length }), 450)
     return () => window.clearTimeout(timer)
   }, [analytics, normalizedQuery])
+
+  useEffect(() => {
+    const focusSearchShortcut = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return
+      const target = event.target as HTMLElement | null
+      if (target?.matches('input, textarea, select, [contenteditable="true"]')) return
+      if (!searchRef.current || window.getComputedStyle(searchRef.current).display === 'none' || searchRef.current.getBoundingClientRect().width === 0) return
+      event.preventDefault()
+      searchRef.current.focus()
+    }
+
+    window.addEventListener('keydown', focusSearchShortcut)
+    return () => window.removeEventListener('keydown', focusSearchShortcut)
+  }, [])
 
   useEffect(() => {
     if (!selectedPath || !nodeByPath.has(selectedPath)) return
@@ -93,7 +109,7 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
     setExpandedPaths(new Set())
   }
 
-  const handleTreeKeyDown = (event: KeyboardEvent<HTMLButtonElement>, node: ViewerTreeNode, index: number) => {
+  const handleTreeKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>, node: ViewerTreeNode, index: number) => {
     if (event.key === 'ArrowDown') {
       event.preventDefault()
       focusPath(visibleNodes[index + 1]?.path)
@@ -164,40 +180,28 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
             </div>
           </div>
           {tree.status === 'ready' ? (
-            <div className="flex shrink-0 items-center gap-0.5">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label="Expand all folders"
-                title="Expand all folders"
-                onClick={expandAll}
-                className="!size-7 rounded-[6px] p-0 text-foreground-muted hover:bg-[#F3F4F6] hover:text-foreground dark:hover:bg-accent"
-              >
-                <ListTree className="size-4" aria-hidden="true" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label="Collapse all folders"
-                title="Collapse all folders"
-                onClick={collapseAll}
-                className="!size-7 rounded-[6px] p-0 text-foreground-muted hover:bg-[#F3F4F6] hover:text-foreground dark:hover:bg-accent"
-              >
-                <ListCollapse className="size-4" aria-hidden="true" />
-              </Button>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="h-8 w-8 border-transparent bg-transparent px-0 text-foreground-muted hover:bg-accent hover:text-foreground" aria-label="More explorer actions">
+                <MoreHorizontal className="size-4" aria-hidden="true" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="right-0 mt-1 w-48 p-1.5">
+                <DropdownMenuLabel className="px-2 py-1.5 text-[11px] font-medium text-foreground-muted">Explorer view</DropdownMenuLabel>
+                <DropdownMenuItem onClick={expandAll}><ListTree className="mr-2 size-4" aria-hidden="true" />Expand all folders</DropdownMenuItem>
+                <DropdownMenuItem onClick={collapseAll}><ListCollapse className="mr-2 size-4" aria-hidden="true" />Collapse all folders</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : null}
         </div>
         {tree.status === 'ready' ? (
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-foreground-muted" aria-hidden="true" />
             <Input
+              ref={searchRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search files…"
               aria-label="Search files"
+              aria-keyshortcuts="/"
               className="h-9 rounded-lg border-border bg-muted/50 pl-8 pr-9 text-xs !shadow-none"
             />
             <kbd aria-hidden="true" className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border/80 bg-background px-1.5 py-0.5 font-mono text-[10px] leading-none text-foreground-muted">/</kbd>
@@ -213,6 +217,7 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
             {visibleNodes.map((node, index) => {
               const isSelected = node.kind === 'file' && selectedPath === node.path
               const isFocused = focusedPath === node.path || (!focusedPath && index === 0) || (!visiblePaths.has(focusedPath ?? '') && index === 0)
+              const depth = node.path.split('/').length
 
               return (
                 <button
@@ -243,7 +248,7 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
                     'relative flex min-h-8 w-full items-center gap-1.5 rounded px-2 text-left text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
                     isSelected ? 'bg-primary/10 text-foreground before:absolute before:inset-y-0.5 before:left-0 before:w-0.5 before:bg-primary' : 'text-foreground-muted hover:bg-accent/60 hover:text-foreground',
                   )}
-                  style={{ paddingLeft: `${8 + (node.path.split('/').length - 1) * 14}px` }}
+                  style={{ paddingLeft: `${Math.min(8 + (depth - 1) * 12, 152)}px` }}
                 >
                   {node.kind === 'directory' ? (
                     expandedPaths.has(node.path) ? <ChevronDown className="size-3.5 shrink-0" aria-hidden="true" /> : <ChevronRight className="size-3.5 shrink-0" aria-hidden="true" />
@@ -257,7 +262,7 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
             })}
             {visibleNodes.length === 0 ? (
               <div className="px-3 py-8 text-center text-xs leading-5 text-foreground-muted">
-                No authorized files are available.
+                {normalizedQuery ? <>No files match <span className="font-medium text-foreground">“{query.trim()}”</span>.</> : 'No authorized files are available.'}
               </div>
             ) : null}
           </div>
@@ -269,17 +274,17 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
 
 function TreeError({ reason }: { reason: 'truncated' | 'ref-unavailable' | 'rate-limited' | 'access' | 'unavailable' }) {
   const message = reason === 'truncated'
-    ? 'This repository is too large to index in one preview. Try again after narrowing the share.'
+    ? 'This share includes more files than the viewer can index. Ask the owner to narrow the allowed paths or provide a narrower share.'
     : reason === 'ref-unavailable'
-      ? 'The selected branch or ref is no longer available.'
+      ? 'The selected branch or ref is no longer available. Ask the owner to verify it or issue a new share.'
       : reason === 'rate-limited'
         ? 'GitHub’s file service is rate-limited. Try again later.'
         : reason === 'access'
-          ? 'The configured GitHub App can no longer read this repository.'
+          ? 'The share can no longer read this repository. Ask the owner to restore access or issue a new share.'
           : 'The authorized file tree could not be loaded. Please try the link again later.'
 
   return (
-    <div role="status" className="p-4 text-xs leading-5 text-foreground-muted">
+    <div role={reason === 'access' || reason === 'ref-unavailable' ? 'alert' : 'status'} className="p-4 text-xs leading-5 text-foreground-muted">
       <div className="flex items-center gap-2 font-medium text-foreground">
         <TriangleAlert className="size-4 text-warning" aria-hidden="true" />
         Files are temporarily unavailable

@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useTransition, type FormEvent, type ReactNode } from 'react'
-import { ArrowLeft, ChevronDown, TriangleAlert } from 'lucide-react'
+import { cloneElement, isValidElement, useEffect, useRef, useState, useTransition, type FormEvent, type ReactElement, type ReactNode } from 'react'
+import { ArrowLeft, Check, ChevronDown, CircleCheck, Copy, LockKeyhole, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 
 import { createShare } from '@/app/(admin)/dashboard/shares/new/actions'
 import { Alert, AlertDescription, AlertTitle, Button, Input, Label, Select, Textarea } from '@/components/ui'
@@ -21,7 +20,6 @@ interface CreateShareFormProps {
 }
 
 export function CreateShareForm({ repositories, onboarding = false }: CreateShareFormProps) {
-  const router = useRouter()
   const [repositoryId, setRepositoryId] = useState(repositories[0]?.id ?? '')
   const [shareType, setShareType] = useState<'generic' | 'recipient'>('recipient')
   const [recipientLabel, setRecipientLabel] = useState('')
@@ -37,9 +35,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
   const [hidden, setHidden] = useState('')
   const [allowOnly, setAllowOnly] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-  const [createdShareUrl, setCreatedShareUrl] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [createdShare, setCreatedShare] = useState<CreatedShare | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const selectedRepository = repositories.find((repository) => repository.id === repositoryId)
@@ -50,14 +46,21 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
     setRepositoryId(nextRepositoryId)
     setRef(nextRepository?.defaultBranch ?? '')
     setError(null)
-    setSuccess(null)
-    setCopied(false)
+  }
+
+  function changeShareType(nextShareType: 'generic' | 'recipient') {
+    setShareType(nextShareType)
+    if (nextShareType === 'generic') {
+      setRecipientName('')
+      setCompany('')
+      setEmail('')
+      setRoleNotes('')
+    }
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
-    setSuccess(null)
 
     if (visibilityFeedback.error) {
       setError(visibilityFeedback.error)
@@ -82,8 +85,13 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
           hidden: toPatterns(hidden),
           allowOnly: toPatterns(allowOnly),
         })
-        setCreatedShareUrl(result.shareUrl)
-        setSuccess(`Created a share for ${result.repository} at ${result.ref}. This URL is shown only once.`)
+        setCreatedShare({
+          url: result.shareUrl,
+          repository: result.repository,
+          ref: result.ref,
+          recipient: shareType === 'generic' ? 'Generic share' : recipientName || recipientLabel || company || 'Recipient share',
+          expiry: expiryLabel(expiry),
+        })
       } catch (submitError) {
         setError(submitError instanceof Error ? submitError.message : 'Share details could not be validated.')
       }
@@ -91,9 +99,8 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
   }
 
   function resetForAnotherShare() {
-    setCreatedShareUrl(null)
-    setSuccess(null)
-    setCopied(false)
+    setCreatedShare(null)
+    setError(null)
     setRecipientLabel('')
     setShareType('recipient')
     setRecipientName('')
@@ -113,12 +120,13 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
     return <Alert><AlertTitle>No enabled repositories</AlertTitle><AlertDescription>Enable a repository before creating a share. Return to the repositories dashboard to choose one.</AlertDescription></Alert>
   }
 
-  return (
-    <form className="space-y-9 pb-28" onSubmit={submit}>
-      {error ? <Alert className="border-destructive/40" role="alert"><AlertTitle>Check these details</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
-      {success ? <Alert className="border-success/40" role="status"><AlertTitle>Share created</AlertTitle><AlertDescription>{success}</AlertDescription></Alert> : null}
+  if (createdShare) {
+    return <OneTimeShareResult share={createdShare} onboarding={onboarding} onCreateAnother={resetForAnotherShare} />
+  }
 
-      {createdShareUrl ? <OneTimeShareResult url={createdShareUrl} copied={copied} onboarding={onboarding} onCopied={() => setCopied(true)} onContinue={() => router.replace('/dashboard')} onCreateAnother={resetForAnotherShare} /> : null}
+  return (
+    <form className="space-y-9 pb-6 sm:pb-28" onSubmit={submit}>
+      {error ? <Alert className="border-destructive/40" role="alert"><AlertTitle>Check these details</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
 
       <FormSection title="Repository" description="Choose the source and exact ref this link should expose.">
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1.45fr)_minmax(0,0.9fr)]">
@@ -135,17 +143,19 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
         </div>
       </FormSection>
 
-      <FormSection title="Recipient" description="Use a label to keep the share easy to recognize later.">
+      <FormSection title="Recipient or share identity" description="Choose whether this link is meant for a named recipient or is a generic anonymous share.">
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1.45fr)_minmax(0,0.9fr)]">
-          <Field label={<><span>Recipient label</span> <span className="font-normal text-foreground-muted">(optional)</span></>} htmlFor="share-recipient-name" help="A user-provided label for your records, not a verified identity.">
-            <Input id="share-recipient-name" value={recipientName} onChange={(event) => setRecipientName(event.target.value)} placeholder="Jane Smith" aria-describedby="share-recipient-name-help" />
-          </Field>
-          <Field label="Link type" htmlFor="share-type">
-            <Select id="share-type" value={shareType} onChange={(event) => setShareType(event.target.value as 'generic' | 'recipient')}>
-              <option value="recipient">Recipient-labelled</option>
-              <option value="generic">Generic anonymous</option>
+          <Field label="Share type" htmlFor="share-type" help={shareType === 'recipient' ? 'A recipient share is labelled for your records; it does not verify who opens the link.' : 'A generic share has no recipient identity attached.'}>
+            <Select id="share-type" value={shareType} onChange={(event) => changeShareType(event.target.value as 'generic' | 'recipient')}>
+              <option value="recipient">Recipient share</option>
+              <option value="generic">Generic share</option>
             </Select>
           </Field>
+          {shareType === 'recipient' ? <Field label={<><span>Recipient name</span> <span className="font-normal text-foreground-muted">(optional)</span></>} htmlFor="share-recipient-name" help="Saved as recipient metadata and used as the main label in your owner workspace.">
+            <Input id="share-recipient-name" value={recipientName} onChange={(event) => setRecipientName(event.target.value)} placeholder="Jane Smith" aria-describedby="share-recipient-name-help" />
+          </Field> : <Field label={<><span>Share label</span> <span className="font-normal text-foreground-muted">(optional)</span></>} htmlFor="share-generic-label" help="A private owner-facing label for finding this generic share later.">
+            <Input id="share-generic-label" value={recipientLabel} onChange={(event) => setRecipientLabel(event.target.value)} placeholder="Public demo link" aria-describedby="share-generic-label-help" />
+          </Field>}
         </div>
 
         <details className="group mt-5 border-t border-border/70 pt-4">
@@ -155,27 +165,27 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
           </summary>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {shareType === 'recipient' ? <>
-              <Field label="Company" htmlFor="share-company">
+              <Field label="Company" htmlFor="share-company" help="Optional organization context for your records.">
                 <Input id="share-company" value={company} onChange={(event) => setCompany(event.target.value)} placeholder="Stripe" />
               </Field>
-              <Field label="Email" htmlFor="share-email">
+              <Field label="Email" htmlFor="share-email" help="Optional contact detail; RepoView does not verify it or send the share automatically.">
                 <Input id="share-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="jane@stripe.com" />
               </Field>
-              <Field label="Internal label" htmlFor="share-label">
-                <Input id="share-label" value={recipientLabel} onChange={(event) => setRecipientLabel(event.target.value)} placeholder="Staff engineer interview" />
+              <Field label="Internal share label" htmlFor="share-label" help="Optional fallback label for your owner workspace when no recipient name is provided. It is not a verified identity.">
+                <Input id="share-label" value={recipientLabel} onChange={(event) => setRecipientLabel(event.target.value)} placeholder="Staff engineer interview" aria-describedby="share-label-help" />
               </Field>
-              <Field label="Role / application notes" htmlFor="share-role-notes">
+              <Field label="Role or application context" htmlFor="share-role-notes" help="Optional context such as a team, role, or application stage.">
                 <Input id="share-role-notes" value={roleNotes} onChange={(event) => setRoleNotes(event.target.value)} placeholder="Platform team" />
               </Field>
             </> : null}
-            <Field className="sm:col-span-2" label="General note" htmlFor="share-note">
+            <Field className="sm:col-span-2" label={<><span>General note</span> <span className="font-normal text-foreground-muted">(optional)</span></>} htmlFor="share-note" help="A private owner note about why this share exists.">
               <Textarea id="share-note" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Context for this share" rows={3} />
             </Field>
           </div>
         </details>
       </FormSection>
 
-      <FormSection title="Access" description="Keep the link read-only and choose which owner signals to receive.">
+      <FormSection title="Access" description="Set when access ends, then choose the optional download and notification preferences.">
         <div className="mb-4 max-w-[18rem]">
           <Field label="Expiry" htmlFor="share-expiry">
             <Select id="share-expiry" value={expiry} onChange={(event) => setExpiry(event.target.value)}>
@@ -211,7 +221,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
         </details>
       </section>
 
-      <div className="sticky bottom-0 z-10 -mx-5 border-t border-border/80 bg-background/95 px-5 py-3 backdrop-blur sm:-mx-8 sm:px-8">
+      <div className="border-t border-border/80 bg-background py-3 sm:sticky sm:bottom-0 sm:z-10 sm:-mx-8 sm:px-8 sm:backdrop-blur">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 text-xs leading-5">
             <p className="font-medium text-foreground">Ready to create</p>
@@ -221,7 +231,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
           </div>
           <div className="flex shrink-0 items-center justify-between gap-2 sm:justify-end">
             <Link href="/dashboard/shares" className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium text-foreground-muted transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><ArrowLeft className="size-3.5" aria-hidden="true" /> Back</Link>
-            <Button type="submit" variant="primary" loading={isPending}>{createdShareUrl ? 'Create another share' : 'Create share'}</Button>
+            <Button type="submit" variant="primary" loading={isPending}>Create share</Button>
           </div>
         </div>
       </div>
@@ -235,7 +245,10 @@ function FormSection({ title, description, children }: { title: string; descript
 
 function Field({ label, htmlFor, help, className, children }: { label: ReactNode; htmlFor: string; help?: string; className?: string; children: ReactNode }) {
   const helpId = `${htmlFor}-help`
-  return <div className={`space-y-1.5 ${className ?? ''}`}><Label htmlFor={htmlFor}>{label}</Label>{children}{help ? <p id={helpId} className="text-xs leading-5 text-foreground-muted">{help}</p> : null}</div>
+  const describedChildren = help && isValidElement(children)
+    ? cloneElement(children as ReactElement<{ 'aria-describedby'?: string }>, { 'aria-describedby': helpId })
+    : children
+  return <div className={`space-y-1.5 ${className ?? ''}`}><Label htmlFor={htmlFor}>{label}</Label>{describedChildren}{help ? <p id={helpId} className="text-xs leading-5 text-foreground-muted">{help}</p> : null}</div>
 }
 
 function ToggleRow({ checked, onChange, title, description }: { checked: boolean; onChange: (checked: boolean) => void; title: string; description: string }) {
@@ -245,28 +258,65 @@ function ToggleRow({ checked, onChange, title, description }: { checked: boolean
   </button>
 }
 
-function OneTimeShareResult({ url, copied, onboarding, onCopied, onContinue, onCreateAnother }: { url: string; copied: boolean; onboarding: boolean; onCopied: () => void; onContinue: () => void; onCreateAnother: () => void }) {
+type CreatedShare = { url: string; repository: string; ref: string; recipient: string; expiry: string }
+
+function OneTimeShareResult({ share, onboarding, onCreateAnother }: { share: CreatedShare; onboarding: boolean; onCreateAnother: () => void }) {
+  const resultRef = useRef<HTMLElement | null>(null)
+  const urlInputRef = useRef<HTMLInputElement | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [copyError, setCopyError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const focusFrame = window.requestAnimationFrame(() => resultRef.current?.focus())
+    return () => window.cancelAnimationFrame(focusFrame)
+  }, [])
+
   async function copyUrl() {
-    await navigator.clipboard.writeText(url)
-    onCopied()
+    setCopyError(null)
+    try {
+      await navigator.clipboard.writeText(share.url)
+      setCopied(true)
+    } catch {
+      setCopied(false)
+      setCopyError('Copy failed. Select the URL above and copy it manually.')
+      urlInputRef.current?.focus()
+      urlInputRef.current?.select()
+    }
   }
 
   return (
-    <div className="space-y-4 rounded-lg border border-success/40 bg-success/5 p-4">
-      <div>
-        <p className="text-sm font-medium">Save this link now</p>
-        <p className="mt-1 text-sm text-foreground-muted">This exact URL cannot be recovered because RepoView stores only its hash. It will not be shown again after you leave this page.</p>
+    <section ref={resultRef} tabIndex={-1} aria-labelledby="share-created-title" className="space-y-6 outline-none">
+      <div className="flex items-start gap-3">
+        <CircleCheck className="mt-0.5 size-5 shrink-0 text-success" aria-hidden="true" />
+        <div>
+          <h2 id="share-created-title" className="font-heading text-2xl font-semibold tracking-[-0.03em]">Share created</h2>
+          <p className="mt-2 text-sm leading-6 text-foreground-muted">Save this exact URL now. RepoView stores only its hash, so the plaintext link will not be recoverable after you leave this page.</p>
+        </div>
       </div>
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <Input readOnly value={url} aria-label="New share URL" className="font-mono text-xs" />
-        <Button type="button" variant="outline" onClick={copyUrl}>{copied ? 'Copied' : 'Copy link'}</Button>
+      <div className="space-y-3 border-y border-success/35 bg-success/5 px-4 py-5 sm:px-5">
+        <div className="flex items-center gap-2 text-xs font-medium text-success"><LockKeyhole className="size-3.5" aria-hidden="true" />One-time secret URL</div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input ref={urlInputRef} readOnly value={share.url} aria-label="New share URL" className="min-w-0 bg-background font-mono text-xs" onFocus={(event) => event.currentTarget.select()} />
+          <Button type="button" variant="primary" onClick={copyUrl} icon={copied ? <Check className="size-4" /> : <Copy className="size-4" />}>{copied ? 'Copied' : 'Copy link'}</Button>
+        </div>
+        <p aria-live="polite" className="min-h-5 text-xs text-success">{copied ? 'Copied to your clipboard.' : copyError ? <span role="alert" className="text-destructive">{copyError}</span> : 'Copy the link before navigating away.'}</p>
       </div>
+      <dl className="grid gap-4 border-b border-border/70 pb-5 sm:grid-cols-2">
+        <ResultField label="Repository" value={share.repository} mono />
+        <ResultField label="Ref" value={share.ref} mono />
+        <ResultField label={onboarding ? 'Share identity' : 'Recipient'} value={share.recipient} />
+        <ResultField label="Expiry" value={share.expiry} />
+      </dl>
       <div className="flex flex-wrap items-center gap-3">
-        {onboarding ? <Button type="button" variant="primary" onClick={onContinue}>Continue to dashboard</Button> : null}
+        <Link href={onboarding ? '/dashboard' : '/dashboard/shares'} className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{onboarding ? 'Continue to dashboard' : 'View shares'}</Link>
         <Button type="button" variant="text" onClick={onCreateAnother}>Create another share</Button>
       </div>
-    </div>
+    </section>
   )
+}
+
+function ResultField({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return <div className="min-w-0"><dt className="text-xs text-foreground-muted">{label}</dt><dd className={`mt-1 truncate text-sm text-foreground ${mono ? 'font-mono text-xs' : ''}`} title={value}>{value}</dd></div>
 }
 
 function toPatterns(value: string) {

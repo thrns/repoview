@@ -21,7 +21,7 @@ export function ViewerFileContent({ file, shareId, tree, onOpenPath, allowDownlo
   const language = detectViewerLanguage(file.path)
 
   return (
-    <section className="min-h-[calc(100vh-3rem)] bg-background">
+    <section className="min-h-[calc(100vh-2.75rem)] bg-background">
       <FileToolbar path={file.path} size={file.size} language={language} content={file.content} shareId={shareId} allowDownload={allowDownload} />
       {language === 'markdown' ? (
         <div className="repository-markdown-page">

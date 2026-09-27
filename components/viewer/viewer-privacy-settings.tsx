@@ -8,7 +8,7 @@ import type { ViewerAnalyticsMode } from '@/lib/viewer/privacy'
 
 import { useViewerAnalytics } from './viewer-analytics'
 
-export function ViewerPrivacySettings({ shareId }: { shareId: string }) {
+export function ViewerPrivacySettings({ shareId, compact = false }: { shareId: string; compact?: boolean }) {
   const analytics = useViewerAnalytics()
   const [saving, setSaving] = useState<ViewerAnalyticsMode | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -41,12 +41,13 @@ export function ViewerPrivacySettings({ shareId }: { shareId: string }) {
     <Dialog>
       <DialogTrigger
         variant="ghost"
-        size="small"
+        size={compact ? 'icon' : 'small'}
         icon={<ShieldCheck className="size-3.5" aria-hidden="true" />}
         className="text-foreground-muted hover:text-foreground"
         aria-label="Open Privacy / Analytics Settings"
+        title="Privacy / Analytics Settings"
       >
-        Privacy / Analytics
+        {compact ? null : 'Privacy / Analytics'}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

@@ -11,6 +11,7 @@ export default async function SharesPage() {
       share: {
         id: share.id,
         share_code: share.share_code,
+        share_type: share.share_type,
         recipient_label: share.recipient_label,
         ref: share.ref,
         expires_at: share.expires_at,

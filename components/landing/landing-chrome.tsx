@@ -14,7 +14,7 @@ interface LandingChromeProps {
 }
 
 function sectionHref(sectionPrefix: string, section: string) {
-  return `${sectionPrefix}#${section}`
+  return sectionPrefix + '#' + section
 }
 
 export function LandingNav({ homeHref = '#top', minimal = false, sectionPrefix = '' }: LandingChromeProps) {
@@ -46,24 +46,25 @@ export function LandingNav({ homeHref = '#top', minimal = false, sectionPrefix =
           <span className="brand-name">RepoView</span>
         </Link>
 
-        <div className={`nav-links ${mobileNavOpen ? 'nav-links-open' : ''}`} id="mobile-nav">
-          <a href={sectionHref(sectionPrefix, 'product')} onClick={closeMobileNav}>Product</a>
-          <a href={sectionHref(sectionPrefix, 'features')} onClick={closeMobileNav}>Features</a>
-          <a href={sectionHref(sectionPrefix, 'how-it-works')} onClick={closeMobileNav}>How it works</a>
+        <div className={['nav-links', mobileNavOpen ? 'nav-links-open' : ''].filter(Boolean).join(' ')} id="mobile-nav">
+          <a href={sectionHref(sectionPrefix, 'recipient')} onClick={closeMobileNav}>Viewer</a>
+          <a href={sectionHref(sectionPrefix, 'control')} onClick={closeMobileNav}>Controls</a>
+          <a href={sectionHref(sectionPrefix, 'engagement')} onClick={closeMobileNav}>Engagement</a>
           <div className="nav-mobile-actions">
             <Link href="/login" className="nav-sign-in" onClick={closeMobileNav}>Sign in</Link>
-            <Link href="/login" className="button button-dark" onClick={closeMobileNav}>Get started</Link>
+            <ThemeSwitcher className="landing-theme-switcher" />
+            <Link href="/signup" className="button button-primary" onClick={closeMobileNav}>Create workspace</Link>
           </div>
         </div>
 
         <div className="nav-actions">
+          <ThemeSwitcher className="landing-theme-switcher" />
           <Link href="/login" className="nav-sign-in">Sign in</Link>
-          <Link href="/login" className="button button-dark">Get started</Link>
+          <Link href="/signup" className="button button-primary">Create workspace</Link>
         </div>
 
-        <button className="nav-menu-button" type="button" aria-expanded={mobileNavOpen} aria-controls="mobile-nav" onClick={() => setMobileNavOpen((open) => !open)}>
+        <button className="nav-menu-button" type="button" aria-expanded={mobileNavOpen} aria-controls="mobile-nav" aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'} onClick={() => setMobileNavOpen((open) => !open)}>
           {mobileNavOpen ? <X className="size-5" aria-hidden="true" /> : <Menu className="size-5" aria-hidden="true" />}
-          <span className="sr-only">{mobileNavOpen ? 'Close menu' : 'Open menu'}</span>
         </button>
       </div>
     </nav>
@@ -74,8 +75,17 @@ export function LandingFooter({ homeHref = '#top', sectionPrefix = '' }: Landing
   return (
     <footer className="landing-footer">
       <div className="landing-container footer-inner">
-        <Link href={homeHref} className="brand-mark" aria-label="RepoView home"><BrandLogo size={28} className="brand-logo" /><span className="brand-name">RepoView</span></Link>
-        <div className="footer-links"><a href={sectionHref(sectionPrefix, 'product')}>Product</a><a href={sectionHref(sectionPrefix, 'features')}>Features</a><a href="https://github.com" target="_blank" rel="noreferrer">GitHub</a><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></div>
+        <Link href={homeHref} className="brand-mark" aria-label="RepoView home">
+          <BrandLogo size={24} className="brand-logo" />
+          <span className="brand-name">RepoView</span>
+        </Link>
+        <div className="footer-links">
+          <a href={sectionHref(sectionPrefix, 'recipient')}>Viewer</a>
+          <a href={sectionHref(sectionPrefix, 'control')}>Controls</a>
+          <a href={sectionHref(sectionPrefix, 'engagement')}>Engagement</a>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
+        </div>
         <span className="footer-note">Private source sharing, thoughtfully made.</span>
       </div>
     </footer>

@@ -9,7 +9,7 @@ import { Alert, AlertDescription, AlertTitle, Button, Dialog, DialogClose, Dialo
 
 export function UpdateShareExpiryButton({ shareId, currentExpiresAt, disabled = false, compact = false }: { shareId: string; currentExpiresAt: string | null; disabled?: boolean; compact?: boolean }) {
   const router = useRouter()
-  const [value, setValue] = useState(currentExpiresAt ? '30' : 'never')
+  const [value, setValue] = useState(() => expiryOption(currentExpiresAt))
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [completed, setCompleted] = useState(false)
@@ -41,7 +41,7 @@ export function UpdateShareExpiryButton({ shareId, currentExpiresAt, disabled = 
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Change share expiry</DialogTitle>
-          <DialogDescription>Current viewer requests use the updated expiry immediately. Choose a new window or remove expiry.</DialogDescription>
+          <DialogDescription>Viewer requests use the updated expiry immediately. Choose a new window from today or remove expiry.</DialogDescription>
         </DialogHeader>
         <div className="mt-5 space-y-2">
           <Label htmlFor="share-expiry-update">Expiry window</Label>
@@ -61,4 +61,12 @@ export function UpdateShareExpiryButton({ shareId, currentExpiresAt, disabled = 
       </DialogContent>
     </Dialog>
   )
+}
+
+function expiryOption(value: string | null) {
+  if (!value) return 'never'
+  const daysRemaining = Math.max(0, (new Date(value).getTime() - Date.now()) / (24 * 60 * 60 * 1000))
+  if (daysRemaining <= 7) return '7'
+  if (daysRemaining <= 30) return '30'
+  return '90'
 }

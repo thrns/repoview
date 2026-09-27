@@ -14,19 +14,19 @@ export function UnavailableFilePreview({ file }: { file: UnavailableFileState })
     : file.reason === 'oversized'
       ? 'This file is larger than the inline preview limit.'
       : file.reason === 'image'
-        ? 'This image is reserved for a protected image preview.'
+        ? 'This image is not available as an inline file preview.'
       : file.reason === 'not-found'
-        ? 'This file is not available in the authorized share.'
+        ? 'This file is not available in the authorized share. Ask the owner to update the share if you need it.'
       : file.reason === 'rate-limited'
         ? 'GitHub’s file service is rate-limited. Try again later.'
       : file.reason === 'access'
-        ? 'The configured GitHub App can no longer read this file.'
+        ? 'The share can no longer read this file. Ask the owner to check repository access.'
         : 'This file preview is temporarily unavailable.'
 
   return (
-    <section className="repository-file-page min-h-[calc(100vh-3rem)]">
+    <section className="repository-file-page min-h-[calc(100vh-2.75rem)]">
       <div className="border-b border-border px-3 py-3 sm:px-5">
-        <p className="font-mono text-xs text-foreground-muted">{file.path}</p>
+        <p className="break-all font-mono text-xs text-foreground-muted" title={file.path}>{file.path}</p>
       </div>
       <div className="mx-auto max-w-2xl px-5 py-16 text-center">
         <FileWarning className="mx-auto size-5 text-foreground-muted" aria-hidden="true" />

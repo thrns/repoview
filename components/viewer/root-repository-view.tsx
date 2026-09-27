@@ -17,10 +17,11 @@ function RootEmptyState({ root }: { root: ViewerRootState }) {
     : readmeUnavailableMessage(root.reason)
 
   return (
-    <section className="repository-file-page min-h-[calc(100vh-3rem)]">
+    <section className="repository-file-page min-h-[calc(100vh-2.75rem)]">
       <div className="mx-auto max-w-2xl px-5 py-16 text-center">
         <h1 className="font-heading text-lg font-semibold">README.md unavailable</h1>
         <p className="mt-2 text-sm leading-6 text-foreground-muted">{message}</p>
+        <p className="mt-4 text-xs leading-5 text-foreground-muted">Use Explorer to open another authorized file.</p>
       </div>
     </section>
   )
@@ -31,6 +32,6 @@ function readmeUnavailableMessage(reason: Extract<ViewerRootState, { status: 'un
   if (reason === 'oversized') return 'The README is too large for an inline preview.'
   if (reason === 'ref-unavailable') return 'The selected branch or ref is no longer available.'
   if (reason === 'rate-limited') return 'GitHub’s file service is rate-limited. Try again later.'
-  if (reason === 'access') return 'The configured GitHub App can no longer read this repository.'
+  if (reason === 'access') return 'The share can no longer read this repository. Ask the owner to restore access or issue a new share.'
   return 'The README preview is temporarily unavailable.'
 }

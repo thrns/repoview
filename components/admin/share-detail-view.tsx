@@ -27,18 +27,18 @@ export function ShareDetailView({ data }: { data: ShareDetailData }) {
       <header className="mt-8 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="font-heading text-[28px] font-semibold tracking-[-0.035em] text-wrap-balance">{item.share.recipient_label || 'Generic share'}</h1>
+            <h1 className="font-heading text-[28px] font-semibold tracking-[-0.035em] text-wrap-balance">{item.share.recipient_label || (item.share.share_type === 'recipient' ? 'Recipient share' : 'Generic share')}</h1>
             <ShareStatusBadge status={item.status} />
           </div>
-          <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground-muted">
-            <span className="font-mono text-[13px] text-foreground">{repositoryName}</span>
+          <p className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground-muted">
+            <span className="max-w-full break-all font-mono text-[13px] text-foreground">{repositoryName}</span>
             <span aria-hidden="true">/</span>
-            <span className="font-mono text-[13px]">{item.share.ref}</span>
+            <span className="max-w-full break-all font-mono text-[13px]">{item.share.ref}</span>
           </p>
         </div>
 
         <div className="flex items-center gap-2 sm:pt-0.5">
-          <RotateShareButton shareId={item.share.id} />
+          <RotateShareButton shareId={item.share.id} revoked={item.status === 'revoked'} />
           <ShareOverflowMenu shareId={item.share.id} currentExpiresAt={item.share.expires_at} disabled={item.status === 'revoked'} />
         </div>
       </header>
@@ -115,20 +115,10 @@ function SessionsSection({ sessions, activity }: { sessions: ShareSessionSummary
         title="Viewer sessions"
         description={`${sessions.length} ${sessions.length === 1 ? 'session' : 'sessions'} · ${confirmedCount} confirmed`}
       />
-      {sessions.length === 0 ? <EmptyDetailState text="No viewer sessions yet." /> : (
-        <div className="mt-5 overflow-x-auto">
-          <div className="min-w-[720px]" role="table">
-            <div className="grid grid-cols-[minmax(13rem,1.6fr)_minmax(9rem,1fr)_minmax(6rem,.7fr)_minmax(7rem,.8fr)] gap-4 px-4 pb-2 text-[11px] font-medium text-foreground-muted" role="row">
-              <span role="columnheader">Status</span>
-              <span role="columnheader">Last seen</span>
-              <span role="columnheader">Duration</span>
-              <span role="columnheader">Activity</span>
-            </div>
-            <div className="divide-y divide-border/55 border-y border-border/60" role="rowgroup">
-              {sessions.map((session) => <SessionRow key={session.id} session={session} activityCount={activityCountBySession.get(session.id) ?? 0} />)}
-            </div>
-          </div>
-        </div>
+      {sessions.length === 0 ? <EmptyDetailState text="No viewer sessions yet. Confirmed sessions will appear here after someone meaningfully opens the share." /> : (
+        <ul className="mt-5 divide-y divide-border/55 border-y border-border/60" aria-label="Viewer sessions">
+          {sessions.map((session) => <li key={session.id}><SessionRow session={session} activityCount={activityCountBySession.get(session.id) ?? 0} /></li>)}
+        </ul>
       )}
     </section>
   )
@@ -153,17 +143,19 @@ function SessionRow({ session, activityCount }: { session: ShareSessionSummary; 
 
   return (
     <details className="group">
-      <summary className="grid cursor-pointer list-none grid-cols-[minmax(13rem,1.6fr)_minmax(9rem,1fr)_minmax(6rem,.7fr)_minmax(7rem,.8fr)] gap-4 px-4 py-3.5 outline-none transition-colors hover:bg-muted/25 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden" role="row">
-        <span className="flex min-w-0 items-center justify-between gap-3 text-sm font-medium text-foreground" role="cell">
+      <summary className="flex cursor-pointer list-none flex-col gap-3 px-4 py-3.5 outline-none transition-colors hover:bg-muted/25 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+        <span className="flex min-w-0 items-center justify-between gap-3 text-sm font-medium text-foreground">
           <span className="inline-flex min-w-0 items-center gap-2">
             <span className={`size-1.5 shrink-0 rounded-full ${confirmed ? 'bg-success' : 'bg-foreground-muted/60'}`} aria-hidden="true" />
             <span className="truncate">{statusLabel}</span>
           </span>
           <ChevronDown className="size-3.5 shrink-0 text-foreground-muted transition-transform group-open:rotate-180" aria-hidden="true" />
         </span>
-        <span className="whitespace-nowrap text-xs text-foreground-muted" role="cell"><Timestamp value={session.lastSeenAt} /></span>
-        <span className="whitespace-nowrap text-xs tabular-nums text-foreground-muted" role="cell">~{formatDuration(session.approximateDurationMinutes)}</span>
-        <span className="whitespace-nowrap text-xs text-foreground-muted" role="cell"><span className="font-medium tabular-nums text-foreground">{activityCount}</span> {activityCount === 1 ? 'event' : 'events'}</span>
+        <span className="grid grid-cols-2 gap-3 text-xs text-foreground-muted sm:grid-cols-3">
+          <span><span className="block text-[11px] text-foreground-muted/80">Last seen</span><span className="mt-0.5 block whitespace-nowrap"><Timestamp value={session.lastSeenAt} /></span></span>
+          <span><span className="block text-[11px] text-foreground-muted/80">Duration</span><span className="mt-0.5 block tabular-nums">~{formatDuration(session.approximateDurationMinutes)}</span></span>
+          <span><span className="block text-[11px] text-foreground-muted/80">Activity</span><span className="mt-0.5 block"><span className="font-medium tabular-nums text-foreground">{activityCount}</span> {activityCount === 1 ? 'event' : 'events'}</span></span>
+        </span>
       </summary>
       <div className="grid gap-4 border-t border-border/50 bg-muted/15 px-4 py-4 sm:grid-cols-2 lg:grid-cols-4">
         <DetailField label="Session ID" value={session.id} mono />
@@ -197,17 +189,17 @@ function ActivityGroup({ group }: { group: ActivityGroupData }) {
         <span className={`size-1.5 rounded-full ${group.session?.confirmedAt ? 'bg-success' : 'bg-foreground-muted/60'}`} aria-hidden="true" />
         <span>{group.session ? getSessionStatusLabel(group.session) : 'Share lifecycle'}</span>
       </div>
-      <ol className="min-w-0 space-y-2">
-        {group.events.map((event) => (
-          <li key={event.id} className="flex min-w-0 items-baseline justify-between gap-4 text-xs">
-            <div className="min-w-0">
-              <span className="font-medium text-foreground">{formatEventType(event.eventType)}</span>
-              {event.path ? <span className="ml-2 inline-block max-w-[55%] truncate align-bottom font-mono text-[11px] text-foreground-muted" title={event.path}>{event.path}</span> : null}
-            </div>
-            <Timestamp value={event.createdAt} />
-          </li>
-        ))}
-      </ol>
+          <ol className="min-w-0 space-y-2">
+            {group.events.map((event) => (
+              <li key={event.id} className="flex min-w-0 flex-col gap-1 text-xs sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                <div className="min-w-0">
+                  <span className="font-medium text-foreground">{formatEventType(event.eventType)}</span>
+                  {event.path ? <span className="ml-2 inline-block max-w-full truncate align-bottom font-mono text-[11px] text-foreground-muted sm:max-w-[55%]" title={event.path}>{event.path}</span> : null}
+                </div>
+                <span className="shrink-0 text-foreground-muted"><Timestamp value={event.createdAt} /></span>
+              </li>
+            ))}
+          </ol>
     </div>
   )
 }
