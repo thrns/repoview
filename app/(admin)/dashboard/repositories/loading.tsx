@@ -1,8 +1,8 @@
-import { Card, Checkbox, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui'
+import { Card, Checkbox, PageContainer, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui'
 
 export default function RepositoriesLoading() {
   return (
-    <section className="mx-auto flex min-h-0 w-full min-w-0 max-w-[1400px] flex-1 flex-col gap-5 px-5 py-7 sm:px-8 lg:px-10 lg:py-9" aria-busy="true" aria-label="Loading repositories">
+    <PageContainer size="large" className="flex min-h-0 min-w-0 flex-1 flex-col gap-5" aria-busy="true" aria-label="Loading repositories">
       <header className="flex flex-col gap-4 border-b border-border/60 pb-7 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-2"><Skeleton className="h-9 w-56" /><Skeleton className="h-4 w-full max-w-2xl" /></div>
         <Skeleton className="h-3 w-24" />
@@ -20,7 +20,7 @@ export default function RepositoriesLoading() {
       </Card>
 
       <footer><Skeleton className="h-3 w-96 max-w-full" /></footer>
-    </section>
+    </PageContainer>
   )
 }
 

@@ -14,14 +14,14 @@ import {
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 
-import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui'
+import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle, PageContainer, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui'
 import type { ViewerDetailData, ViewerSessionDetail } from '@/lib/dashboard/viewers'
 
 export function ViewerDetailView({ data }: { data: ViewerDetailData }) {
   const { summary, viewer, sessions, activity, timeline } = data
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-7 px-5 py-7 sm:px-8 lg:px-10 lg:py-10">
+    <PageContainer size="default" className="space-y-7 lg:py-10">
       <Link href="/dashboard/viewers" className="inline-flex items-center gap-2 text-xs font-medium text-foreground-muted underline-offset-4 transition-colors hover:text-foreground hover:underline">
         <ArrowLeft className="size-3.5" aria-hidden="true" />
         Back to viewers
@@ -34,7 +34,7 @@ export function ViewerDetailView({ data }: { data: ViewerDetailData }) {
               <Badge variant="outline" className="gap-1.5"><UserRound className="size-3.5" aria-hidden="true" />Anonymous viewer</Badge>
               <Badge variant="secondary">Unverified</Badge>
             </div>
-            <h1 className="mt-3 font-heading text-[28px] font-semibold tracking-[-0.035em] text-wrap-balance sm:text-3xl">{summary.displayName}</h1>
+            <h1 className="type-page-title mt-3">{summary.displayName}</h1>
             <p className="mt-2 text-sm text-foreground-muted">{summary.recipientLabel || 'Generic share'}{summary.company ? ` · ${summary.company}` : ''} · Intended label only</p>
             <p className="mt-1 text-xs text-foreground-muted">First seen {formatDate(viewer.firstSeenAt)} · Last seen {formatDate(viewer.lastSeenAt)}</p>
           </div>
@@ -77,14 +77,14 @@ export function ViewerDetailView({ data }: { data: ViewerDetailData }) {
         <TabsContent value="device"><ContextTab title="Prompt-free browser and device context" icon={<Laptop className="size-4" />} values={sessions[0]?.device ?? {}} /></TabsContent>
         <TabsContent value="security"><SecurityTab sessions={sessions} /></TabsContent>
       </Tabs>
-    </div>
+    </PageContainer>
   )
 }
 
 function Stat({ icon, label, value, mono = false, tone }: { icon: ReactNode; label: string; value: string; mono?: boolean; tone?: 'primary' }) {
   return (
     <div className="min-w-0 rounded-lg border border-border/55 bg-card/75 px-3.5 py-3">
-      <div className="flex items-center gap-2 text-[11px] font-medium text-foreground-muted">
+      <div className="flex items-center gap-2 text-xs font-medium text-foreground-muted">
         <span className={`flex size-6 shrink-0 items-center justify-center rounded-md ${tone === 'primary' ? 'bg-surface-200 text-foreground-light' : 'bg-muted text-foreground-muted'}`} aria-hidden="true">{icon}</span>
         <span className="truncate">{label}</span>
       </div>
@@ -106,7 +106,7 @@ function OverviewTab({ sessions }: { sessions: ViewerSessionDetail[] }) {
           <div className="space-y-2">
             {sessions.flatMap((session) => session.files).slice(0, 12).map((path, index) => (
               <div key={`${path}-${index}`} className="flex min-w-0 items-center gap-3 rounded-md px-2 py-2 transition-colors hover:bg-accent/30">
-                <span className="w-6 shrink-0 font-mono text-[11px] text-foreground-muted">{String(index + 1).padStart(2, '0')}</span>
+                <span className="w-6 shrink-0 font-mono text-xs text-foreground-muted">{String(index + 1).padStart(2, '0')}</span>
                 <FileCode2 className="size-3.5 shrink-0 text-foreground-light" aria-hidden="true" />
                 <span className="truncate font-mono text-xs" title={path}>{path}</span>
               </div>

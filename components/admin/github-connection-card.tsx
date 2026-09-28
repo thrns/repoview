@@ -1,6 +1,6 @@
 import { ArrowRight, Github, ShieldCheck } from 'lucide-react'
 
-import { Alert, AlertDescription, AlertTitle, Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui'
+import { Admonition, Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui'
 import type { Tables } from '@/lib/supabase/database.types'
 
 export type GitHubConnectionStatus = 'success' | 'pending' | 'denied' | 'cancelled' | 'quota' | 'error'
@@ -12,41 +12,31 @@ export function GitHubConnectionStatusAlert({ status }: { status?: string }) {
     success: {
       title: 'GitHub connected',
       message: 'The installation was verified and saved to this workspace. Choose which repositories RepoView may share.',
-      className: 'border-success/40 bg-success/5',
     },
     pending: {
       title: 'Organization approval pending',
       message: 'GitHub sent the installation request to an organization owner. RepoView will not use it until GitHub confirms the installation.',
-      className: 'border-warning/40 bg-warning/5',
     },
     denied: {
       title: 'GitHub authorization denied',
       message: 'No GitHub installation was connected. You can try again whenever you are ready.',
-      className: 'border-destructive/40 bg-destructive/5',
     },
     cancelled: {
       title: 'GitHub connection cancelled',
       message: 'No changes were made to this workspace.',
-      className: 'border-border bg-muted/20',
     },
     quota: {
       title: 'Workspace connection limit reached',
       message: 'This workspace already has the maximum number of GitHub installations. Disconnect one before connecting another.',
-      className: 'border-warning/40 bg-warning/5',
     },
     error: {
       title: 'GitHub connection failed',
       message: 'RepoView could not verify the GitHub installation. No installation was attached to this workspace.',
-      className: 'border-destructive/40 bg-destructive/5',
     },
   }[status]
 
-  return (
-    <Alert className={copy.className}>
-      <AlertTitle>{copy.title}</AlertTitle>
-      <AlertDescription>{copy.message}</AlertDescription>
-    </Alert>
-  )
+  const type = status === 'success' ? 'success' : status === 'pending' || status === 'quota' ? 'warning' : status === 'denied' || status === 'error' ? 'destructive' : 'default'
+  return <Admonition type={type} title={copy.title} description={copy.message} />
 }
 
 export function GitHubConnectionCard({
@@ -100,10 +90,12 @@ export function GitHubConnectionCard({
           </p>
         )}
         {canConnect ? (
-          <a href="/api/github/connect" className="inline-flex h-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-brand-default px-4 text-sm font-medium text-brand-foreground transition-colors hover:bg-brand-default/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Button asChild variant="primary" size="small">
+            <a href="/api/github/connect">
             {activeInstallations.length > 0 ? 'Connect another GitHub account' : 'Connect GitHub'}
             <ArrowRight className="size-4" aria-hidden="true" />
-          </a>
+            </a>
+          </Button>
         ) : null}
         {activeInstallations.length > 0 ? (
           <p className="text-xs text-foreground-muted">Repository access is selected separately on the Repositories page.</p>

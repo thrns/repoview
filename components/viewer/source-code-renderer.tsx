@@ -4,11 +4,9 @@ import { codeToHtml, type BundledLanguage } from 'shiki'
 
 import { detectViewerLanguage } from '../../lib/viewer/language'
 import { safeGeneratedHtml } from '../../lib/viewer/generated-html'
+import supabaseTheme from '../../design-system/lib/themes/supabase-2.json'
 
-const SHIKI_THEMES = {
-  light: 'github-light-default',
-  dark: 'github-dark-default',
-} as const
+const SHIKI_THEME = supabaseTheme
 
 export async function renderSourceCode(code: string, filename: string) {
   return renderSourceCodeLanguage(code, detectViewerLanguage(filename))
@@ -20,13 +18,13 @@ export async function renderSourceCodeLanguage(code: string, language: string) {
   try {
     const html = await codeToHtml(code, {
       lang: bundledLanguage,
-      themes: SHIKI_THEMES,
+      theme: SHIKI_THEME,
     })
     return safeGeneratedHtml(html) ?? renderPlainSource(code)
   } catch {
     const html = await codeToHtml(code, {
       lang: 'text' as BundledLanguage,
-      themes: SHIKI_THEMES,
+      theme: SHIKI_THEME,
     })
     return safeGeneratedHtml(html) ?? renderPlainSource(code)
   }

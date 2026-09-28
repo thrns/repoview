@@ -173,8 +173,8 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
           <div className="flex min-w-0 items-start gap-2">
             <FolderTree className="mt-0.5 size-3.5 shrink-0 text-foreground-light" aria-hidden="true" />
             <div className="min-w-0">
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground-muted">Explorer</p>
-              <p className="mt-0.5 text-[11px] text-foreground-muted" aria-live="polite">
+              <p className="font-mono text-xs font-semibold uppercase tracking-widest text-foreground-muted">Explorer</p>
+              <p className="mt-0.5 text-xs text-foreground-muted" aria-live="polite">
                 {tree.status === 'ready' ? `${fileCount} ${fileCount === 1 ? 'file' : 'files'}` : 'Unavailable'}
               </p>
             </div>
@@ -185,7 +185,7 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
                 <MoreHorizontal className="size-4" aria-hidden="true" />
               </DropdownMenuTrigger>
               <DropdownMenuContent className="right-0 mt-1 w-48 p-1.5">
-                <DropdownMenuLabel className="px-2 py-1.5 text-[11px] font-medium text-foreground-muted">Explorer view</DropdownMenuLabel>
+                <DropdownMenuLabel className="px-2 py-1.5 text-xs font-medium text-foreground-muted">Explorer view</DropdownMenuLabel>
                 <DropdownMenuItem onClick={expandAll}><ListTree className="mr-2 size-4" aria-hidden="true" />Expand all folders</DropdownMenuItem>
                 <DropdownMenuItem onClick={collapseAll}><ListCollapse className="mr-2 size-4" aria-hidden="true" />Collapse all folders</DropdownMenuItem>
               </DropdownMenuContent>
@@ -204,7 +204,7 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
               aria-keyshortcuts="/"
               className="viewer-tree-search h-9 rounded-lg border-border bg-muted/50 pl-8 pr-9 text-xs !shadow-none"
             />
-            <kbd aria-hidden="true" className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border/80 bg-background px-1.5 py-0.5 font-mono text-[10px] leading-none text-foreground-muted">/</kbd>
+            <kbd aria-hidden="true" className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border/80 bg-background px-1.5 py-0.5 font-mono text-xs leading-none text-foreground-muted">/</kbd>
           </div>
         ) : null}
       </div>

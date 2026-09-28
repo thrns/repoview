@@ -1,8 +1,8 @@
-import { Skeleton } from '@/components/ui'
+import { PageContainer, Skeleton } from '@/components/ui'
 
 export default function DashboardLoading() {
   return (
-    <section className="mx-auto w-full max-w-6xl space-y-6 px-5 py-7 sm:px-8 lg:px-10 lg:py-9" aria-busy="true" aria-label="Loading dashboard">
+    <PageContainer size="default" className="space-y-6" aria-busy="true" aria-label="Loading dashboard">
       <header className="flex flex-col gap-4 border-b border-border/60 pb-7 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-2">
           <Skeleton className="h-9 w-56 max-w-full" />
@@ -38,7 +38,7 @@ export default function DashboardLoading() {
           <div className="px-5 py-5 sm:px-6 sm:py-6"><Skeleton className="h-3 w-36" /><div className="mt-4 flex h-36 items-end gap-2 border-b border-border/60 pl-7"><Skeleton className="h-7 flex-1 rounded-t-sm" /><Skeleton className="h-16 flex-1 rounded-t-sm" /><Skeleton className="h-10 flex-1 rounded-t-sm" /><Skeleton className="h-24 flex-1 rounded-t-sm" /><Skeleton className="h-12 flex-1 rounded-t-sm" /><Skeleton className="h-20 flex-1 rounded-t-sm" /><Skeleton className="h-9 flex-1 rounded-t-sm" /></div><div className="mt-2 grid grid-cols-7 gap-2 pl-7">{Array.from({ length: 7 }, (_, index) => <Skeleton key={index} className="h-3 w-full" />)}</div></div>
         </section>
       </div>
-    </section>
+    </PageContainer>
   )
 }
 

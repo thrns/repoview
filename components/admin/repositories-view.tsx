@@ -33,6 +33,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   Label,
+  PageContainer,
   Select,
   Table,
   TableBody,
@@ -192,7 +193,7 @@ export function RepositoriesView({ items }: { items: RepositoryDashboardItem[] }
   const repositorySort = sortMode === 'name-asc' ? 'repository:asc' : sortMode === 'name-desc' ? 'repository:desc' : ''
 
   return (
-    <section className="mx-auto flex min-h-0 w-full min-w-0 max-w-[1400px] flex-1 flex-col gap-5 px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
+    <PageContainer size="large" className="flex min-h-0 min-w-0 flex-1 flex-col gap-5">
       <OwnerPageHeader title="Repositories" description="Choose which installation-accessible repositories can be used to create RepoView shares." meta={<>{items.length} available</>} />
 
       {error ? <Alert className="shrink-0 border-destructive/40 bg-destructive/5 py-3"><AlertTitle>Could not update repositories</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
@@ -246,7 +247,7 @@ export function RepositoriesView({ items }: { items: RepositoryDashboardItem[] }
       </Card>
 
       <footer className="flex shrink-0 flex-col gap-1 text-xs text-foreground-muted sm:flex-row sm:items-center sm:justify-between"><p>Archived or GitHub-disabled repositories remain visible for diagnosis but cannot be enabled for new shares.</p><p>Changes save automatically</p></footer>
-    </section>
+    </PageContainer>
   )
 }
 
@@ -266,7 +267,7 @@ function RepositoryTableRows({ item, enabled, selected, pending, expanded, onSel
           <div className="flex min-w-0 items-center gap-2.5">
             <Github className="size-4 shrink-0 text-foreground-muted" aria-hidden="true" />
             <div className="min-w-0">
-              <p className="truncate font-mono text-sm font-semibold leading-4 tracking-[-0.01em] text-foreground" title={item.github.fullName}>{item.github.fullName}</p>
+              <p className="truncate font-mono text-sm font-semibold leading-4 tracking-tight text-foreground" title={item.github.fullName}>{item.github.fullName}</p>
               <p className="truncate text-xs leading-4 text-foreground-muted" title={item.github.description ?? undefined}>{item.github.description || 'No description'}</p>
             </div>
           </div>

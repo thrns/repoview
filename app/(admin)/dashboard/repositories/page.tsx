@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui'
+import { Admonition, Button, PageContainer } from '@/components/ui'
 import { GitHubConnectionStatusAlert } from '@/components/admin/github-connection-card'
 import { RepositoriesView, type RepositoryDashboardItem } from '@/components/admin/repositories-view'
 import { listWorkspaceInstallationRepositories } from '@/lib/github/repositories'
@@ -40,18 +40,18 @@ export default async function RepositoriesPage({ searchParams }: { searchParams?
     return (
       <div className="flex h-full min-h-0 flex-col">
         {typeof params?.github === 'string' ? (
-          <div className="mx-auto w-full max-w-[1400px] shrink-0 px-5 pt-7 sm:px-8 lg:px-10 lg:pt-9">
+          <PageContainer size="large" className="shrink-0 pb-0">
             <GitHubConnectionStatusAlert status={params.github} />
-          </div>
+          </PageContainer>
         ) : null}
         <RepositoriesView items={items} />
         {isOnboarding && hasEnabledRepository ? (
-          <div className="mx-auto w-full max-w-[1400px] shrink-0 px-5 pb-8 sm:px-8 lg:px-10">
+          <PageContainer size="large" className="shrink-0 pt-0">
             <div className="flex flex-col gap-3 rounded-md border border-success/40 bg-success/5 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div><p className="text-sm font-medium">Repository selection saved</p><p className="mt-1 text-sm text-foreground-muted">Create your first share to finish setup.</p></div>
-              <Link href="/dashboard/shares/new?onboarding=1" className="inline-flex h-9 shrink-0 items-center justify-center rounded-md bg-brand-default px-4 text-sm font-medium text-brand-foreground transition-colors hover:bg-brand-default">Create first share</Link>
+              <Button asChild variant="primary" size="small"><Link href="/dashboard/shares/new?onboarding=1">Create first share</Link></Button>
             </div>
-          </div>
+          </PageContainer>
         ) : null}
       </div>
     )
@@ -61,10 +61,10 @@ export default async function RepositoriesPage({ searchParams }: { searchParams?
       : 'The repository registry could not be loaded.'
 
     return (
-      <section className="mx-auto w-full max-w-[1400px] space-y-6 px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
-        <header className="border-b border-border/70 pb-6"><h1 className="font-heading text-3xl font-semibold tracking-[-0.04em]">Repositories</h1><p className="mt-2 text-sm leading-6 text-foreground-muted">Manage the repositories available to RepoView shares.</p></header>
-        <div className="rounded-md border border-destructive/30 bg-destructive/5 p-5 sm:p-6"><Alert className="border-0 bg-transparent p-0"><AlertTitle>Repository list unavailable</AlertTitle><AlertDescription>{message}</AlertDescription></Alert></div>
-      </section>
+      <PageContainer size="large" className="space-y-6">
+        <header className="border-b border-border-secondary pb-6"><h1 className="type-page-title">Repositories</h1><p className="mt-2 type-small">Manage the repositories available to RepoView shares.</p></header>
+        <Admonition type="destructive" title="Repository list unavailable" description={message} />
+      </PageContainer>
     )
   }
 }

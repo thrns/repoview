@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { type AnchorHTMLAttributes, type HTMLAttributes, type ReactNode, type WheelEvent } from 'react'
+import { type AnchorHTMLAttributes, type AriaAttributes, type HTMLAttributes, type ReactNode, type WheelEvent } from 'react'
 
 import { cn } from './utils'
 
@@ -18,8 +18,8 @@ export function SidebarHeader({ className, ...props }: HTMLAttributes<HTMLDivEle
 export function SidebarContent({ className, ...props }: HTMLAttributes<HTMLElement>) { return <nav className={cn('flex-1 overflow-auto overscroll-contain px-4 py-6', className)} aria-label="Primary navigation" data-sidebar-scroll-region="true" onWheel={preventSidebarScrollChaining} {...props} /> }
 export function SidebarFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn('border-t border-border-secondary bg-default p-4', className)} {...props} /> }
 export function SidebarGroup({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn('mb-7 space-y-1', className)} {...props} /> }
-export function SidebarLabel({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn('px-3 pb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground-muted', className)} {...props} /> }
-export function SidebarNavItem({ href, active, icon, children, className, onClick }: { href: string; active?: boolean; icon?: ReactNode; children: ReactNode; className?: string; onClick?: () => void }) { return <Link href={href} onClick={onClick} aria-current={active ? 'page' : undefined} className={cn('relative flex min-h-10 w-full items-center gap-2.5 rounded-md px-3 text-sm text-foreground-muted transition-[background-color,color,box-shadow] duration-150 hover:bg-surface-200 hover:text-foreground', active && 'bg-surface-200 font-medium text-foreground shadow-[inset_2px_0_0_hsl(var(--brand-default))]', className)}>{icon}{children}</Link> }
+export function SidebarLabel({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn('px-3 pb-2 font-mono text-xs font-semibold uppercase tracking-wider text-foreground-muted', className)} {...props} /> }
+export function SidebarNavItem({ href, active, ariaCurrent = 'page', icon, children, className, onClick }: { href: string; active?: boolean; ariaCurrent?: AriaAttributes['aria-current']; icon?: ReactNode; children: ReactNode; className?: string; onClick?: () => void }) { return <Link href={href} onClick={onClick} aria-current={active ? ariaCurrent : undefined} className={cn('relative flex min-h-10 w-full items-center gap-2.5 rounded-md px-3 text-sm text-foreground-muted transition-[background-color,color,box-shadow] duration-150 hover:bg-surface-200 hover:text-foreground', active && 'bg-surface-200 font-medium text-foreground shadow-[inset_2px_0_0_hsl(var(--brand-default))]', className)}>{icon}{children}</Link> }
 
 function preventSidebarWheelChaining(event: WheelEvent<HTMLElement>) {
   const scrollRegion = event.currentTarget.querySelector<HTMLElement>('[data-sidebar-scroll-region]')

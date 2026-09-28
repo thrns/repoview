@@ -14,8 +14,14 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  EmptyState,
   Input,
   Label,
+  PageHeader,
+  PageHeaderAside,
+  PageHeaderDescription,
+  PageHeaderSummary,
+  PageHeaderTitle,
   cn,
 } from '@/components/ui'
 
@@ -31,13 +37,13 @@ export function OwnerPageHeader({
   actions?: ReactNode
 }) {
   return (
-    <header className="flex flex-col gap-4 border-b border-border/60 pb-7 sm:flex-row sm:items-end sm:justify-between">
-      <div className="min-w-0">
-        <h1 className="font-heading text-3xl font-semibold tracking-[-0.045em] text-wrap-balance sm:text-[2rem]">{title}</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-foreground-muted text-pretty">{description}</p>
-      </div>
-      {actions || meta ? <div className="flex shrink-0 items-center gap-3 sm:pb-0.5">{meta ? <span className="text-xs tabular-nums text-foreground-muted">{meta}</span> : null}{actions}</div> : null}
-    </header>
+    <PageHeader>
+      <PageHeaderSummary>
+        <PageHeaderTitle>{title}</PageHeaderTitle>
+        <PageHeaderDescription>{description}</PageHeaderDescription>
+      </PageHeaderSummary>
+      {actions || meta ? <PageHeaderAside>{meta ? <span className="type-meta tabular-nums">{meta}</span> : null}{actions}</PageHeaderAside> : null}
+    </PageHeader>
   )
 }
 
@@ -65,7 +71,7 @@ export function OwnerListHeader({
           {icon}
         </span>
         <div className="min-w-0">
-          <h2 className="font-heading text-sm font-semibold tracking-[-0.015em] text-foreground">{title}</h2>
+          <h2 className="font-heading text-sm font-semibold tracking-tight text-foreground">{title}</h2>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-foreground-muted">{description}</p>
         </div>
       </div>
@@ -93,15 +99,7 @@ export function OwnerEmptyState({
   align?: 'center' | 'left'
   className?: string
 }) {
-  const centered = align === 'center'
-  return (
-    <div className={cn('flex min-h-56 flex-col justify-center px-6 py-14', centered ? 'items-center text-center' : 'items-start text-left', className)}>
-      <span className="flex size-9 items-center justify-center rounded-md border border-border-secondary bg-surface-200 text-foreground-light">{icon}</span>
-      <h2 className="mt-4 font-heading text-lg font-semibold tracking-[-0.02em] text-foreground">{title}</h2>
-      <p className={cn('mt-1.5 max-w-md text-sm leading-6 text-foreground-muted', centered && 'text-pretty')}>{description}</p>
-      {action ? <div className="mt-5">{action}</div> : null}
-    </div>
-  )
+  return <EmptyState icon={icon} title={title} description={description} action={action} align={align} className={className} />
 }
 
 export function OwnerSearchField({
@@ -143,7 +141,7 @@ export function OwnerFilterDialog({
       <DialogTrigger variant="outline" size="default" className="h-10 gap-2 px-3">
         <ListFilter className="size-4" aria-hidden="true" />
         Filters / view
-        {activeCount > 0 ? <Badge variant="secondary" className="min-h-5 px-1.5 py-0 text-[10px] tabular-nums">{activeCount}</Badge> : null}
+        {activeCount > 0 ? <Badge variant="secondary" className="min-h-5 px-1.5 py-0 tabular-nums">{activeCount}</Badge> : null}
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
@@ -163,7 +161,7 @@ export function OwnerFilterDialog({
 export function OwnerFilterField({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs text-foreground-muted">{label}</Label>
+      <Label className="type-meta">{label}</Label>
       {children}
     </div>
   )

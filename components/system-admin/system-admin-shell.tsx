@@ -4,7 +4,7 @@ import { LogOut, ShieldCheck } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 import { BrandLogo } from '@/components/shared/brand-logo'
-import { Button } from '@/components/ui'
+import { Button, PageContainer, SkipToContent } from '@/components/ui'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 export function SystemAdminShell({ email, children }: { email: string; children: React.ReactNode }) {
@@ -21,13 +21,14 @@ export function SystemAdminShell({ email, children }: { email: string; children:
 
   return (
     <div className="min-h-dvh bg-background">
+      <SkipToContent />
       <header className="border-b border-border/70">
         <div className="mx-auto flex min-h-14 max-w-6xl items-center justify-between gap-4 px-5 sm:px-8 lg:px-10">
           <div className="flex items-center gap-3">
             <BrandLogo size={28} />
             <div>
               <p className="font-heading text-sm font-semibold">RepoView operations</p>
-              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-foreground-muted">Internal only</p>
+              <p className="font-mono text-xs uppercase tracking-widest text-foreground-muted">Internal only</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -40,7 +41,7 @@ export function SystemAdminShell({ email, children }: { email: string; children:
         <ShieldCheck className="size-4" aria-hidden="true" />
         <span>Operator access is separate from customer workspace membership.</span>
       </div>
-      <main id="main" className="mx-auto max-w-6xl px-5 py-7 sm:px-8 lg:px-10 lg:py-10">{children}</main>
+      <PageContainer size="default" id="main">{children}</PageContainer>
     </div>
   )
 }

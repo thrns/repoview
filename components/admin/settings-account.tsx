@@ -5,7 +5,8 @@ import { CheckCircle2, CircleAlert, Download, LockKeyhole, Trash2 } from 'lucide
 
 import { changePassword, updateProfile } from '@/app/(admin)/dashboard/settings/actions'
 import { AccountReauthenticationDialog } from '@/components/admin/account-reauthentication-dialog'
-import { Alert, AlertDescription, Button, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label } from '@/components/ui'
+import { SettingsFooter, SettingsSubsection } from '@/components/admin/settings-section'
+import { Button, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label } from '@/components/ui'
 import { getAccountDeletionConfirmation } from '@/lib/account/deletion-shared'
 
 export function SettingsAccount({ fullName, email, emailVerified, reauthStatus, reauthOperation }: { fullName: string; email: string; emailVerified: boolean; reauthStatus?: string; reauthOperation?: string }) {
@@ -37,42 +38,54 @@ export function SettingsAccount({ fullName, email, emailVerified, reauthStatus, 
   }
 
   return (
-    <div className="space-y-6">
-      <form className="space-y-4" onSubmit={saveProfile}>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="settings-full-name">Full name</Label>
-            <Input id="settings-full-name" autoComplete="name" maxLength={100} value={name} onChange={(event) => setName(event.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="settings-email">Email</Label>
-            <Input id="settings-email" value={email} readOnly aria-describedby="settings-email-status" className="bg-muted/35" />
-            <div id="settings-email-status" className="flex items-center gap-1.5 text-xs text-foreground-muted">
-              {emailVerified ? <CheckCircle2 className="size-3.5 text-success" aria-hidden="true" /> : <CircleAlert className="size-3.5 text-warning" aria-hidden="true" />}
-              <span>{emailVerified ? 'Verified email address' : 'Email verification required'}</span>
+    <div className="space-y-7">
+      <SettingsSubsection title="Profile" description="Update the name shown across your RepoView workspace.">
+        <form className="space-y-0" onSubmit={saveProfile}>
+          <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="settings-full-name">Full name</Label>
+              <Input id="settings-full-name" autoComplete="name" maxLength={100} value={name} onChange={(event) => setName(event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="settings-email">Email</Label>
+              <Input id="settings-email" value={email} readOnly aria-describedby="settings-email-status" className="bg-muted/35" />
+              <div id="settings-email-status" className="flex items-center gap-1.5 text-xs text-foreground-muted">
+                {emailVerified ? <CheckCircle2 className="size-3.5 text-success" aria-hidden="true" /> : <CircleAlert className="size-3.5 text-warning" aria-hidden="true" />}
+                <span>{emailVerified ? 'Verified email address' : 'Email verification required'}</span>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" variant="primary" loading={pending}>Save changes</Button>
-          {message ? <p className={`text-sm ${saved ? 'text-success' : 'text-destructive'}`} role="status">{message}</p> : null}
-        </div>
-      </form>
+          <SettingsFooter>
+            {message ? <p className={`text-sm ${saved ? 'text-success' : 'text-destructive'}`} role="status">{message}</p> : null}
+            <Button type="submit" variant="primary" loading={pending}>Save changes</Button>
+          </SettingsFooter>
+        </form>
+      </SettingsSubsection>
 
-      <div className="divide-y divide-border/70 rounded-md border border-border/70">
-        <details className="group">
-          <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 [&::-webkit-details-marker]:hidden">
-            <div className="flex items-center gap-3"><LockKeyhole className="size-4 text-foreground-muted" aria-hidden="true" /><div><p className="text-sm font-medium">Change password</p><p className="mt-0.5 text-xs text-foreground-muted">Update the password for this RepoView account.</p></div></div>
-            <span className="text-xs font-medium text-foreground-muted group-open:text-foreground">Open</span>
-          </summary>
-          <ChangePasswordForm />
-        </details>
-        <AccountReauthenticationDialog operation="account-export" variant="text" trigger={<span className="flex w-full items-center justify-between gap-4 text-left"><span className="flex items-center gap-3"><Download className="size-4 text-foreground-muted" aria-hidden="true" /><span><span className="block text-sm font-medium">Export account data</span><span className="mt-0.5 block text-xs text-foreground-muted">Download your profile, workspaces, repositories, shares, recipient metadata, settings, and relevant analytics.</span></span></span><span className="text-xs font-medium text-foreground-muted">JSON</span></span>} onAuthorized={() => { window.location.assign('/api/account/export') }} />
+      <div className="border-t border-border/60 pt-7">
+        <SettingsSubsection title="Account access" description="Manage sign-in credentials and download a copy of your RepoView data.">
+          <div className="divide-y divide-border/60 border-y border-border/60">
+            <details className="group">
+              <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                <div className="grid min-h-16 gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-8">
+                  <div className="flex min-w-0 items-start gap-3"><LockKeyhole className="mt-0.5 size-4 shrink-0 text-foreground-muted" aria-hidden="true" /><div className="min-w-0"><p className="text-sm font-medium">Change password</p><p className="mt-0.5 text-xs leading-5 text-foreground-muted">Update the password for this RepoView account.</p></div></div>
+                  <span className="text-xs font-medium text-foreground-muted group-open:text-foreground sm:text-right">Open</span>
+                </div>
+              </summary>
+              <ChangePasswordForm />
+            </details>
+            <AccountReauthenticationDialog className="flex h-auto min-h-16 w-full items-center justify-between gap-3 rounded-none p-0 text-left sm:gap-8" operation="account-export" variant="text" trigger={<><span className="flex min-w-0 items-start gap-3"><Download className="mt-0.5 size-4 shrink-0 text-foreground-muted" aria-hidden="true" /><span className="min-w-0"><span className="block text-sm font-medium">Export account data</span><span className="mt-0.5 block text-xs leading-5 text-foreground-muted">Download your profile, workspaces, repositories, shares, recipient metadata, settings, and relevant analytics.</span></span></span><span className="shrink-0 text-xs font-medium text-foreground-muted">JSON</span></>} onAuthorized={() => { window.location.assign('/api/account/export') }} />
+          </div>
+        </SettingsSubsection>
       </div>
 
-      {reauthStatus === 'success' && reauthOperation === 'account-delete' ? <p className="text-xs text-success" role="status">Reauthentication complete. Reopen the deletion dialog to continue.</p> : null}
-      {reauthStatus === 'mfa' && reauthOperation ? <PendingMfaReauthentication operation={reauthOperation} /> : null}
-      <DeleteAccountControl email={email} />
+      <div className="border-t border-border/60 pt-7">
+        <SettingsSubsection title="Danger zone" description="These actions affect your account and cannot be undone.">
+          {reauthStatus === 'success' && reauthOperation === 'account-delete' ? <p className="text-xs text-success" role="status">Reauthentication complete. Reopen the deletion dialog to continue.</p> : null}
+          {reauthStatus === 'mfa' && reauthOperation ? <PendingMfaReauthentication operation={reauthOperation} /> : null}
+          <DeleteAccountControl email={email} />
+        </SettingsSubsection>
+      </div>
     </div>
   )
 }
@@ -107,34 +120,37 @@ function DeleteAccountControl({ email }: { email: string }) {
   }
 
   return (
-    <Alert className="border-destructive/25 bg-destructive/5">
-      <Trash2 className="size-4" aria-hidden="true" />
-      <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <span><strong className="font-medium text-foreground">Delete account</strong><span className="mt-1 block text-xs leading-5">Immediately disables your workspace, revokes its shares, disconnects GitHub, and permanently deletes your account data.</span></span>
-        <Dialog>
-          <DialogTrigger variant="destructive" size="small">Delete account</DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete your RepoView account?</DialogTitle>
-              <DialogDescription>This is permanent. Your personal workspace will be disabled immediately, all active shares will stop working, GitHub connections will be forgotten, and account-owned metadata and analytics will be deleted.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3 py-4 text-sm">
-              <p className="text-foreground-muted">For safety, reauthenticate immediately before deletion and type this phrase exactly:</p>
-              <p className="rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-foreground">{confirmation}</p>
-              <div className="space-y-2">
-                <Label htmlFor="delete-account-confirmation">Confirmation phrase</Label>
-                <Input id="delete-account-confirmation" autoComplete="off" spellCheck={false} value={value} onChange={(event) => setValue(event.target.value)} placeholder={confirmation} />
-              </div>
-              {message ? <p className="text-xs text-destructive" role="alert">{message}</p> : null}
+    <div className="grid gap-4 rounded-md border border-destructive/25 bg-destructive/5 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-8">
+      <div className="flex items-start gap-3">
+        <Trash2 className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden="true" />
+        <div>
+          <p className="text-sm font-medium text-foreground">Delete account</p>
+          <p className="mt-1 text-xs leading-5 text-foreground-muted">Immediately disables your workspace, revokes its shares, disconnects GitHub, and permanently deletes your account data.</p>
+        </div>
+      </div>
+      <Dialog>
+        <DialogTrigger variant="destructive" size="small">Delete account</DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete your RepoView account?</DialogTitle>
+            <DialogDescription>This is permanent. Your personal workspace will be disabled immediately, all active shares will stop working, GitHub connections will be forgotten, and account-owned metadata and analytics will be deleted.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4 text-sm">
+            <p className="text-foreground-muted">For safety, reauthenticate immediately before deletion and type this phrase exactly:</p>
+            <p className="rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-foreground">{confirmation}</p>
+            <div className="space-y-2">
+              <Label htmlFor="delete-account-confirmation">Confirmation phrase</Label>
+              <Input id="delete-account-confirmation" autoComplete="off" spellCheck={false} value={value} onChange={(event) => setValue(event.target.value)} placeholder={confirmation} />
             </div>
-            <DialogFooter>
-              <DialogClose>Cancel</DialogClose>
-              <AccountReauthenticationDialog operation="account-delete" trigger="Permanently delete" variant="destructive" disabled={value !== confirmation || pending} onAuthorized={deleteAccount} />
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </AlertDescription>
-    </Alert>
+            {message ? <p className="text-xs text-destructive" role="alert">{message}</p> : null}
+          </div>
+          <DialogFooter>
+            <DialogClose>Cancel</DialogClose>
+            <AccountReauthenticationDialog operation="account-delete" trigger="Permanently delete" variant="destructive" disabled={value !== confirmation || pending} onAuthorized={deleteAccount} />
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }
 

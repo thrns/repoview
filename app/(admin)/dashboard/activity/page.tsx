@@ -1,4 +1,5 @@
 import { ActivityView } from '@/components/admin/activity-view'
+import { Admonition, PageContainer } from '@/components/ui'
 import { getDashboardActivity, type ActivityFilter } from '@/lib/dashboard/activity'
 import { requireWorkspace } from '@/lib/auth/workspace'
 import { enforceAuthenticatedRateLimit } from '../../../../lib/security/rate-limit'
@@ -16,6 +17,6 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
     await enforceAuthenticatedRateLimit('authenticated-dashboard-analytics', context.workspace.id, context.user.id)
     return <ActivityView items={await getDashboardActivity(filter)} filter={filter} />
   } catch {
-    return <section className="mx-auto w-full max-w-5xl px-5 py-7 sm:px-8 lg:px-10 lg:py-10"><div className="rounded-md border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">Activity could not be loaded. Try refreshing after checking the data connection.</div></section>
+    return <PageContainer size="default"><Admonition type="destructive" title="Activity could not be loaded" description="Try refreshing after checking the data connection." /></PageContainer>
   }
 }

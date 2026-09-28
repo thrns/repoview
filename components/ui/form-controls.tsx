@@ -25,5 +25,5 @@ export const Checkbox = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInp
 })
 
 export const Switch = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Switch({ className, type = 'checkbox', role = 'switch', ...props }, ref) {
-  return <input ref={ref} type={type} role={role} className={cn('h-6 w-11 cursor-pointer appearance-none rounded-full border border-border-control bg-surface-200 transition-[background-color,border-color,box-shadow] checked:border-brand-default checked:bg-brand-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background', className)} {...props} />
+  return <input ref={ref} type={type} role={role} className={cn('control-switch', className)} {...props} />
 })

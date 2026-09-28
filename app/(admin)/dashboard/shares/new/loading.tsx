@@ -1,8 +1,8 @@
-import { Skeleton } from '@/components/ui'
+import { PageContainer, Skeleton } from '@/components/ui'
 
 export default function NewShareLoading() {
   return (
-    <section className="mx-auto w-full max-w-3xl px-5 py-7 sm:px-8 lg:py-9" aria-busy="true" aria-label="Loading new share form">
+    <PageContainer size="small" aria-busy="true" aria-label="Loading new share form">
       <header className="mb-8 space-y-3">
         <Skeleton className="h-3 w-24" />
         <Skeleton className="h-8 w-52" />
@@ -22,7 +22,7 @@ export default function NewShareLoading() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="space-y-2"><Skeleton className="h-3 w-28" /><Skeleton className="h-3 w-64 max-w-full" /></div><div className="flex justify-end gap-2"><Skeleton className="h-9 w-16" /><Skeleton className="h-9 w-28" /></div></div>
         </div>
       </div>
-    </section>
+    </PageContainer>
   )
 }
 

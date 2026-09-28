@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { ThemeSwitcher } from '@/components/shared/theme-switcher'
 import { BrandLogo } from '@/components/shared/brand-logo'
-import { Badge, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, Skeleton } from '@/components/ui'
+import { Badge, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, Skeleton, SkipToContent } from '@/components/ui'
 import type { ViewerRootState } from '@/lib/viewer/root-model'
 import type { ViewerTreeState } from '@/lib/viewer/tree-model'
 import { ViewerAuthorizationFailure, isViewerAuthorizationFailure, revalidateViewerAuthorization } from '@/lib/viewer/client-authorization'
@@ -206,6 +206,7 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
     <ViewerAnalyticsProvider shareId={shareId} initialPath={activePath} analyticsMode={analyticsMode} gpcApplied={gpcApplied}>
       <ViewerWorkspaceProvider value={{ tree, root, selectedPath, openPath, prefetchPath }}>
       <div className="viewer-shell flex h-dvh min-h-0 flex-col overflow-hidden bg-background text-foreground">
+        <SkipToContent />
         <header className="viewer-header sticky top-0 z-40 shrink-0 border-b border-border bg-surface-100">
           <div className="viewer-header-inner flex h-11 items-center gap-2.5 px-3 sm:gap-3 sm:px-5">
             <div className="md:hidden">
@@ -232,11 +233,11 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
             <div className="viewer-brand-lockup flex min-w-0 flex-1 items-center gap-2">
               <BrandLogo size={24} />
               <span aria-hidden="true" className="hidden text-foreground-muted sm:inline">/</span>
-              <span className="min-w-0 truncate font-mono text-[13px] font-medium text-foreground" title={repositoryName}>{repositoryName}</span>
+              <span className="min-w-0 truncate font-mono text-sm font-medium text-foreground" title={repositoryName}>{repositoryName}</span>
             </div>
             <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5">
               <ViewerPrivacySettings shareId={shareId} compact />
-              <Badge variant="outline" className="viewer-ref-badge flex max-w-[5rem] items-center gap-1 rounded px-1.5 font-mono text-[10px] sm:max-w-[12rem] sm:px-2 sm:text-[11px]">
+              <Badge variant="outline" className="viewer-ref-badge flex max-w-[5rem] items-center gap-1 rounded px-1.5 font-mono text-xs sm:max-w-[12rem] sm:px-2 sm:text-xs">
                 <GitBranch className="size-3.5" aria-hidden="true" />
                 <span className="truncate" title={refName}>{refName}</span>
               </Badge>
@@ -249,7 +250,7 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
           <aside className="viewer-sidebar fixed bottom-0 left-0 top-11 z-30 hidden w-64 overflow-hidden overscroll-none border-r border-border bg-card md:flex md:flex-col">
             <ViewerFileTree tree={tree} selectedPath={activePath} onSelectPath={openPath} onPrefetchPath={prefetchPath} />
           </aside>
-          <main className="viewer-main min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain md:ml-64">
+          <main id="main" className="viewer-main min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain md:ml-64">
             {authorizationFailed ? <ViewerAccessUnavailable /> : activeFile ? <ViewerFileContent file={activeFile.file} shareId={shareId} tree={tree} onOpenPath={openPath} allowDownload={allowDownload} /> : loadingPath ? <ViewerFileLoading path={loadingPath} /> : children}
           </main>
         </div>
@@ -291,7 +292,7 @@ function ViewerUtilityMenu() {
         <MoreHorizontal className="size-4" aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="right-0 mt-1 w-44 p-1.5">
-        <DropdownMenuLabel className="px-2 py-1.5 text-[11px] font-medium text-foreground-muted">Viewer</DropdownMenuLabel>
+        <DropdownMenuLabel className="px-2 py-1.5 text-xs font-medium text-foreground-muted">Viewer</DropdownMenuLabel>
         <DropdownMenuItem onClick={() => window.location.assign('/terms')}>Terms</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

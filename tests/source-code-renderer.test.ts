@@ -5,11 +5,11 @@ vi.mock('server-only', () => ({}))
 import { renderSourceCode } from '../components/viewer/source-code-renderer'
 
 describe('source code renderer', () => {
-  it('renders syntax-highlighted dual-theme HTML on the server', async () => {
+  it('renders syntax-highlighted Supabase theme HTML on the server', async () => {
     const html = await renderSourceCode('const answer = 42', 'src/index.ts')
 
-    expect(html).toContain('github-light-default')
-    expect(html).toContain('github-dark-default')
+    expect(html).toContain('Supabase Theme')
+    expect(html).toContain('--code-token-keyword')
     expect(html).toContain('class="line"')
     expect(html).toContain('const')
   })

@@ -16,6 +16,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  PageContainer,
   Select,
   Table,
   TableBody,
@@ -105,7 +106,7 @@ export function SharesView({ items }: { items: ShareListItem[] }) {
   }
 
   return (
-    <section className="mx-auto w-full max-w-[1400px] space-y-6 px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
+    <PageContainer size="large" className="space-y-6">
       <OwnerPageHeader title="Shares" description="Manage recipient-specific repository previews." meta={<>{items.length} {items.length === 1 ? 'share' : 'shares'}</>} />
 
       <section aria-label="Shares inventory">
@@ -120,7 +121,7 @@ export function SharesView({ items }: { items: ShareListItem[] }) {
                 <OwnerFilterField label="Activity"><Select value={activityFilter} onChange={(event) => setActivityFilter(event.target.value as ActivityFilter)} aria-label="Filter shares by activity"><option value="all">All activity</option><option value="active">Has activity</option><option value="quiet">No activity</option></Select></OwnerFilterField>
                 <OwnerFilterField label="Sort"><Select value={sort} onChange={(event) => selectSort(event.target.value as SortKey)} aria-label="Sort shares"><option value="recent">Newest first</option><option value="oldest">Oldest first</option><option value="activity">Recent activity</option><option value="expiry">Expiry</option><option value="recipient">Recipient</option><option value="repository">Repository</option><option value="status">Status</option></Select></OwnerFilterField>
               </OwnerFilterDialog>
-              <Link href="/dashboard/shares/new" className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-brand-default px-4 text-sm font-medium text-brand-foreground transition-colors hover:bg-brand-default/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"><Plus className="size-4" aria-hidden="true" /> New share</Link>
+              <Button asChild variant="primary"><Link href="/dashboard/shares/new"><Plus className="size-4" aria-hidden="true" /> New share</Link></Button>
             </div>
           </div>
           <ActiveFilterSummary filters={[...(repositoryFilter !== 'all' ? [{ label: 'Repository', value: repositoryFilter, onClear: () => setRepositoryFilter('all') }] : []), ...(statusFilter !== 'all' ? [{ label: 'Status', value: statusLabel(statusFilter), onClear: () => setStatusFilter('all') }] : []), ...(expiryFilter !== 'all' ? [{ label: 'Expiry', value: expiryLabel(expiryFilter), onClear: () => setExpiryFilter('all') }] : []), ...(activityFilter !== 'all' ? [{ label: 'Activity', value: activityLabel(activityFilter), onClear: () => setActivityFilter('all') }] : []), ...(sort !== 'recent' ? [{ label: 'Sort', value: sortLabel(sort), onClear: () => selectSort('recent') }] : [])]} onClear={clearFilterValues} />
@@ -145,7 +146,7 @@ export function SharesView({ items }: { items: ShareListItem[] }) {
           </Table>
         </Card>
       </section>
-    </section>
+    </PageContainer>
   )
 }
 
@@ -157,7 +158,7 @@ function ShareRow({ item }: { item: ShareListItem }) {
     <TableRow>
       <TableCell className="min-w-0">
         <Link href={detailHref} className="block min-w-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface-100">
-          <span className="block truncate text-sm font-semibold tracking-[-0.01em] text-foreground" title={shareLabel}>{shareLabel}</span>
+          <span className="block truncate text-sm font-semibold tracking-tight text-foreground" title={shareLabel}>{shareLabel}</span>
           <span className="mt-1 flex min-w-0 items-center gap-1.5 truncate text-xs text-foreground-muted">
             <span className="truncate font-mono" title={repositoryName}>{repositoryName}</span>
             <span aria-hidden="true" className="text-foreground-muted/60">·</span>
@@ -177,7 +178,7 @@ function ShareRow({ item }: { item: ShareListItem }) {
 }
 
 function ShareRowActions({ item }: { item: ShareListItem }) {
-  return <DropdownMenu><DropdownMenuTrigger aria-label={`Actions for ${getShareLabel(item)}`} className="size-9 border-transparent bg-transparent px-0 text-foreground-muted hover:bg-surface-200 hover:text-foreground"><MoreHorizontal className="size-4" aria-hidden="true" /></DropdownMenuTrigger><DropdownMenuContent className="w-56 p-1.5"><DropdownMenuLabel className="px-2 py-1.5 text-[11px] font-medium text-foreground-muted">Share actions</DropdownMenuLabel><Link href={`/dashboard/shares/${item.share.id}`} role="menuitem" className="flex min-h-9 items-center gap-2 rounded-md px-2 text-sm text-foreground-light hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent"><BarChart3 className="size-4" aria-hidden="true" /> View details / analytics</Link><DropdownMenuSeparator /><div className="[&>button]:h-9 [&>button]:w-full [&>button]:justify-start [&>button]:gap-2 [&>button]:px-2 [&>button]:text-sm"><RotateShareButton shareId={item.share.id} revoked={item.status === 'revoked'} compact /></div><div className="[&>button]:h-9 [&>button]:w-full [&>button]:justify-start [&>button]:gap-2 [&>button]:px-2 [&>button]:text-sm"><UpdateShareExpiryButton shareId={item.share.id} currentExpiresAt={item.share.expires_at} compact /></div><DropdownMenuSeparator /><div className="[&>div>button]:h-9 [&>div>button]:w-full [&>div>button]:justify-start [&>div>button]:gap-2 [&>div>button]:text-sm [&>div>button]:text-destructive [&>div>button]:hover:bg-destructive/10 [&>div>button]:hover:text-destructive"><RevokeShareButton shareId={item.share.id} disabled={item.status === 'revoked'} compact /></div></DropdownMenuContent></DropdownMenu>
+  return <DropdownMenu><DropdownMenuTrigger aria-label={`Actions for ${getShareLabel(item)}`} className="size-9 border-transparent bg-transparent px-0 text-foreground-muted hover:bg-surface-200 hover:text-foreground"><MoreHorizontal className="size-4" aria-hidden="true" /></DropdownMenuTrigger><DropdownMenuContent className="w-56 p-1.5"><DropdownMenuLabel className="px-2 py-1.5 text-xs font-medium text-foreground-muted">Share actions</DropdownMenuLabel><Link href={`/dashboard/shares/${item.share.id}`} role="menuitem" className="flex min-h-9 items-center gap-2 rounded-md px-2 text-sm text-foreground-light hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent"><BarChart3 className="size-4" aria-hidden="true" /> View details / analytics</Link><DropdownMenuSeparator /><div className="[&>button]:h-9 [&>button]:w-full [&>button]:justify-start [&>button]:gap-2 [&>button]:px-2 [&>button]:text-sm"><RotateShareButton shareId={item.share.id} revoked={item.status === 'revoked'} compact /></div><div className="[&>button]:h-9 [&>button]:w-full [&>button]:justify-start [&>button]:gap-2 [&>button]:px-2 [&>button]:text-sm"><UpdateShareExpiryButton shareId={item.share.id} currentExpiresAt={item.share.expires_at} compact /></div><DropdownMenuSeparator /><div className="[&>div>button]:h-9 [&>div>button]:w-full [&>div>button]:justify-start [&>div>button]:gap-2 [&>div>button]:text-sm [&>div>button]:text-destructive [&>div>button]:hover:bg-destructive/10 [&>div>button]:hover:text-destructive"><RevokeShareButton shareId={item.share.id} disabled={item.status === 'revoked'} compact /></div></DropdownMenuContent></DropdownMenu>
 }
 
 export function ShareStatusBadge({ status, className = '' }: { status: ShareStatus; className?: string }) {

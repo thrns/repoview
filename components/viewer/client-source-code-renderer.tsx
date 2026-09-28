@@ -5,11 +5,9 @@ import { useEffect, useState } from 'react'
 import { Skeleton } from '@/components/ui'
 import { detectViewerLanguage } from '@/lib/viewer/language'
 import { safeGeneratedHtml } from '@/lib/viewer/generated-html'
+import supabaseTheme from '../../design-system/lib/themes/supabase-2.json'
 
-const SHIKI_THEMES = {
-  light: 'github-light-default',
-  dark: 'github-dark-default',
-} as const
+const SHIKI_THEME = supabaseTheme
 
 export function ClientSourceCodeRenderer({ code, filename }: { code: string; filename: string }) {
   const [result, setResult] = useState<{ input: string; html?: string; failed?: boolean } | null>(null)
@@ -22,7 +20,7 @@ export function ClientSourceCodeRenderer({ code, filename }: { code: string; fil
         try {
           const rendered = await codeToHtml(code, {
             lang: detectViewerLanguage(filename),
-            themes: SHIKI_THEMES,
+            theme: SHIKI_THEME,
           })
           const safeHtml = safeGeneratedHtml(rendered)
           if (!cancelled) setResult({ input, html: safeHtml ?? undefined, failed: !safeHtml })

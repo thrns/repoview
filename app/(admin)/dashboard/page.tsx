@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 
 import { DashboardOverviewView } from '@/components/admin/dashboard-overview'
+import { Admonition, PageContainer } from '@/components/ui'
 import { getOnboardingState } from '@/lib/auth/onboarding'
 import { getDashboardOverview } from '@/lib/dashboard/overview'
 import { requireWorkspace } from '@/lib/auth/workspace'
@@ -31,10 +32,8 @@ function isRedirectError(error: unknown) {
 
 function DashboardOverviewError({ schemaMissing }: { schemaMissing: boolean }) {
   return (
-    <section className="mx-auto w-full max-w-6xl px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
-      <div className="rounded-md border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">
-        {schemaMissing ? 'The RepoView database schema is not initialized. Run the Supabase migration files in order, then refresh this page.' : 'The dashboard overview could not be loaded. Try refreshing after checking the data connection.'}
-      </div>
-    </section>
+    <PageContainer size="default">
+      <Admonition type="destructive" title="Dashboard overview unavailable" description={schemaMissing ? 'The RepoView database schema is not initialized. Run the Supabase migration files in order, then refresh this page.' : 'Try refreshing after checking the data connection.'} />
+    </PageContainer>
   )
 }

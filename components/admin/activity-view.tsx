@@ -21,7 +21,7 @@ import {
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 
-import { cn, Select } from '@/components/ui'
+import { Button, cn, PageContainer, Select } from '@/components/ui'
 import type { ActivityFilter, DashboardActivityItem } from '@/lib/dashboard/activity'
 import { ActiveFilterSummary, OwnerEmptyState, OwnerFilterDialog, OwnerFilterField, OwnerListHeader, OwnerListSurface, OwnerSearchField } from './owner-workspace-controls'
 
@@ -103,17 +103,17 @@ export function ActivityView({ items, filter }: { items: DashboardActivityItem[]
   }
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-5 pb-10 sm:px-8 lg:px-10 lg:pb-14">
-      <div className="sticky top-0 z-30 -mx-5 bg-background/95 px-5 pb-4 pt-7 backdrop-blur-sm sm:-mx-8 sm:px-8 lg:-mx-10 lg:px-10 lg:pb-5 lg:pt-10">
+    <PageContainer size="default" className="pb-10 lg:pb-14">
+      <div className="sticky top-0 z-30 -mx-5 bg-background/95 px-5 pb-4 pt-7 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 lg:pb-5 lg:pt-10">
         <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h1 className="font-heading text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">Activity</h1>
-              <span className="font-mono text-[11px] tabular-nums text-foreground-muted">{sessions.length} {sessions.length === 1 ? 'session' : 'sessions'}</span>
+              <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">Activity</h1>
+              <span className="font-mono text-xs tabular-nums text-foreground-muted">{sessions.length} {sessions.length === 1 ? 'session' : 'sessions'}</span>
             </div>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-foreground-muted">A quiet audit trail of how private repositories are being reviewed.</p>
           </div>
-          <span className="hidden items-center gap-1.5 text-[11px] text-foreground-muted sm:inline-flex"><Clock3 className="size-3.5" aria-hidden="true" /> Latest activity first</span>
+          <span className="hidden items-center gap-1.5 text-xs text-foreground-muted sm:inline-flex"><Clock3 className="size-3.5" aria-hidden="true" /> Latest activity first</span>
         </header>
 
         <ActivityToolbar
@@ -164,12 +164,12 @@ export function ActivityView({ items, filter }: { items: DashboardActivityItem[]
 
       {visibleSessions.length < sessions.length ? (
         <div className="flex justify-center pt-5">
-          <button type="button" onClick={() => setVisibleCount((count) => count + 6)} className="inline-flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-xs font-medium text-foreground-muted transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Button type="button" variant="outline" size="small" onClick={() => setVisibleCount((count) => count + 6)}>
             Load 6 more sessions <ChevronDown className="size-3.5" aria-hidden="true" />
-          </button>
+          </Button>
         </div>
       ) : null}
-    </section>
+    </PageContainer>
   )
 }
 
@@ -299,7 +299,7 @@ function SessionBlock({ session, index, isOpen, now, onToggle }: { session: Acti
           <div className="ml-0 divide-y divide-border/60 sm:ml-9">
             {displayEvents.map((event) => <EventRow key={event.kind === 'event' ? event.item.id : `summary-${event.items[0].id}`} event={event} />)}
           </div>
-          {index === 0 ? <p className="mt-3 flex items-center gap-1.5 text-[11px] text-foreground-muted sm:ml-9"><ExternalLink className="size-3" aria-hidden="true" /> Select the viewer ID above to open full session analytics.</p> : null}
+          {index === 0 ? <p className="mt-3 flex items-center gap-1.5 text-xs text-foreground-muted sm:ml-9"><ExternalLink className="size-3" aria-hidden="true" /> Select the viewer ID above to open full session analytics.</p> : null}
         </div>
       ) : null}
     </article>
@@ -313,16 +313,16 @@ function SessionHeaderContent({ first, viewer, duration, eventCount, lastActivit
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="truncate text-sm font-semibold tracking-[-0.01em] text-foreground">{viewer}</span>
+            <span className="truncate text-sm font-semibold tracking-tight text-foreground">{viewer}</span>
             <span className="text-foreground-muted/50" aria-hidden="true">/</span>
             <span className="truncate text-sm text-foreground">{first.recipientLabel}</span>
           </div>
           <time className="shrink-0 font-mono text-xs font-medium tabular-nums text-foreground" dateTime={lastActivity} title={formatExactDate(lastActivity)}>{formatRelative(lastActivity, now)}</time>
         </div>
-        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-foreground-muted">
+        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-foreground-muted">
           <span className="truncate font-mono" title={first.repositoryName}>{first.repositoryName}</span>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] tabular-nums text-foreground-muted">
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs tabular-nums text-foreground-muted">
           <span>{duration}</span>
           <span>{eventCount} {eventCount === 1 ? 'event' : 'events'}</span>
         </div>
@@ -332,7 +332,7 @@ function SessionHeaderContent({ first, viewer, duration, eventCount, lastActivit
 }
 
 function ContextValue({ label, value }: { label: string; value: string | null }) {
-  return <div><span className="block text-[11px] text-foreground-muted">{label}</span><span className="mt-0.5 block truncate text-foreground" title={value ?? undefined}>{value || 'Not available'}</span></div>
+  return <div><span className="block text-xs text-foreground-muted">{label}</span><span className="mt-0.5 block truncate text-foreground" title={value ?? undefined}>{value || 'Not available'}</span></div>
 }
 
 function EventRow({ event }: { event: DisplayEvent }) {
@@ -346,7 +346,7 @@ function EventRow({ event }: { event: DisplayEvent }) {
           <ChevronRight className="ml-auto size-3.5 text-foreground-muted transition-transform group-open:rotate-90" aria-hidden="true" />
         </summary>
         <div className="ml-7 mt-2 space-y-1 border-l border-border/70 pl-3">
-          {event.items.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 text-[11px] text-foreground-muted"><span className="truncate font-mono">{item.path || 'Repository view'}</span><time className="shrink-0" dateTime={item.occurredAt} title={formatExactDate(item.occurredAt)}>{formatShortTime(item.occurredAt)}</time></div>)}
+          {event.items.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 text-xs text-foreground-muted"><span className="truncate font-mono">{item.path || 'Repository view'}</span><time className="shrink-0" dateTime={item.occurredAt} title={formatExactDate(item.occurredAt)}>{formatShortTime(item.occurredAt)}</time></div>)}
         </div>
       </details>
     )
@@ -358,9 +358,9 @@ function EventRow({ event }: { event: DisplayEvent }) {
     <div className="flex items-start gap-2 py-2.5 text-xs">
       <span className="flex size-5 shrink-0 items-center justify-center"><EventIcon item={item} /></span>
       <p className="min-w-0 flex-1 leading-5 text-foreground">
-        <span className="font-medium">{text.label}</span>{text.target ? <> <span className="font-mono text-[11px] text-foreground-muted">{text.target}</span></> : null}
+        <span className="font-medium">{text.label}</span>{text.target ? <> <span className="font-mono text-xs text-foreground-muted">{text.target}</span></> : null}
       </p>
-      <time className="shrink-0 pt-0.5 font-mono text-[10px] tabular-nums text-foreground-muted" dateTime={item.occurredAt} title={formatExactDate(item.occurredAt)}>{formatShortTime(item.occurredAt)}</time>
+      <time className="shrink-0 pt-0.5 font-mono text-xs tabular-nums text-foreground-muted" dateTime={item.occurredAt} title={formatExactDate(item.occurredAt)}>{formatShortTime(item.occurredAt)}</time>
     </div>
   )
 }

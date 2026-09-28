@@ -2,7 +2,7 @@ import { Activity, ArrowRight, BarChart3, Clipboard, Download, Eye, FileCode2, F
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 
-import { Card } from '@/components/ui'
+import { Button, Card, PageContainer } from '@/components/ui'
 import { OwnerPageHeader } from './owner-workspace-controls'
 import type { DashboardOverview, DashboardOverviewActivity, DashboardOverviewTimePoint } from '@/lib/dashboard/overview'
 
@@ -10,16 +10,16 @@ export function DashboardOverviewView({ data }: { data: DashboardOverview }) {
   const viewsLast7Days = data.viewsOverTime.reduce((total, point) => total + point.value, 0)
 
   return (
-    <section className="mx-auto w-full max-w-6xl space-y-6 px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
+    <PageContainer size="default" className="space-y-6">
       <OwnerPageHeader
         title="Dashboard"
         description="Monitor private-share activity, viewers, and the latest changes in your workspace."
-        actions={<Link href="/dashboard/shares/new" className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-brand-default px-4 text-sm font-medium text-brand-foreground transition-[background-color,transform] duration-150 hover:bg-brand-default/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]"><Link2 className="size-4" aria-hidden="true" /> New share</Link>}
+        actions={<Button asChild variant="primary"><Link href="/dashboard/shares/new"><Link2 className="size-4" aria-hidden="true" /> New share</Link></Button>}
       />
 
       <section aria-labelledby="workspace-summary" className="space-y-3">
         <div className="flex items-baseline justify-between gap-4">
-          <h2 id="workspace-summary" className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-foreground-muted">Workspace snapshot</h2>
+          <h2 id="workspace-summary" className="font-mono text-xs font-semibold uppercase tracking-wider text-foreground-muted">Workspace snapshot</h2>
           <span className="text-xs tabular-nums text-foreground-muted">Last 30 days</span>
         </div>
         <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -38,7 +38,7 @@ export function DashboardOverviewView({ data }: { data: DashboardOverview }) {
               <div>
                 <div className="flex items-center gap-2.5">
                   <span className="inline-flex size-7 items-center justify-center rounded-md border border-border-secondary bg-surface-200 text-foreground-light"><Activity className="size-3.5" aria-hidden="true" /></span>
-                  <h2 id="recent-activity" className="font-heading text-xl font-semibold tracking-[-0.025em]">Recent activity</h2>
+                  <h2 id="recent-activity" className="font-heading text-xl font-semibold tracking-tight">Recent activity</h2>
                 </div>
                 <p className="mt-2 text-sm text-foreground-muted">Meaningful actions from confirmed private-share sessions.</p>
               </div>
@@ -50,7 +50,7 @@ export function DashboardOverviewView({ data }: { data: DashboardOverview }) {
 
         <ViewsTrendCard points={data.viewsOverTime} totalViews={viewsLast7Days} />
       </div>
-    </section>
+    </PageContainer>
   )
 }
 
@@ -62,7 +62,7 @@ function SummaryMetric({ label, value, detail, icon }: { label: string; value: n
         <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-border-secondary bg-surface-200 text-foreground-light transition-colors group-hover:border-border-secondary group-hover:bg-accent">{icon}</span>
       </div>
       <div>
-        <dd className="mt-5 font-heading text-3xl font-semibold leading-none tracking-[-0.04em] tabular-nums">{value}</dd>
+        <dd className="mt-5 font-heading text-3xl font-semibold leading-none tracking-tight tabular-nums">{value}</dd>
         <p className="mt-2 truncate text-xs text-foreground-muted" title={detail}>{detail}</p>
       </div>
     </Card>
@@ -87,7 +87,7 @@ function WorkspaceSignals({ data }: { data: DashboardOverview }) {
           <SignalItem label="Downloads" value={data.downloads} />
           <SignalItem label="Copies" value={data.copyEvents} />
           <div className="min-w-0 lg:border-l lg:border-border/60 lg:pl-6">
-            <p className="text-[11px] text-foreground-muted">Last activity</p>
+            <p className="text-xs text-foreground-muted">Last activity</p>
             <p className="mt-1 truncate text-xs font-medium" title={latestActivity?.repositoryName}>{latestActivity ? formatRelativeTime(latestActivity.createdAt) : 'None yet'}</p>
           </div>
         </div>
@@ -99,7 +99,7 @@ function WorkspaceSignals({ data }: { data: DashboardOverview }) {
 function SignalItem({ label, value }: { label: string; value: number }) {
   return (
     <div className="min-w-0">
-      <p className="text-[11px] text-foreground-muted">{label}</p>
+      <p className="text-xs text-foreground-muted">{label}</p>
       <p className="mt-1 font-mono text-sm font-semibold tabular-nums">{value}</p>
     </div>
   )
@@ -113,7 +113,7 @@ function ViewsTrendCard({ points, totalViews }: { points: DashboardOverviewTimeP
           <div className="flex min-w-0 items-start gap-2.5">
             <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-border-secondary bg-surface-200 text-foreground-light"><BarChart3 className="size-3.5" aria-hidden="true" /></span>
             <div className="min-w-0">
-              <h2 id="view-trend" className="font-heading text-lg font-semibold tracking-[-0.025em]">View trend</h2>
+              <h2 id="view-trend" className="font-heading text-lg font-semibold tracking-tight">View trend</h2>
               <p className="mt-1 text-xs text-foreground-muted">Confirmed views, last 7 days</p>
             </div>
           </div>
@@ -133,18 +133,18 @@ function ViewsOverTime({ points }: { points: DashboardOverviewTimePoint[] }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-4 text-[11px] text-foreground-muted">
+      <div className="flex items-center justify-between gap-4 text-xs text-foreground-muted">
         <span>Daily confirmed views</span>
       </div>
       <div className="relative mt-4 pl-7">
-        <span className="absolute left-0 top-0 font-mono text-[10px] tabular-nums text-foreground-muted">{maxValue}</span>
-        <span className="absolute bottom-6 left-0 font-mono text-[10px] tabular-nums text-foreground-muted">0</span>
+        <span className="absolute left-0 top-0 font-mono text-xs tabular-nums text-foreground-muted">{maxValue}</span>
+        <span className="absolute bottom-6 left-0 font-mono text-xs tabular-nums text-foreground-muted">0</span>
         <div className="pointer-events-none absolute inset-x-0 top-0 border-t border-dashed border-border/70" />
         <div className="pointer-events-none absolute inset-x-0 bottom-6 border-t border-border/70" />
         <div role="img" aria-label={`Confirmed views by day: ${chartDescription}`} className="grid h-36 grid-cols-7 items-end gap-2">
           {points.map((point) => (
             <div key={point.label} className="group flex h-full min-w-0 flex-col items-center justify-end gap-1.5" title={`${point.label}: ${point.value} confirmed ${point.value === 1 ? 'view' : 'views'}`}>
-              <span className="font-mono text-[10px] tabular-nums text-foreground-muted">{point.value > 0 ? point.value : '\u00a0'}</span>
+              <span className="font-mono text-xs tabular-nums text-foreground-muted">{point.value > 0 ? point.value : '\u00a0'}</span>
               <div className="flex h-[calc(100%-1rem)] w-full items-end justify-center">
                 <div className="w-full max-w-10 rounded-t-sm bg-brand-default transition-[height,background-color] duration-150 group-hover:bg-brand-default/85" style={{ height: point.value > 0 ? `${Math.max(12, (point.value / maxValue) * 100)}%` : '2px' }} />
               </div>
@@ -153,7 +153,7 @@ function ViewsOverTime({ points }: { points: DashboardOverviewTimePoint[] }) {
           ))}
         </div>
         <div className="mt-2 grid grid-cols-7 gap-2" aria-hidden="true">
-          {points.map((point) => <span key={point.label} className="truncate text-center text-[10px] text-foreground-muted">{point.label}</span>)}
+          {points.map((point) => <span key={point.label} className="truncate text-center text-xs text-foreground-muted">{point.label}</span>)}
         </div>
       </div>
     </div>
@@ -181,15 +181,15 @@ function ActivityList({ items }: { items: DashboardOverviewActivity[] }) {
               <div className="flex min-w-0 items-center gap-2.5">
                 <ActivityIcon eventType={item.eventType} />
                 <p className="min-w-0 truncate text-sm font-medium text-foreground">
-                  {action.prefix}{action.target ? <> <code className="font-mono text-[0.9em]">{action.target}</code></> : null}{action.suffix ? ` ${action.suffix}` : ''}
+                  {action.prefix}{action.target ? <> <code className="font-mono text-xs">{action.target}</code></> : null}{action.suffix ? ` ${action.suffix}` : ''}
                 </p>
-                {item.eventCount > 1 ? <span className="shrink-0 font-mono text-[10px] tabular-nums text-foreground-muted">×{item.eventCount}</span> : null}
+                {item.eventCount > 1 ? <span className="shrink-0 font-mono text-xs tabular-nums text-foreground-muted">×{item.eventCount}</span> : null}
               </div>
-              <p className="mt-1.5 truncate pl-9 text-[11px] text-foreground-muted" title={`${item.viewerLabel} · ${item.repositoryName}`}>
+              <p className="mt-1.5 truncate pl-9 text-xs text-foreground-muted" title={`${item.viewerLabel} · ${item.repositoryName}`}>
                 <span className="font-mono">{item.viewerLabel}</span><span className="px-1.5 text-foreground-muted/50">·</span><span className="font-mono">{item.repositoryName}</span>
               </p>
             </div>
-            <time className="pt-0.5 text-right text-[11px] text-foreground-muted" dateTime={item.createdAt} title={formatDate(item.createdAt)}>{formatRelativeTime(item.createdAt)}</time>
+            <time className="pt-0.5 text-right text-xs text-foreground-muted" dateTime={item.createdAt} title={formatDate(item.createdAt)}>{formatRelativeTime(item.createdAt)}</time>
           </div>
         )
       })}

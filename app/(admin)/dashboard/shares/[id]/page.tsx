@@ -1,4 +1,4 @@
-import { Alert, AlertDescription, AlertTitle, Card, CardContent } from '@/components/ui'
+import { Admonition, PageContainer } from '@/components/ui'
 import { ShareDetailView } from '@/components/admin/share-detail-view'
 import { ShareDetailNotFoundError, getShareDetail } from '@/lib/shares/detail'
 
@@ -18,20 +18,13 @@ export default async function ShareDetailPage({ params }: { params: Promise<{ id
         : 'Share detail could not be loaded.'
 
     return (
-      <div className="space-y-6">
+      <PageContainer size="default" className="space-y-6">
         <div>
-          <h1 className="font-heading text-3xl font-semibold tracking-tight">Share detail</h1>
-          <p className="mt-2 text-sm text-foreground-muted">Review this share's lifecycle and viewer activity.</p>
+          <h1 className="type-page-title">Share detail</h1>
+          <p className="mt-2 type-small">Review this share's lifecycle and viewer activity.</p>
         </div>
-        <Card>
-          <CardContent className="pt-6">
-            <Alert className="border-destructive/40">
-              <AlertTitle>Share detail unavailable</AlertTitle>
-              <AlertDescription>{message}</AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
-      </div>
+        <Admonition type="destructive" title="Share detail unavailable" description={message} />
+      </PageContainer>
     )
   }
 }

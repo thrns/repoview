@@ -40,7 +40,7 @@ export function UpdateShareNoteButton({ shareId, note, compact = false }: { shar
         </DialogHeader>
         <div className="mt-5">
           <Textarea value={value} onChange={(event) => setValue(event.target.value)} maxLength={2000} rows={5} placeholder="Context for this share" aria-label="Share note" />
-          <p className="mt-1.5 text-right text-[11px] text-foreground-muted">{value.length}/2000</p>
+          <p className="mt-1.5 text-right text-xs text-foreground-muted">{value.length}/2000</p>
         </div>
         {error ? <Alert className="mt-4 border-destructive/40"><AlertTitle>Could not update note</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
         {completed ? <Alert className="mt-4 border-success/40"><AlertTitle>Note updated</AlertTitle><AlertDescription>The private note is now saved to this share.</AlertDescription></Alert> : null}

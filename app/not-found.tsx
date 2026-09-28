@@ -2,27 +2,30 @@ import Link from 'next/link'
 
 import { ArrowLeft, FileQuestion } from 'lucide-react'
 
-import { Card, CardContent } from '@/components/ui'
+import { Admonition, Button, PageContainer } from '@/components/ui'
 import { BrandLogo } from '@/components/shared/brand-logo'
 
 export default function NotFound() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-6 py-12">
-      <Card className="w-full max-w-md">
-        <CardContent className="p-8">
-          <div className="flex items-center gap-3">
-            <BrandLogo size={40} />
-            <span className="font-heading text-sm font-semibold">RepoView</span>
+    <main id="main" className="min-h-screen bg-background">
+      <PageContainer size="small" className="flex min-h-screen items-center justify-center py-12">
+        <Admonition
+          title="Page not found"
+          description="The requested page is not available."
+          icon={<FileQuestion className="size-4" />}
+          className="w-full"
+        >
+          <div className="mt-4 flex items-center gap-3">
+            <BrandLogo size={28} />
+            <Button asChild variant="outline" size="small">
+              <Link href="/">
+                <ArrowLeft className="size-3.5" aria-hidden="true" />
+                Return to RepoView
+              </Link>
+            </Button>
           </div>
-          <FileQuestion className="mt-8 size-6 text-foreground-muted" aria-hidden="true" />
-          <h1 className="mt-5 font-heading text-2xl font-semibold tracking-tight">Page not found</h1>
-          <p className="mt-3 text-sm leading-6 text-foreground-muted">The requested page is not available.</p>
-          <Link href="/" className="mt-7 inline-flex items-center gap-2 text-sm font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            Return to RepoView
-          </Link>
-        </CardContent>
-      </Card>
+        </Admonition>
+      </PageContainer>
     </main>
   )
 }

@@ -13,6 +13,7 @@ export function AccountReauthenticationDialog({
   disabled = false,
   variant = 'default',
   size,
+  className,
 }: {
   operation: AccountStepUpOperation
   trigger: ReactNode
@@ -20,6 +21,7 @@ export function AccountReauthenticationDialog({
   disabled?: boolean
   variant?: 'default' | 'destructive' | 'outline' | 'text'
   size?: 'small' | 'default' | 'large'
+  className?: string
 }) {
   const id = useId()
   const [password, setPassword] = useState('')
@@ -65,7 +67,7 @@ export function AccountReauthenticationDialog({
 
   return (
     <Dialog>
-      <DialogTrigger variant={variant} size={size} disabled={disabled}>{trigger}</DialogTrigger>
+      <DialogTrigger variant={variant} size={size} className={className} disabled={disabled}>{trigger}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Confirm your identity</DialogTitle>

@@ -1,8 +1,8 @@
-import { Skeleton } from '@/components/ui'
+import { PageContainer, Skeleton } from '@/components/ui'
 
 export default function ViewerDetailLoading() {
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-7 px-5 py-7 sm:px-8 lg:px-10 lg:py-10" aria-busy="true" aria-label="Loading viewer detail">
+    <PageContainer size="default" className="space-y-7 lg:py-10" aria-busy="true" aria-label="Loading viewer detail">
       <Skeleton className="h-3 w-28" />
 
       <div className="overflow-hidden rounded-md border border-border/70 bg-card">
@@ -12,7 +12,7 @@ export default function ViewerDetailLoading() {
 
       <div className="flex items-start gap-3 rounded-lg border border-border-secondary bg-surface-200/30 px-4 py-3.5"><Skeleton className="size-4 shrink-0 rounded-full" /><Skeleton className="h-4 w-full max-w-3xl" /></div>
       <div className="space-y-4"><div className="flex h-auto w-full flex-wrap gap-1 rounded-md border border-border/70 bg-card p-1.5">{Array.from({ length: 7 }, (_, index) => <Skeleton key={index} className="h-8 w-24" />)}</div><div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]"><ViewerDetailCardSkeleton rows={4} /><ViewerDetailCardSkeleton rows={6} /></div></div>
-    </div>
+    </PageContainer>
   )
 }
 

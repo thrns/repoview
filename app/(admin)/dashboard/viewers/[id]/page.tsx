@@ -1,4 +1,4 @@
-import { Alert, AlertDescription, AlertTitle, Card, CardContent } from '@/components/ui'
+import { Admonition, PageContainer } from '@/components/ui'
 import { ViewerDetailView } from '@/components/admin/viewer-detail-view'
 import { getViewerDetail } from '@/lib/dashboard/viewers'
 import { requireWorkspace } from '@/lib/auth/workspace'
@@ -13,6 +13,6 @@ export default async function ViewerDetailPage({ params }: { params: Promise<{ i
     await enforceAuthenticatedRateLimit('authenticated-dashboard-analytics', context.workspace.id, context.user.id)
     return <ViewerDetailView data={await getViewerDetail(id)} />
   } catch (error) {
-    return <div className="mx-auto w-full max-w-6xl px-5 py-7 sm:px-8 lg:px-10 lg:py-10"><Card><CardContent className="pt-6"><Alert className="border-destructive/40"><AlertTitle>Viewer detail unavailable</AlertTitle><AlertDescription>{error instanceof Error ? error.message : 'This viewer could not be loaded.'}</AlertDescription></Alert></CardContent></Card></div>
+    return <PageContainer size="default" className="lg:py-10"><Admonition type="destructive" title="Viewer detail unavailable" description={error instanceof Error ? error.message : 'This viewer could not be loaded.'} /></PageContainer>
   }
 }

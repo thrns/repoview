@@ -1,8 +1,8 @@
-import { Skeleton } from '@/components/ui'
+import { PageContainer, Skeleton } from '@/components/ui'
 
 export default function ShareDetailLoading() {
   return (
-    <section className="mx-auto w-full max-w-[1180px] px-5 py-6 sm:px-8 lg:px-10 lg:py-10" aria-busy="true" aria-label="Loading share detail">
+    <PageContainer size="default" className="py-6 lg:py-10" aria-busy="true" aria-label="Loading share detail">
       <Skeleton className="h-3 w-24" />
 
       <div className="mt-7 overflow-hidden rounded-md border border-border/70 bg-card">
@@ -21,7 +21,7 @@ export default function ShareDetailLoading() {
         <ShareDetailSectionSkeleton rows={3} />
         <div className="overflow-hidden rounded-md border border-border/70 bg-card"><div className="flex items-center gap-3 px-5 py-4 sm:px-6"><Skeleton className="size-8 rounded-lg" /><div className="space-y-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-56 max-w-full" /></div><Skeleton className="ml-auto size-4 rounded-full" /></div></div>
       </div>
-    </section>
+    </PageContainer>
   )
 }
 

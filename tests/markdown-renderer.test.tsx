@@ -57,7 +57,8 @@ describe('markdown renderer', () => {
     const html = await render('```ts\nconst answer = 42\n```')
 
     expect(html).toContain('source-code')
-    expect(html).toContain('github-dark-default')
+    expect(html).toContain('Supabase Theme')
+    expect(html).toContain('--code-token-keyword')
     expect(html).toContain('Copy file')
   })
 

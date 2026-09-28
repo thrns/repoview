@@ -240,7 +240,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
 }
 
 function FormSection({ title, description, children }: { title: string; description: string; children: ReactNode }) {
-  return <section className="rounded-md border border-border bg-surface-100 p-5 sm:p-6"><div className="mb-4"><h2 className="font-heading text-sm font-semibold tracking-[-0.01em]">{title}</h2><p className="mt-1 text-xs leading-5 text-foreground-muted">{description}</p></div>{children}</section>
+  return <section className="rounded-md border border-border bg-surface-100 p-5 sm:p-6"><div className="mb-4"><h2 className="font-heading text-sm font-semibold tracking-tight">{title}</h2><p className="mt-1 text-xs leading-5 text-foreground-muted">{description}</p></div>{children}</section>
 }
 
 function Field({ label, htmlFor, help, className, children }: { label: ReactNode; htmlFor: string; help?: string; className?: string; children: ReactNode }) {
@@ -291,7 +291,7 @@ function OneTimeShareResult({ share, onboarding, onCreateAnother }: { share: Cre
       <div className="flex items-start gap-3">
         <CircleCheck className="mt-0.5 size-5 shrink-0 text-success" aria-hidden="true" />
         <div>
-          <h2 id="share-created-title" className="font-heading text-2xl font-semibold tracking-[-0.03em]">Share created</h2>
+          <h2 id="share-created-title" className="font-heading text-2xl font-semibold tracking-tight">Share created</h2>
           <p className="mt-2 text-sm leading-6 text-foreground-muted">Save this exact URL now. RepoView stores only its hash, so the plaintext link will not be recoverable after you leave this page.</p>
         </div>
       </div>

@@ -111,7 +111,7 @@ function OnboardingSuccess({ repositoryCount }: { repositoryCount?: number }) {
           <h1 id="onboarding-complete-title">You&apos;re all set.</h1>
           <p>GitHub is connected and your RepoView workspace is ready.</p>
           {typeof repositoryCount === 'number' ? <span className="onboarding-repository-count">{repositoryCount} {repositoryCount === 1 ? 'repository' : 'repositories'} discovered</span> : null}
-          <Link href="/dashboard" className="onboarding-primary-link">Go to dashboard <ArrowRight className="size-4" aria-hidden="true" /></Link>
+          <Button asChild variant="primary" className="onboarding-primary-link"><Link href="/dashboard">Go to dashboard <ArrowRight className="size-4" aria-hidden="true" /></Link></Button>
         </section>
       </div>
     </main>
@@ -142,7 +142,7 @@ function VerifyEmailState({ email }: { email: string }) {
     <div className="onboarding-message">
       <span className="onboarding-message-icon"><Mail className="size-5" aria-hidden="true" /></span>
       <div><h3>Check your inbox</h3><p>Confirm {email || 'your email address'} to continue. Your workspace is saved, so you can come back to this page whenever you&apos;re ready.</p></div>
-      <Link href="/login" className="onboarding-secondary-link">Back to sign in <ArrowRight className="size-3.5" aria-hidden="true" /></Link>
+      <Button asChild variant="outline" size="small" className="onboarding-secondary-link"><Link href="/login">Back to sign in <ArrowRight className="size-3.5" aria-hidden="true" /></Link></Button>
     </div>
   )
 }
@@ -155,7 +155,7 @@ function GitHubState({ state }: { state: OnboardingState }) {
       {state.hasPendingGitHubConnection && !hasSuspended ? <Alert className="onboarding-warning"><AlertTitle>Organization approval may be pending</AlertTitle><AlertDescription>If an organization owner needs to approve the App, GitHub will finish the connection after approval. You can safely leave this page and return later.</AlertDescription></Alert> : null}
       {hasSuspended ? <Alert className="onboarding-error"><AlertTitle>GitHub access is suspended</AlertTitle><AlertDescription>Reconnect GitHub or restore the installation in GitHub before selecting repositories.</AlertDescription></Alert> : null}
       <div className="onboarding-github-copy"><Github className="size-5" aria-hidden="true" /><p>Connect a personal account or an organization where you can approve App access. RepoView only stores the installation metadata and uses short-lived server-side access tokens.</p></div>
-      <a href="/api/github/connect?return=%2Fonboarding" className="onboarding-primary-link">Connect GitHub <ArrowRight className="size-4" aria-hidden="true" /></a>
+      <Button asChild variant="primary" className="onboarding-primary-link"><a href="/api/github/connect?return=%2Fonboarding">Connect GitHub <ArrowRight className="size-4" aria-hidden="true" /></a></Button>
     </div>
   )
 }

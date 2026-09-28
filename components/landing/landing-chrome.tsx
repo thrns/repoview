@@ -6,6 +6,7 @@ import { useState } from 'react'
 
 import { BrandLogo } from '@/components/shared/brand-logo'
 import { ThemeSwitcher } from '@/components/shared/theme-switcher'
+import { Button } from '@/components/ui'
 
 interface LandingChromeProps {
   homeHref?: string
@@ -53,19 +54,19 @@ export function LandingNav({ homeHref = '#top', minimal = false, sectionPrefix =
           <div className="nav-mobile-actions">
             <Link href="/login" className="nav-sign-in" onClick={closeMobileNav}>Sign in</Link>
             <ThemeSwitcher className="landing-theme-switcher" />
-            <Link href="/signup" className="button button-primary" onClick={closeMobileNav}>Create workspace</Link>
+            <Button asChild variant="primary" size="small" onClick={closeMobileNav}><Link href="/signup">Create workspace</Link></Button>
           </div>
         </div>
 
         <div className="nav-actions">
           <ThemeSwitcher className="landing-theme-switcher" />
           <Link href="/login" className="nav-sign-in">Sign in</Link>
-          <Link href="/signup" className="button button-primary">Create workspace</Link>
+          <Button asChild variant="primary" size="small"><Link href="/signup">Create workspace</Link></Button>
         </div>
 
-        <button className="nav-menu-button" type="button" aria-expanded={mobileNavOpen} aria-controls="mobile-nav" aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'} onClick={() => setMobileNavOpen((open) => !open)}>
+        <Button variant="ghost" size="icon" className="nav-menu-button" type="button" aria-expanded={mobileNavOpen} aria-controls="mobile-nav" aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'} onClick={() => setMobileNavOpen((open) => !open)}>
           {mobileNavOpen ? <X className="size-5" aria-hidden="true" /> : <Menu className="size-5" aria-hidden="true" />}
-        </button>
+        </Button>
       </div>
     </nav>
   )

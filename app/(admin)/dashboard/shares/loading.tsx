@@ -1,8 +1,8 @@
-import { Skeleton } from '@/components/ui'
+import { PageContainer, Skeleton } from '@/components/ui'
 
 export default function SharesLoading() {
   return (
-    <section className="mx-auto w-full max-w-[1400px] space-y-6 px-5 py-7 sm:px-8 lg:px-10 lg:py-9" aria-busy="true" aria-label="Loading shares">
+    <PageContainer size="large" className="space-y-6" aria-busy="true" aria-label="Loading shares">
       <header className="flex flex-col gap-4 border-b border-border/60 pb-7 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-2"><Skeleton className="h-9 w-36" /><Skeleton className="h-4 w-72 max-w-full" /></div>
         <Skeleton className="h-3 w-20" />
@@ -21,7 +21,7 @@ export default function SharesLoading() {
           </table>
         </div>
       </div>
-    </section>
+    </PageContainer>
   )
 }
 

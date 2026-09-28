@@ -22,7 +22,7 @@ import {
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 
-import { Badge, Card, DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui'
+import { Badge, Card, DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, PageContainer } from '@/components/ui'
 import type { ShareActivitySummary, ShareDetailData, ShareNotificationSummary, ShareSessionSummary } from '@/lib/shares/detail'
 
 import { RevokeShareButton } from './revoke-share-button'
@@ -39,7 +39,7 @@ export function ShareDetailView({ data }: { data: ShareDetailData }) {
   const shareLabel = item.share.recipient_label || (item.share.share_type === 'recipient' ? 'Recipient share' : 'Generic share')
 
   return (
-    <section className="mx-auto w-full max-w-[1180px] px-5 py-6 sm:px-8 lg:px-10 lg:py-10">
+    <PageContainer size="default" className="py-6 lg:py-10">
       <Link href="/dashboard/shares" className="inline-flex items-center gap-2 text-xs font-medium text-foreground-muted underline-offset-4 transition-colors hover:text-foreground hover:underline">
         <ArrowLeft className="size-3.5" aria-hidden="true" />
         Shares
@@ -49,14 +49,14 @@ export function ShareDetailView({ data }: { data: ShareDetailData }) {
         <header className="flex flex-col gap-5 px-5 py-5 sm:px-6 sm:py-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="font-heading text-[28px] font-semibold tracking-[-0.035em] text-wrap-balance">{shareLabel}</h1>
+              <h1 className="type-page-title">{shareLabel}</h1>
               <ShareStatusBadge status={item.status} />
             </div>
             <div className="mt-3 flex min-w-0 max-w-full flex-wrap items-center gap-2 text-xs text-foreground-muted">
               <Link2 className="size-3.5 shrink-0 text-foreground-light" aria-hidden="true" />
-              <span className="min-w-0 max-w-full break-all rounded-md bg-muted/45 px-2 py-1 font-mono text-[12px] text-foreground" title={repositoryName}>{repositoryName}</span>
+              <span className="min-w-0 max-w-full break-all rounded-md bg-muted/45 px-2 py-1 font-mono text-xs text-foreground" title={repositoryName}>{repositoryName}</span>
               <span aria-hidden="true" className="text-foreground-muted/60">/</span>
-              <span className="max-w-full break-all rounded-md bg-muted/45 px-2 py-1 font-mono text-[12px] text-foreground-muted" title={item.share.ref}>{item.share.ref}</span>
+              <span className="max-w-full break-all rounded-md bg-muted/45 px-2 py-1 font-mono text-xs text-foreground-muted" title={item.share.ref}>{item.share.ref}</span>
             </div>
           </div>
 
@@ -82,7 +82,7 @@ export function ShareDetailView({ data }: { data: ShareDetailData }) {
         {activity.length > 0 ? <ActivitySection activity={activity} sessions={sessions} /> : null}
         <ShareSettingsSection shareId={item.share.id} item={item} notifications={notifications} />
       </div>
-    </section>
+    </PageContainer>
   )
 }
 
@@ -93,7 +93,7 @@ function ShareOverflowMenu({ shareId, currentExpiresAt, disabled }: { shareId: s
         <MoreHorizontal className="size-4" aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="right-0 mt-1 w-64 p-2">
-        <DropdownMenuLabel className="px-2 py-1 text-[11px] font-medium uppercase tracking-[0.08em]">Share options</DropdownMenuLabel>
+        <DropdownMenuLabel className="px-2 py-1 text-xs font-medium uppercase tracking-wider">Share options</DropdownMenuLabel>
         <div className="flex gap-2 rounded-md bg-muted/30 px-2 py-2.5 text-xs text-foreground-muted">
           <LockKeyhole className="mt-0.5 size-3.5 shrink-0 text-foreground-light" aria-hidden="true" />
           <div className="min-w-0">
@@ -117,7 +117,7 @@ function ShareOverflowMenu({ shareId, currentExpiresAt, disabled }: { shareId: s
 function SummaryItem({ icon, label, value, tone }: { icon: ReactNode; label: string; value: ReactNode; tone?: 'primary' | 'muted' }) {
   return (
     <div className="min-w-0 rounded-lg border border-border/55 bg-card/75 px-3 py-3 sm:px-3.5">
-      <div className="flex items-center gap-2 text-[11px] font-medium text-foreground-muted">
+      <div className="flex items-center gap-2 text-xs font-medium text-foreground-muted">
         <span className={`flex size-6 shrink-0 items-center justify-center rounded-md ${tone === 'primary' ? 'bg-surface-200 text-foreground-light' : 'bg-muted text-foreground-muted'}`} aria-hidden="true">{icon}</span>
         <dt className="truncate">{label}</dt>
       </div>
@@ -158,7 +158,7 @@ function SectionHeading({ id, icon, title, description }: { id: string; icon: Re
       <div className="flex min-w-0 items-center gap-3">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-200 text-foreground-light" aria-hidden="true">{icon}</span>
         <div className="min-w-0">
-          <h2 id={id} className="font-heading text-base font-semibold tracking-[-0.02em]">{title}</h2>
+          <h2 id={id} className="font-heading text-base font-semibold tracking-tight">{title}</h2>
           <p className="mt-0.5 text-xs text-foreground-muted">{description}</p>
         </div>
       </div>
@@ -207,7 +207,7 @@ function SessionStatus({ confirmed, likelyScanner }: { confirmed: boolean; likel
 }
 
 function SessionMetric({ label, value }: { label: string; value: ReactNode }) {
-  return <span><span className="block text-[11px] text-foreground-muted/80">{label}</span><span className="mt-0.5 block whitespace-nowrap text-foreground-muted">{value}</span></span>
+  return <span><span className="block text-xs text-foreground-muted/80">{label}</span><span className="mt-0.5 block whitespace-nowrap text-foreground-muted">{value}</span></span>
 }
 
 function ActivitySection({ activity, sessions }: { activity: ShareActivitySummary[]; sessions: ShareSessionSummary[] }) {
@@ -235,7 +235,7 @@ function ActivityGroup({ group }: { group: ActivityGroupData }) {
           </span>
           <span className="truncate">{group.session ? getSessionStatusLabel(group.session) : 'Share lifecycle'}</span>
         </div>
-        <span className="text-[11px] text-foreground-muted">{group.events.length} {group.events.length === 1 ? 'event' : 'events'}</span>
+        <span className="text-xs text-foreground-muted">{group.events.length} {group.events.length === 1 ? 'event' : 'events'}</span>
       </div>
       <ol className="mt-3 space-y-2">
         {group.events.map((event) => (
@@ -246,7 +246,7 @@ function ActivityGroup({ group }: { group: ActivityGroupData }) {
                 <span className="font-medium text-foreground">{formatEventType(event.eventType)}</span>
                 <span className="shrink-0 text-foreground-muted"><Timestamp value={event.createdAt} /></span>
               </div>
-              {event.path ? <p className="mt-1 max-w-full truncate font-mono text-[11px] text-foreground-muted" title={event.path}>{event.path}</p> : null}
+              {event.path ? <p className="mt-1 max-w-full truncate font-mono text-xs text-foreground-muted" title={event.path}>{event.path}</p> : null}
             </div>
           </li>
         ))}
@@ -290,7 +290,7 @@ function ShareSettingsSection({ shareId, item, notifications }: { shareId: strin
           <div className="flex min-w-0 items-center gap-3">
             <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground-muted" aria-hidden="true"><ShieldCheck className="size-4" /></span>
             <div className="min-w-0">
-              <h2 id="share-settings" className="font-heading text-base font-semibold tracking-[-0.01em]">Share settings</h2>
+              <h2 id="share-settings" className="font-heading text-base font-semibold tracking-tight">Share settings</h2>
               <p className="mt-0.5 truncate text-xs text-foreground-muted">Access, visibility, notifications, and notes</p>
             </div>
           </div>
@@ -311,7 +311,7 @@ function ShareSettingsSection({ shareId, item, notifications }: { shareId: strin
               <VisibilityRules rules={item.share.rules} />
             </SettingsPanel>
 
-            <SettingsPanel icon={<Bell className="size-3.5" />} title="Notifications" badge={hasNotificationIssue ? <Badge variant="destructive" className="text-[10px]">Needs attention</Badge> : undefined}>
+            <SettingsPanel icon={<Bell className="size-3.5" />} title="Notifications" badge={hasNotificationIssue ? <Badge variant="destructive" className="text-xs">Needs attention</Badge> : undefined}>
               <dl className="grid gap-3 sm:grid-cols-2">
                 <DetailField label="On meaningful view" value={item.share.notify_on_view ? 'Enabled' : 'Disabled'} />
                 {notifications.length > 0 ? <DetailField label="Delivery attempts" value={String(notifications.length)} /> : null}
@@ -387,7 +387,7 @@ function NotificationRow({ notification }: { notification: ShareNotificationSumm
       {sent ? <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-success" aria-hidden="true" /> : <XCircle className="mt-0.5 size-3.5 shrink-0 text-destructive" aria-hidden="true" />}
       <div className="min-w-0 flex-1">
         <p className="font-medium text-foreground">{notification.channel} · {sent ? 'Delivered' : formatEventType(notification.status)}</p>
-        <p className={`mt-0.5 text-[11px] ${sent ? 'text-foreground-muted' : 'text-destructive'}`}>{notification.errorText || (notification.sentAt ? `Sent ${formatRelativeTimestamp(notification.sentAt)}` : `Attempted ${formatRelativeTimestamp(notification.createdAt)}`)}</p>
+        <p className={`mt-0.5 text-xs ${sent ? 'text-foreground-muted' : 'text-destructive'}`}>{notification.errorText || (notification.sentAt ? `Sent ${formatRelativeTimestamp(notification.sentAt)}` : `Attempted ${formatRelativeTimestamp(notification.createdAt)}`)}</p>
       </div>
     </div>
   )
