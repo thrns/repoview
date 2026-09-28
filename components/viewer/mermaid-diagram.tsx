@@ -231,7 +231,6 @@ async function getMermaid() {
 function configureMermaid(mermaid: Awaited<ReturnType<typeof importMermaid>>, theme: 'light' | 'dark') {
   if (configuredTheme === theme) return
 
-  const isDark = theme === 'dark'
   mermaid.initialize({
     startOnLoad: false,
     securityLevel: 'strict',
@@ -240,20 +239,20 @@ function configureMermaid(mermaid: Awaited<ReturnType<typeof importMermaid>>, th
     layout: 'elk',
     fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
     themeVariables: {
-      background: isDark ? '#101114' : '#ffffff',
-      primaryColor: isDark ? '#1c1f24' : '#f7f7f8',
-      primaryTextColor: isDark ? '#f5f5f5' : '#17181b',
-      primaryBorderColor: isDark ? '#3b3f49' : '#d7d9de',
-      lineColor: isDark ? '#9aa1ae' : '#6b7280',
-      secondaryColor: isDark ? '#171a20' : '#fbfbfc',
-      secondaryTextColor: isDark ? '#d8dce3' : '#30333a',
-      tertiaryColor: isDark ? '#20242b' : '#f1f2f4',
-      tertiaryTextColor: isDark ? '#d8dce3' : '#30333a',
-      clusterBkg: isDark ? '#15181d' : '#fafafa',
-      clusterBorder: isDark ? '#353a44' : '#dfe1e6',
-      edgeLabelBackground: isDark ? '#101114' : '#ffffff',
+      background: cssColor('--mermaid-background'),
+      primaryColor: cssColor('--mermaid-surface-100'),
+      primaryTextColor: cssColor('--mermaid-foreground'),
+      primaryBorderColor: cssColor('--mermaid-border-strong'),
+      lineColor: cssColor('--mermaid-foreground-muted'),
+      secondaryColor: cssColor('--mermaid-surface-200'),
+      secondaryTextColor: cssColor('--mermaid-foreground-light'),
+      tertiaryColor: cssColor('--mermaid-surface-300'),
+      tertiaryTextColor: cssColor('--mermaid-foreground-light'),
+      clusterBkg: cssColor('--mermaid-surface-100'),
+      clusterBorder: cssColor('--mermaid-border-strong'),
+      edgeLabelBackground: cssColor('--mermaid-background'),
       fontSize: '14px',
-      nodeBorder: isDark ? '#3b3f49' : '#d7d9de',
+      nodeBorder: cssColor('--mermaid-border-strong'),
     },
     flowchart: {
       htmlLabels: false,
@@ -271,6 +270,10 @@ function configureMermaid(mermaid: Awaited<ReturnType<typeof importMermaid>>, th
     },
   })
   configuredTheme = theme
+}
+
+function cssColor(variable: string) {
+  return typeof window === 'undefined' ? 'currentColor' : getComputedStyle(document.documentElement).getPropertyValue(variable).trim() || 'currentColor'
 }
 
 function clamp(value: number, min: number, max: number) {

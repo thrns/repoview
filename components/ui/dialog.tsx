@@ -16,11 +16,16 @@ type DialogContextValue = {
 
 const DialogContext = createContext<DialogContextValue | null>(null)
 
-export function Dialog({ children }: { children: ReactNode }) {
+export function Dialog({ children, open: controlledOpen, onOpenChange }: { children: ReactNode; open?: boolean; onOpenChange?: (open: boolean) => void }) {
   const [open, setOpen] = useState(false)
   const id = useId()
   const triggerRef = useRef<HTMLButtonElement | null>(null)
-  return <DialogContext.Provider value={{ open, setOpen, titleId: `${id}-title`, descriptionId: `${id}-description`, triggerRef }}>{children}</DialogContext.Provider>
+  const isOpen = controlledOpen ?? open
+  const handleOpenChange = useCallback((nextOpen: boolean) => {
+    if (controlledOpen === undefined) setOpen(nextOpen)
+    onOpenChange?.(nextOpen)
+  }, [controlledOpen, onOpenChange])
+  return <DialogContext.Provider value={{ open: isOpen, setOpen: handleOpenChange, titleId: `${id}-title`, descriptionId: `${id}-description`, triggerRef }}>{children}</DialogContext.Provider>
 }
 
 export function DialogTrigger({ children, className, variant = 'default', size, icon, iconRight, disabled, onClick, ...props }: Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> & { children: ReactNode; className?: string; variant?: ButtonProps['variant']; size?: ButtonProps['size']; icon?: ReactNode; iconRight?: ReactNode; disabled?: boolean }) {
@@ -38,7 +43,7 @@ export function DialogContent({ children, className, 'aria-label': ariaLabel, 'a
   if (!dialog?.open) return null
   const labelledby = ariaLabel ? undefined : ariaLabelledby ?? dialog.titleId
   const describedby = ariaDescribedby ?? dialog.descriptionId
-  return <div className="ui-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) dialog.setOpen(false) }}><section {...props} ref={contentRef} role="dialog" aria-modal="true" aria-label={ariaLabel ?? (!labelledby ? 'Dialog' : undefined)} aria-labelledby={labelledby} aria-describedby={describedby} tabIndex={-1} className={cn('ui-dialog-panel relative w-full max-w-lg rounded-lg border border-border bg-popover p-6 text-popover-foreground shadow-2xl shadow-foreground/15', className)}>{children}</section></div>
+  return <div className="ui-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) dialog.setOpen(false) }}><section {...props} ref={contentRef} role="dialog" aria-modal="true" aria-label={ariaLabel ?? (!labelledby ? 'Dialog' : undefined)} aria-labelledby={labelledby} aria-describedby={describedby} tabIndex={-1} className={cn('ui-dialog-panel relative w-full max-w-lg rounded-md border border-border bg-popover p-6 text-popover-foreground shadow-lg shadow-foreground/10', className)}>{children}</section></div>
 }
 
 export function DialogHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn('flex flex-col space-y-1.5 text-left', className)} {...props} /> }

@@ -43,12 +43,12 @@ export default async function WorkspaceSelectionPage() {
           <form action={selectActiveWorkspace} className="space-y-4">
             <label className="block space-y-2 text-sm font-medium" htmlFor="workspaceId">
               Active workspace
-              <select id="workspaceId" name="workspaceId" required className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <select id="workspaceId" name="workspaceId" required className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 <option value="">Select a workspace</option>
                 {workspaces.map(({ workspace, membership }) => <option key={workspace.id} value={workspace.id}>{workspace.name} · {membership.role}</option>)}
               </select>
             </label>
-            <button type="submit" className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">Continue</button>
+            <button type="submit" className="inline-flex h-10 items-center justify-center rounded-md bg-brand-default px-4 text-sm font-medium text-brand-foreground transition-colors hover:bg-brand-default">Continue</button>
           </form>
         </CardContent>
       </Card>

@@ -42,7 +42,7 @@ export function OwnerPageHeader({
 }
 
 export function OwnerListSurface({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground shadow-[0_0_0_1px_hsl(var(--border)/0.16),0_1px_2px_hsl(var(--foreground)/0.03),0_4px_14px_hsl(var(--foreground)/0.02)] dark:shadow-[0_0_0_1px_hsl(var(--border)/0.72)]', className)} {...props} />
+  return <div className={cn('overflow-hidden rounded-md border border-border bg-surface-100 text-card-foreground', className)} {...props} />
 }
 
 export function OwnerListHeader({
@@ -59,9 +59,9 @@ export function OwnerListHeader({
   className?: string
 }) {
   return (
-    <div className={cn('flex flex-col gap-3 border-b border-border/70 bg-muted/18 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5', className)}>
+    <div className={cn('flex flex-col gap-3 border-b border-border-secondary bg-surface-200/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5', className)}>
       <div className="flex min-w-0 items-start gap-3">
-        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border border-primary/15 bg-primary-soft text-primary-readable">
+        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border border-border-secondary bg-surface-200 text-foreground-light">
           {icon}
         </span>
         <div className="min-w-0">
@@ -75,7 +75,7 @@ export function OwnerListHeader({
 }
 
 export function OwnerListToolbar({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('bg-card px-4 py-4 sm:px-5', className)} {...props} />
+  return <div className={cn('bg-surface-100 px-4 py-4 sm:px-5', className)} {...props} />
 }
 
 export function OwnerEmptyState({
@@ -96,7 +96,7 @@ export function OwnerEmptyState({
   const centered = align === 'center'
   return (
     <div className={cn('flex min-h-56 flex-col justify-center px-6 py-14', centered ? 'items-center text-center' : 'items-start text-left', className)}>
-      <span className="flex size-9 items-center justify-center rounded-lg border border-primary/15 bg-primary-soft text-primary-readable">{icon}</span>
+      <span className="flex size-9 items-center justify-center rounded-md border border-border-secondary bg-surface-200 text-foreground-light">{icon}</span>
       <h2 className="mt-4 font-heading text-lg font-semibold tracking-[-0.02em] text-foreground">{title}</h2>
       <p className={cn('mt-1.5 max-w-md text-sm leading-6 text-foreground-muted', centered && 'text-pretty')}>{description}</p>
       {action ? <div className="mt-5">{action}</div> : null}
@@ -143,7 +143,7 @@ export function OwnerFilterDialog({
       <DialogTrigger variant="outline" size="default" className="h-10 gap-2 px-3">
         <ListFilter className="size-4" aria-hidden="true" />
         Filters / view
-        {activeCount > 0 ? <Badge className="min-h-5 rounded-full px-1.5 py-0 text-[10px] tabular-nums">{activeCount}</Badge> : null}
+        {activeCount > 0 ? <Badge variant="secondary" className="min-h-5 px-1.5 py-0 text-[10px] tabular-nums">{activeCount}</Badge> : null}
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
@@ -186,7 +186,7 @@ export function ActiveFilterSummary({
           key={`${filter.label}-${filter.value}`}
           type="button"
           onClick={filter.onClear}
-          className="inline-flex min-h-7 items-center gap-1.5 rounded-md border border-primary/20 bg-primary-soft px-2 text-accent-foreground transition-colors hover:border-primary/30 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex min-h-7 items-center gap-1.5 rounded-md border border-border-secondary bg-surface-200 px-2 text-accent-foreground transition-colors hover:border-border-secondary hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={`Clear ${filter.label} filter: ${filter.value}`}
         >
           <span className="text-foreground-muted">{filter.label}</span>

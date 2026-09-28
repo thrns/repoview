@@ -1,11 +1,11 @@
 'use client'
 
-import { cloneElement, isValidElement, useEffect, useRef, useState, useTransition, type FormEvent, type ReactElement, type ReactNode } from 'react'
+import { cloneElement, isValidElement, useEffect, useId, useRef, useState, useTransition, type FormEvent, type ReactElement, type ReactNode } from 'react'
 import { ArrowLeft, Check, ChevronDown, CircleCheck, Copy, LockKeyhole, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 
 import { createShare } from '@/app/(admin)/dashboard/shares/new/actions'
-import { Alert, AlertDescription, AlertTitle, Button, Input, Label, Select, Textarea } from '@/components/ui'
+import { Alert, AlertDescription, AlertTitle, Button, Input, Label, Select, Switch, Textarea } from '@/components/ui'
 
 export interface ShareFormRepository {
   id: string
@@ -202,7 +202,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
         </div>
       </FormSection>
 
-      <section className="rounded-xl border border-border/70 bg-card/75 p-5 shadow-[0_0_0_1px_hsl(var(--border)/0.12),0_2px_8px_hsl(var(--foreground)/0.02)] sm:p-6">
+      <section className="rounded-md border border-border bg-surface-100 p-5 sm:p-6">
         <details className="group">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
             <span><span className="block">Advanced visibility rules</span><span className="mt-1 block text-xs font-normal text-foreground-muted">Further narrow which paths can appear in this share.</span></span>
@@ -216,12 +216,12 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
               <Textarea id="share-allow-only" value={allowOnly} onChange={(event) => setAllowOnly(event.target.value)} placeholder="src/**\ndocs/**" rows={4} aria-describedby="share-allow-only-help" />
             </Field>
           </div>
-          {visibilityFeedback.warning ? <div className="mt-4 flex items-start gap-2 rounded-md border border-amber-700/30 bg-amber-500/5 px-3 py-2.5 text-xs leading-5 text-amber-800 dark:text-amber-300" role="status"><TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" /><span>{visibilityFeedback.warning}</span></div> : null}
+          {visibilityFeedback.warning ? <div className="mt-4 flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 px-3 py-2.5 text-xs leading-5 text-warning" role="status"><TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" /><span>{visibilityFeedback.warning}</span></div> : null}
           {visibilityFeedback.error ? <p className="mt-4 text-xs leading-5 text-destructive" role="alert">{visibilityFeedback.error}</p> : null}
         </details>
       </section>
 
-      <div className="rounded-xl border border-border/70 bg-card/95 px-4 py-3 shadow-sm sm:sticky sm:bottom-4 sm:z-10 sm:backdrop-blur">
+      <div className="rounded-md border border-border bg-surface-200 px-4 py-3 sm:sticky sm:bottom-4 sm:z-10">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 text-xs leading-5">
             <p className="font-medium text-foreground">Ready to create</p>
@@ -240,7 +240,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
 }
 
 function FormSection({ title, description, children }: { title: string; description: string; children: ReactNode }) {
-  return <section className="rounded-xl border border-border/70 bg-card/75 p-5 shadow-[0_0_0_1px_hsl(var(--border)/0.12),0_2px_8px_hsl(var(--foreground)/0.02)] sm:p-6"><div className="mb-4"><h2 className="font-heading text-sm font-semibold tracking-[-0.01em]">{title}</h2><p className="mt-1 text-xs leading-5 text-foreground-muted">{description}</p></div>{children}</section>
+  return <section className="rounded-md border border-border bg-surface-100 p-5 sm:p-6"><div className="mb-4"><h2 className="font-heading text-sm font-semibold tracking-[-0.01em]">{title}</h2><p className="mt-1 text-xs leading-5 text-foreground-muted">{description}</p></div>{children}</section>
 }
 
 function Field({ label, htmlFor, help, className, children }: { label: ReactNode; htmlFor: string; help?: string; className?: string; children: ReactNode }) {
@@ -252,10 +252,12 @@ function Field({ label, htmlFor, help, className, children }: { label: ReactNode
 }
 
 function ToggleRow({ checked, onChange, title, description }: { checked: boolean; onChange: (checked: boolean) => void; title: string; description: string }) {
-  return <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)} className="flex min-h-[68px] w-full items-center justify-between gap-5 rounded-md px-2 text-left transition-colors hover:bg-accent/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
-    <span className="min-w-0"><span className="block text-sm font-medium">{title}</span><span className="mt-0.5 block text-xs leading-5 text-foreground-muted">{description}</span></span>
-    <span className={`relative flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors ${checked ? 'border-foreground bg-foreground' : 'border-input bg-muted'}`} aria-hidden="true"><span className={`absolute left-0.5 size-3.5 rounded-full bg-background shadow-sm transition-transform ${checked ? 'translate-x-4' : ''}`} /></span>
-  </button>
+  const id = useId()
+  const descriptionId = `${id}-description`
+  return <label htmlFor={id} className="flex min-h-[68px] w-full cursor-pointer items-center justify-between gap-5 rounded-md px-2 text-left transition-colors hover:bg-accent/25 focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-inset">
+    <span className="min-w-0"><span className="block text-sm font-medium">{title}</span><span id={descriptionId} className="mt-0.5 block text-xs leading-5 text-foreground-muted">{description}</span></span>
+    <Switch id={id} checked={checked} onChange={(event) => onChange(event.target.checked)} aria-label={title} aria-describedby={descriptionId} />
+  </label>
 }
 
 type CreatedShare = { url: string; repository: string; ref: string; recipient: string; expiry: string }

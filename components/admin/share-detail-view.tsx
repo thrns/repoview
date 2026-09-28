@@ -45,7 +45,7 @@ export function ShareDetailView({ data }: { data: ShareDetailData }) {
         Shares
       </Link>
 
-      <Card className="mt-7 overflow-hidden rounded-xl">
+      <Card className="mt-7 overflow-hidden rounded-md">
         <header className="flex flex-col gap-5 px-5 py-5 sm:px-6 sm:py-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
@@ -53,7 +53,7 @@ export function ShareDetailView({ data }: { data: ShareDetailData }) {
               <ShareStatusBadge status={item.status} />
             </div>
             <div className="mt-3 flex min-w-0 max-w-full flex-wrap items-center gap-2 text-xs text-foreground-muted">
-              <Link2 className="size-3.5 shrink-0 text-primary-readable" aria-hidden="true" />
+              <Link2 className="size-3.5 shrink-0 text-foreground-light" aria-hidden="true" />
               <span className="min-w-0 max-w-full break-all rounded-md bg-muted/45 px-2 py-1 font-mono text-[12px] text-foreground" title={repositoryName}>{repositoryName}</span>
               <span aria-hidden="true" className="text-foreground-muted/60">/</span>
               <span className="max-w-full break-all rounded-md bg-muted/45 px-2 py-1 font-mono text-[12px] text-foreground-muted" title={item.share.ref}>{item.share.ref}</span>
@@ -95,7 +95,7 @@ function ShareOverflowMenu({ shareId, currentExpiresAt, disabled }: { shareId: s
       <DropdownMenuContent className="right-0 mt-1 w-64 p-2">
         <DropdownMenuLabel className="px-2 py-1 text-[11px] font-medium uppercase tracking-[0.08em]">Share options</DropdownMenuLabel>
         <div className="flex gap-2 rounded-md bg-muted/30 px-2 py-2.5 text-xs text-foreground-muted">
-          <LockKeyhole className="mt-0.5 size-3.5 shrink-0 text-primary-readable" aria-hidden="true" />
+          <LockKeyhole className="mt-0.5 size-3.5 shrink-0 text-foreground-light" aria-hidden="true" />
           <div className="min-w-0">
             <p className="font-medium text-foreground">Secret URL</p>
             <p className="mt-0.5 leading-5">Stored as a one-way hash and not recoverable.</p>
@@ -118,7 +118,7 @@ function SummaryItem({ icon, label, value, tone }: { icon: ReactNode; label: str
   return (
     <div className="min-w-0 rounded-lg border border-border/55 bg-card/75 px-3 py-3 sm:px-3.5">
       <div className="flex items-center gap-2 text-[11px] font-medium text-foreground-muted">
-        <span className={`flex size-6 shrink-0 items-center justify-center rounded-md ${tone === 'primary' ? 'bg-primary-soft text-primary-readable' : 'bg-muted text-foreground-muted'}`} aria-hidden="true">{icon}</span>
+        <span className={`flex size-6 shrink-0 items-center justify-center rounded-md ${tone === 'primary' ? 'bg-surface-200 text-foreground-light' : 'bg-muted text-foreground-muted'}`} aria-hidden="true">{icon}</span>
         <dt className="truncate">{label}</dt>
       </div>
       <dd className={`mt-2 truncate text-sm font-medium ${tone === 'muted' ? 'text-foreground-muted' : 'text-foreground'}`}>{value}</dd>
@@ -136,7 +136,7 @@ function SessionsSection({ sessions, activity }: { sessions: ShareSessionSummary
   const confirmedCount = sessions.filter((session) => session.confirmedAt).length
 
   return (
-    <Card className="overflow-hidden rounded-xl">
+    <Card className="overflow-hidden rounded-md">
       <SectionHeading
         id="viewer-sessions"
         icon={<Eye className="size-4" />}
@@ -156,7 +156,7 @@ function SectionHeading({ id, icon, title, description }: { id: string; icon: Re
   return (
     <header className="flex flex-col gap-3 border-b border-border/55 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary-readable" aria-hidden="true">{icon}</span>
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-200 text-foreground-light" aria-hidden="true">{icon}</span>
         <div className="min-w-0">
           <h2 id={id} className="font-heading text-base font-semibold tracking-[-0.02em]">{title}</h2>
           <p className="mt-0.5 text-xs text-foreground-muted">{description}</p>
@@ -188,7 +188,7 @@ function SessionRow({ session, activityCount }: { session: ShareSessionSummary; 
           <SessionMetric label="Activity" value={<><span className="font-medium tabular-nums text-foreground">{activityCount}</span> {activityCount === 1 ? 'event' : 'events'}</>} />
         </span>
       </summary>
-      <div className="mx-1 mb-2 grid gap-3 rounded-lg border border-primary/15 bg-primary-soft/25 px-3.5 py-3.5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mx-1 mb-2 grid gap-3 rounded-lg border border-border-secondary bg-surface-200/25 px-3.5 py-3.5 sm:grid-cols-2 lg:grid-cols-4">
         <DetailField label="Session ID" value={session.id} mono />
         <DetailField label="Context" value={context || 'Unavailable'} />
         <DetailField label="Device" value={device} />
@@ -214,7 +214,7 @@ function ActivitySection({ activity, sessions }: { activity: ShareActivitySummar
   const groups = groupActivity(activity, sessions)
 
   return (
-    <Card className="overflow-hidden rounded-xl">
+    <Card className="overflow-hidden rounded-md">
       <SectionHeading id="recent-activity" icon={<Activity className="size-4" />} title="Recent activity" description="Events connected to viewer sessions" />
       <div className="space-y-3 p-3 sm:p-4">
         {groups.map((group) => <ActivityGroup key={group.id} group={group} />)}
@@ -227,7 +227,7 @@ function ActivityGroup({ group }: { group: ActivityGroupData }) {
   const confirmed = Boolean(group.session?.confirmedAt)
 
   return (
-    <div className="rounded-lg border border-border/60 bg-muted/18 p-3.5 transition-colors hover:border-primary/20 hover:bg-accent/20 sm:p-4">
+    <div className="rounded-lg border border-border/60 bg-muted/18 p-3.5 transition-colors hover:border-border-secondary hover:bg-accent/20 sm:p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2 text-xs font-medium text-foreground">
           <span className={`flex size-6 shrink-0 items-center justify-center rounded-md ${confirmed ? 'bg-success/10 text-success' : 'bg-muted text-foreground-muted'}`} aria-hidden="true">
@@ -258,8 +258,8 @@ function ActivityGroup({ group }: { group: ActivityGroupData }) {
 function EventIcon({ eventType }: { eventType: string }) {
   const normalized = eventType.toLowerCase()
   if (normalized.includes('notification')) return <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-warning/10 text-warning" aria-hidden="true"><Bell className="size-3.5" /></span>
-  if (normalized.includes('copy')) return <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary-soft text-primary-readable" aria-hidden="true"><Copy className="size-3.5" /></span>
-  if (normalized.includes('download')) return <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary-soft text-primary-readable" aria-hidden="true"><ArrowDownToLine className="size-3.5" /></span>
+  if (normalized.includes('copy')) return <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-surface-200 text-foreground-light" aria-hidden="true"><Copy className="size-3.5" /></span>
+  if (normalized.includes('download')) return <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-surface-200 text-foreground-light" aria-hidden="true"><ArrowDownToLine className="size-3.5" /></span>
   if (normalized.includes('file') || normalized.includes('markdown') || normalized.includes('directory')) return <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-success/10 text-success" aria-hidden="true"><FileCode2 className="size-3.5" /></span>
   return <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-foreground-muted" aria-hidden="true"><Activity className="size-3.5" /></span>
 }
@@ -284,7 +284,7 @@ function ShareSettingsSection({ shareId, item, notifications }: { shareId: strin
   const hasNotificationIssue = notifications.some((notification) => notification.status !== 'sent' || notification.errorText)
 
   return (
-    <Card className="overflow-hidden rounded-xl">
+    <Card className="overflow-hidden rounded-md">
       <details className="group">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 outline-none transition-colors hover:bg-accent/25 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-6 [&::-webkit-details-marker]:hidden">
           <div className="flex min-w-0 items-center gap-3">
@@ -334,7 +334,7 @@ function SettingsPanel({ icon, title, badge, action, children }: { icon: ReactNo
     <section className="min-w-0 rounded-lg border border-border/60 bg-card/75 p-4">
       <header className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
-          <span className="text-primary-readable" aria-hidden="true">{icon}</span>
+          <span className="text-foreground-light" aria-hidden="true">{icon}</span>
           <h3 className="truncate">{title}</h3>
           {badge}
         </div>

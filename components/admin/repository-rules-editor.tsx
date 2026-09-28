@@ -22,9 +22,12 @@ interface RepositoryRulesEditorProps {
   repositoryId: string
   repositoryName: string
   rules: VisibilityRules
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  hideTrigger?: boolean
 }
 
-export function RepositoryRulesEditor({ repositoryId, repositoryName, rules }: RepositoryRulesEditorProps) {
+export function RepositoryRulesEditor({ repositoryId, repositoryName, rules, open, onOpenChange, hideTrigger = false }: RepositoryRulesEditorProps) {
   const [hidden, setHidden] = useState(rules.hidden.join('\n'))
   const [allowOnly, setAllowOnly] = useState(rules.allowOnly.join('\n'))
   const [error, setError] = useState<string | null>(null)
@@ -51,8 +54,8 @@ export function RepositoryRulesEditor({ repositoryId, repositoryName, rules }: R
   }
 
   return (
-    <Dialog>
-      <DialogTrigger variant="outline" className="h-8 min-w-28 justify-center px-2.5 text-xs">Edit policy</DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {!hideTrigger ? <DialogTrigger variant="outline" className="h-8 min-w-28 justify-center px-2.5 text-xs">Edit policy</DialogTrigger> : null}
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Visibility policy</DialogTitle>

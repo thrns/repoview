@@ -41,7 +41,7 @@ export function SheetContent({ children, className, side = 'right', 'aria-label'
   if (!sheet?.open) return null
   const labelledby = ariaLabel ? undefined : ariaLabelledby ?? sheet.titleId
   const describedby = ariaDescribedby ?? (ariaLabel ? undefined : sheet.descriptionId)
-  return <div className="ui-sheet-backdrop fixed inset-0 z-50 bg-foreground/50" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) sheet.setOpen(false) }}><aside {...props} ref={contentRef} role="dialog" aria-modal="true" aria-label={ariaLabel ?? (!labelledby ? 'Panel' : undefined)} aria-labelledby={labelledby} aria-describedby={describedby} tabIndex={-1} className={cn('ui-sheet-panel absolute inset-y-0 flex w-full max-w-sm flex-col border-border bg-popover p-6 text-popover-foreground shadow-2xl shadow-foreground/15', side === 'left' ? 'left-0 border-r' : 'right-0 border-l', className)}>{children}</aside></div>
+  return <div className="ui-sheet-backdrop fixed inset-0 z-50 bg-foreground/50" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) sheet.setOpen(false) }}><aside {...props} ref={contentRef} role="dialog" aria-modal="true" aria-label={ariaLabel ?? (!labelledby ? 'Panel' : undefined)} aria-labelledby={labelledby} aria-describedby={describedby} tabIndex={-1} className={cn('ui-sheet-panel absolute inset-y-0 flex w-full max-w-sm flex-col border-border bg-popover p-6 text-popover-foreground shadow-lg shadow-foreground/10', side === 'left' ? 'left-0 border-r' : 'right-0 border-l', className)}>{children}</aside></div>
 }
 
 export function SheetHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn('flex flex-col space-y-1.5', className)} {...props} /> }
@@ -122,7 +122,7 @@ export function DropdownMenuContent({ children, className, onKeyDown, role = 'me
     }
   }
 
-  return <div {...props} ref={menu.contentRef} role={role} onKeyDown={handleKeyDown} className={cn('ui-menu-panel absolute right-0 z-50 mt-2 min-w-48 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-xl shadow-foreground/10', className)}>{children}</div>
+  return <div {...props} ref={menu.contentRef} role={role} onKeyDown={handleKeyDown} className={cn('ui-menu-panel absolute right-0 z-50 mt-2 min-w-48 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg shadow-foreground/10', className)}>{children}</div>
 }
 export function DropdownMenuLabel({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn('px-2 py-1.5 text-xs font-medium text-foreground-muted', className)} {...props} /> }
 export function DropdownMenuSeparator({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn('my-1 h-px bg-border', className)} {...props} /> }

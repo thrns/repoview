@@ -21,7 +21,7 @@ export function SettingsGitHub({ installations, canManage, quotaUsage }: { insta
             <div>
               <p className="text-sm font-medium">No GitHub installation connected</p>
               <p className="mt-1 text-sm leading-6 text-foreground-muted">Connect a personal account or an organization to choose private repositories for RepoView.</p>
-              {canManage ? <a href="/api/github/connect?return=%2Fdashboard%2Fsettings" className="mt-4 inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Connect GitHub <ArrowUpRight className="size-4" aria-hidden="true" /></a> : null}
+              {canManage ? <a href="/api/github/connect?return=%2Fdashboard%2Fsettings" className="mt-4 inline-flex h-9 items-center justify-center gap-2 rounded-md bg-brand-default px-4 text-sm font-medium text-brand-foreground transition-colors hover:bg-brand-default/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Connect GitHub <ArrowUpRight className="size-4" aria-hidden="true" /></a> : null}
             </div>
           </div>
         </div>

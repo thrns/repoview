@@ -21,5 +21,5 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 export function useToast() { return useContext(ToastContext) }
 
 function Toaster({ items }: { items: Toast[] }) {
-  return <div className="fixed bottom-4 right-4 z-[60] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2" aria-live="polite">{items.map((item) => <div key={item.id} className={cn('rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-lg')}><p className="text-sm font-medium">{item.title}</p>{item.description ? <p className="mt-1 text-xs text-foreground-muted">{item.description}</p> : null}</div>)}</div>
+  return <div className="fixed bottom-4 right-4 z-[60] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2" aria-live="polite">{items.map((item) => <div key={item.id} className={cn('rounded-md border border-border bg-popover p-4 text-popover-foreground shadow-lg')}><p className="text-sm font-medium">{item.title}</p>{item.description ? <p className="mt-1 text-xs text-foreground-muted">{item.description}</p> : null}</div>)}</div>
 }

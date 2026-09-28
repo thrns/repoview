@@ -13,10 +13,10 @@ export function FileToolbar({ path, size, language, content, shareId, allowDownl
     if (language !== 'markdown') analytics.track('raw_file_viewed', path, { content_kind: language })
   }, [analytics, language, path])
   return (
-    <header className="viewer-file-toolbar sticky top-0 z-20 border-b border-border bg-card/95 shadow-[0_1px_0_hsl(var(--border)/0.35)] backdrop-blur supports-[backdrop-filter]:bg-card/85">
+    <header className="viewer-file-toolbar sticky top-0 z-20 border-b border-border bg-surface-100">
       <div className="viewer-file-toolbar-inner flex min-h-11 min-w-0 items-center gap-2 px-3 sm:gap-3 sm:px-5">
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <FileCode2 className="size-3.5 shrink-0 text-primary-readable" aria-hidden="true" />
+          <FileCode2 className="size-3.5 shrink-0 text-foreground-light" aria-hidden="true" />
           <RepositoryBreadcrumb shareId={shareId} path={path} />
         </div>
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">

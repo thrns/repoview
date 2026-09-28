@@ -49,7 +49,7 @@ export default async function RepositoriesPage({ searchParams }: { searchParams?
           <div className="mx-auto w-full max-w-[1400px] shrink-0 px-5 pb-8 sm:px-8 lg:px-10">
             <div className="flex flex-col gap-3 rounded-md border border-success/40 bg-success/5 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div><p className="text-sm font-medium">Repository selection saved</p><p className="mt-1 text-sm text-foreground-muted">Create your first share to finish setup.</p></div>
-              <Link href="/dashboard/shares/new?onboarding=1" className="inline-flex h-9 shrink-0 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">Create first share</Link>
+              <Link href="/dashboard/shares/new?onboarding=1" className="inline-flex h-9 shrink-0 items-center justify-center rounded-md bg-brand-default px-4 text-sm font-medium text-brand-foreground transition-colors hover:bg-brand-default">Create first share</Link>
             </div>
           </div>
         ) : null}

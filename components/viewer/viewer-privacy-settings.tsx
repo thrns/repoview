@@ -122,7 +122,7 @@ function PreferenceOption({
       onClick={onClick}
     >
       <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border border-input" aria-hidden="true">
-        {selected ? <Check className="size-3 text-primary" /> : null}
+        {selected ? <Check className="size-3 text-brand" /> : null}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium text-foreground">{title}{loading ? '…' : ''}</span>

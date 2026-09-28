@@ -209,7 +209,7 @@ function ActivityToolbar({
   setDateFilter: (value: DateFilter) => void
 }) {
   return (
-    <div className="mt-5 flex items-center gap-2 rounded-lg border border-border/70 bg-card/75 p-2 shadow-sm">
+    <div className="mt-5 flex items-center gap-2 rounded-lg border border-border/70 bg-card/75 p-2">
       <OwnerSearchField value={query} onChange={setQuery} label="Search activity" placeholder="Search activity" className="lg:max-w-sm" />
       <OwnerFilterDialog
         title="Activity filters"
@@ -290,7 +290,7 @@ function SessionBlock({ session, index, isOpen, now, onToggle }: { session: Acti
       </div>
 
       {isOpen ? (
-        <div className="mx-3 mb-3 rounded-lg border border-primary/15 bg-primary-soft/30 px-4 py-3 sm:ml-12 sm:mr-4">
+        <div className="mx-3 mb-3 rounded-lg border border-border-secondary bg-surface-200/30 px-4 py-3 sm:ml-12 sm:mr-4">
           <div className="mb-2 grid gap-3 border-b border-border/50 pb-3 text-xs sm:ml-9 sm:grid-cols-3">
             <ContextValue label="Browser" value={first.browser} />
             <ContextValue label="Device" value={first.deviceType} />
@@ -309,7 +309,7 @@ function SessionBlock({ session, index, isOpen, now, onToggle }: { session: Acti
 function SessionHeaderContent({ first, viewer, duration, eventCount, lastActivity, now, hasAnalytics }: { first: DashboardActivityItem; viewer: string; duration: string; eventCount: number; lastActivity: string; now: number; hasAnalytics: boolean }) {
   return (
     <div className="flex min-w-0 gap-3">
-      <span className={cn('mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border', hasAnalytics ? 'border-analytical/20 bg-analytical/10 text-analytical' : 'border-border bg-muted text-foreground-muted')}><UserRound className="size-3.5" aria-hidden="true" /></span>
+      <span className={cn('mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border', hasAnalytics ? 'border-border-secondary bg-surface-200 text-foreground-light' : 'border-border bg-muted text-foreground-muted')}><UserRound className="size-3.5" aria-hidden="true" /></span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
@@ -392,10 +392,10 @@ function EventIcon({ item }: { item: DashboardActivityItem }) {
   const tone = item.category === 'notification'
     ? 'text-warning'
     : ['copy', 'download'].includes(item.eventType)
-      ? 'text-analytical'
+      ? 'text-foreground-light'
       : item.eventType === 'view_confirmed' || item.eventType === 'repository_opened'
         ? 'text-success'
-        : 'text-primary-readable'
+        : 'text-foreground-light'
   return <Icon className={cn('size-3.5', tone)} aria-hidden="true" />
 }
 

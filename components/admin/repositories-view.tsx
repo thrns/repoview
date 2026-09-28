@@ -1,7 +1,7 @@
 'use client'
 
-import { Check, ChevronDown, GitBranch, Github, Settings2 } from 'lucide-react'
-import { useMemo, useState, useTransition } from 'react'
+import { Check, ChevronDown, EllipsisVertical, Github, PowerOff, Settings2 } from 'lucide-react'
+import { Fragment, useMemo, useState, useTransition, type FormEvent } from 'react'
 
 import {
   setRepositoriesEnabled,
@@ -18,6 +18,7 @@ import {
   AlertTitle,
   Badge,
   Button,
+  Card,
   Checkbox,
   Dialog,
   DialogClose,
@@ -27,11 +28,22 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Label,
   Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableHeadSort,
+  TableRow,
   Textarea,
 } from '@/components/ui'
-import { ActiveFilterSummary, OwnerEmptyState, OwnerFilterDialog, OwnerFilterField, OwnerListHeader, OwnerListSurface, OwnerListToolbar, OwnerPageHeader, OwnerSearchField } from './owner-workspace-controls'
+import { ActiveFilterSummary, OwnerEmptyState, OwnerFilterDialog, OwnerFilterField, OwnerPageHeader, OwnerSearchField } from './owner-workspace-controls'
 import { RepositoryRulesEditor } from './repository-rules-editor'
 
 export interface RepositoryDashboardItem {
@@ -172,61 +184,142 @@ export function RepositoriesView({ items }: { items: RepositoryDashboardItem[] }
       : [...new Set([...current, ...visibleKeys])])
   }
 
+  function handleSortChange(column: string) {
+    if (column !== 'repository') return
+    setSortMode((current) => current === 'name-asc' ? 'name-desc' : 'name-asc')
+  }
+
+  const repositorySort = sortMode === 'name-asc' ? 'repository:asc' : sortMode === 'name-desc' ? 'repository:desc' : ''
+
   return (
-    <section className="mx-auto flex min-h-0 w-full min-w-0 max-w-[1400px] flex-1 flex-col gap-6 px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
+    <section className="mx-auto flex min-h-0 w-full min-w-0 max-w-[1400px] flex-1 flex-col gap-5 px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
       <OwnerPageHeader title="Repositories" description="Choose which installation-accessible repositories can be used to create RepoView shares." meta={<>{items.length} available</>} />
 
       {error ? <Alert className="shrink-0 border-destructive/40 bg-destructive/5 py-3"><AlertTitle>Could not update repositories</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
 
-      <OwnerListSurface className="flex min-h-0 flex-1 flex-col">
-        <OwnerListHeader icon={<Github className="size-4" aria-hidden="true" />} title="Repository inventory" description="Enable only the repositories that are ready for private sharing." meta={<>{filteredItems.length} of {items.length} visible</>} />
-        <OwnerListToolbar className="space-y-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <OwnerSearchField value={query} onChange={setQuery} label="Search repositories" placeholder="Search repositories" />
-            <OwnerFilterDialog title="Repository filters and view" description="Narrow the inventory or change the order without crowding the main list." activeCount={activeFilterCount} onClear={clearFilterValues}>
-              <OwnerFilterField label="Status"><Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} aria-label="Filter repositories by status"><option value="all">All statuses</option><option value="shareable">Ready to share</option><option value="disabled">Disabled</option><option value="archived">Archived</option></Select></OwnerFilterField>
-              <OwnerFilterField label="GitHub visibility"><Select value={visibilityFilter} onChange={(event) => setVisibilityFilter(event.target.value as VisibilityFilter)} aria-label="Filter repositories by GitHub visibility"><option value="all">All visibility</option><option value="private">Private</option><option value="public">Public</option></Select></OwnerFilterField>
-              <OwnerFilterField label="Sort repositories"><Select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)} aria-label="Sort repositories"><option value="name-asc">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="status">Sharing state</option><option value="branch">Default branch</option></Select></OwnerFilterField>
-            </OwnerFilterDialog>
-          </div>
-          <ActiveFilterSummary filters={[
-            ...(statusFilter !== 'all' ? [{ label: 'Status', value: statusLabel(statusFilter), onClear: () => setStatusFilter('all') }] : []),
-            ...(visibilityFilter !== 'all' ? [{ label: 'Visibility', value: visibilityFilter, onClear: () => setVisibilityFilter('all') }] : []),
-            ...(sortMode !== 'name-asc' ? [{ label: 'Sort', value: sortLabel(sortMode), onClear: () => setSortMode('name-asc') }] : []),
-          ]} onClear={clearFilterValues} />
-        </OwnerListToolbar>
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <OwnerSearchField value={query} onChange={setQuery} label="Search repositories" placeholder="Search repositories" />
+          <OwnerFilterDialog title="Repository filters and view" description="Narrow the repositories or change the order without crowding the table." activeCount={activeFilterCount} onClear={clearFilterValues}>
+            <OwnerFilterField label="Status"><Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} aria-label="Filter repositories by status"><option value="all">All statuses</option><option value="shareable">Ready to share</option><option value="disabled">Disabled</option><option value="archived">Archived</option></Select></OwnerFilterField>
+            <OwnerFilterField label="GitHub visibility"><Select value={visibilityFilter} onChange={(event) => setVisibilityFilter(event.target.value as VisibilityFilter)} aria-label="Filter repositories by visibility"><option value="all">All visibility</option><option value="private">Private</option><option value="public">Public</option></Select></OwnerFilterField>
+            <OwnerFilterField label="Sort repositories"><Select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)} aria-label="Sort repositories"><option value="name-asc">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="status">Sharing state</option><option value="branch">Default branch</option></Select></OwnerFilterField>
+          </OwnerFilterDialog>
+        </div>
+        <ActiveFilterSummary filters={[
+          ...(statusFilter !== 'all' ? [{ label: 'Status', value: statusLabel(statusFilter), onClear: () => setStatusFilter('all') }] : []),
+          ...(visibilityFilter !== 'all' ? [{ label: 'Visibility', value: visibilityFilter, onClear: () => setVisibilityFilter('all') }] : []),
+          ...(sortMode !== 'name-asc' ? [{ label: 'Sort', value: sortLabel(sortMode), onClear: () => setSortMode('name-asc') }] : []),
+        ]} onClear={clearFilterValues} />
+      </div>
 
-        {selectedKeys.length > 0 ? <div className="flex flex-col gap-3 border-y border-primary/15 bg-primary-soft/45 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5"><div className="flex items-center gap-2 text-sm"><span className="flex size-5 items-center justify-center rounded-sm bg-primary text-primary-foreground" aria-hidden="true"><Check className="size-3" /></span><span><span className="font-semibold">{selectedKeys.length}</span> selected</span></div><div className="flex flex-wrap items-center gap-2"><Button type="button" variant="primary" size="small" disabled={isPending || enableableSelectedItems.length === 0} onClick={() => bulkToggle(enableableSelectedItems, true)} icon={<Check className="size-3.5" />}>Enable</Button><Button type="button" variant="outline" size="small" disabled={isPending || disableableSelectedItems.length === 0} onClick={() => bulkToggle(disableableSelectedItems, false)}>Disable</Button>{selectedPolicyItems.length > 0 ? <BulkPolicyEditor repositories={selectedPolicyItems} onSaved={() => setSelectedKeys([])} /> : null}<Button type="button" variant="ghost" size="small" onClick={() => setSelectedKeys([])}>Clear</Button></div></div> : null}
+      <Card className="min-h-0 flex-1 overflow-hidden">
+        {selectedKeys.length > 0 ? <div className="flex flex-col gap-3 border-b border-border-secondary bg-surface-200/55 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5"><div className="flex items-center gap-2 text-sm"><span className="flex size-5 items-center justify-center rounded-sm bg-brand-default text-brand-foreground" aria-hidden="true"><Check className="size-3" /></span><span><span className="font-semibold tabular-nums">{selectedKeys.length}</span> selected</span></div><div className="flex flex-wrap items-center gap-2"><Button type="button" variant="default" size="small" disabled={isPending || enableableSelectedItems.length === 0} onClick={() => bulkToggle(enableableSelectedItems, true)} icon={<Check className="size-3.5" />}>Enable</Button><Button type="button" variant="outline" size="small" disabled={isPending || disableableSelectedItems.length === 0} onClick={() => bulkToggle(disableableSelectedItems, false)}>Disable</Button>{selectedPolicyItems.length > 0 ? <BulkPolicyEditor repositories={selectedPolicyItems} onSaved={() => setSelectedKeys([])} /> : null}<Button type="button" variant="ghost" size="small" onClick={() => setSelectedKeys([])}>Clear</Button></div></div> : null}
 
-        {items.length === 0 ? <EmptyRepositories /> : filteredItems.length === 0 ? <FilteredEmpty onClear={clearFilters} /> : <div className="min-h-0 flex-1 overflow-auto overscroll-contain"><div className="flex items-center justify-between gap-3 border-b border-border/70 bg-muted/20 px-4 py-2.5 text-xs text-foreground-muted sm:px-5"><label className="inline-flex min-h-9 items-center gap-2"><Checkbox checked={allVisibleSelected} onChange={toggleAllVisible} aria-label="Select all visible repositories" /><span>Select visible</span>{someVisibleSelected && !allVisibleSelected ? <span className="text-foreground-muted/70">(partial)</span> : null}</label><span>Sharing state is saved automatically</span></div><ul className="divide-y divide-border/70" aria-label="Repositories available to the RepoView GitHub App installation">{filteredItems.map((item) => { const key = repositoryKey(item); return <RepositoryRow key={key} item={item} enabled={getEnabled(item, overrides)} selected={selectedKeys.includes(key)} pending={pendingKeys.includes(key)} expanded={expandedKeys.includes(key)} onSelect={() => toggleSelected(key)} onToggle={(next) => toggleRepository(item, next)} onExpand={() => setExpandedKeys((current) => current.includes(key) ? current.filter((value) => value !== key) : [...current, key])} /> })}</ul></div>}
-      </OwnerListSurface>
+        <Table className="min-w-[820px] table-fixed">
+          <caption className="sr-only">Repositories available to the RepoView GitHub App installation</caption>
+          <colgroup>
+            <col className="w-11" />
+            <col className="w-[42%]" />
+            <col className="w-28" />
+            <col className="w-36" />
+            <col className="w-40" />
+            <col className="w-20" />
+          </colgroup>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-1"><span className="relative inline-flex"><Checkbox checked={allVisibleSelected} onChange={toggleAllVisible} disabled={visibleKeys.length === 0} aria-checked={someVisibleSelected && !allVisibleSelected ? 'mixed' : allVisibleSelected ? 'true' : 'false'} aria-label="Select all visible repositories" />{someVisibleSelected && !allVisibleSelected ? <span className="pointer-events-none absolute left-1/2 top-1/2 h-px w-2 -translate-x-1/2 -translate-y-1/2 bg-foreground" aria-hidden="true" /> : null}</span></TableHead>
+              <TableHead aria-sort={sortMode === 'name-asc' ? 'ascending' : sortMode === 'name-desc' ? 'descending' : 'none'}><TableHeadSort column="repository" currentSort={repositorySort} onSortChange={handleSortChange}>Repository</TableHeadSort></TableHead>
+              <TableHead>Visibility</TableHead>
+              <TableHead>Sharing</TableHead>
+              <TableHead>Rules</TableHead>
+              <TableHead><span className="sr-only">Actions</span></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.length === 0 ? <TableRow className="[&>td]:hover:bg-inherit"><TableCell colSpan={6} className="px-6 py-0"><EmptyRepositories /></TableCell></TableRow> : filteredItems.length === 0 ? <TableRow className="[&>td]:hover:bg-inherit"><TableCell colSpan={6} className="px-6 py-0"><FilteredEmpty onClear={clearFilters} /></TableCell></TableRow> : filteredItems.map((item) => {
+              const key = repositoryKey(item)
+              return <RepositoryTableRows key={key} item={item} enabled={getEnabled(item, overrides)} selected={selectedKeys.includes(key)} pending={pendingKeys.includes(key)} expanded={expandedKeys.includes(key)} onSelect={() => toggleSelected(key)} onToggle={(next) => toggleRepository(item, next)} onExpand={() => setExpandedKeys((current) => current.includes(key) ? current.filter((value) => value !== key) : [...current, key])} />
+            })}
+          </TableBody>
+        </Table>
+      </Card>
 
       <footer className="flex shrink-0 flex-col gap-1 text-xs text-foreground-muted sm:flex-row sm:items-center sm:justify-between"><p>Archived or GitHub-disabled repositories remain visible for diagnosis but cannot be enabled for new shares.</p><p>Changes save automatically</p></footer>
     </section>
   )
 }
 
-function RepositoryRow({ item, enabled, selected, pending, expanded, onSelect, onToggle, onExpand }: { item: RepositoryDashboardItem; enabled: boolean; selected: boolean; pending: boolean; expanded: boolean; onSelect: () => void; onToggle: (enabled: boolean) => void; onExpand: () => void }) {
-  const shareable = isShareable(item, enabled)
+function RepositoryTableRows({ item, enabled, selected, pending, expanded, onSelect, onToggle, onExpand }: { item: RepositoryDashboardItem; enabled: boolean; selected: boolean; pending: boolean; expanded: boolean; onSelect: () => void; onToggle: (enabled: boolean) => void; onExpand: () => void }) {
+  const [policyOpen, setPolicyOpen] = useState(false)
   const blocked = item.github.disabled || item.github.archived
   const state = repositoryState(item, enabled)
-  return <li className={cn('group transition-colors', selected ? 'bg-primary-soft/65' : 'hover:bg-accent/30')}><div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 px-4 py-3.5 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center sm:gap-4 sm:px-5"><Checkbox checked={selected} onChange={onSelect} aria-label={`Select ${item.github.fullName}`} className="mt-1 sm:mt-0" /><div className="min-w-0"><div className="flex min-w-0 items-start gap-3"><div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border/70 bg-muted/45 text-foreground-muted"><Github className="size-3.5" aria-hidden="true" /></div><div className="min-w-0"><p className="truncate font-mono text-sm font-semibold tracking-[-0.01em]" title={item.github.fullName}>{item.github.fullName}</p><p className="mt-1 truncate text-xs leading-5 text-foreground-muted" title={item.github.description ?? undefined}>{item.github.description || 'No repository description'}</p></div></div><div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 pl-11 text-xs"><Badge variant={state.variant}>{state.label}</Badge><span className="inline-flex items-center gap-1 text-foreground-muted"><GitBranch className="size-3" aria-hidden="true" /><span className="truncate font-mono" title={item.github.defaultBranch}>{item.github.defaultBranch}</span></span><span className="text-foreground-muted">{item.github.private ? 'Private' : 'Public'}</span></div></div><div className="col-span-2 flex items-center gap-2 sm:col-span-1 sm:flex-col sm:items-stretch"><Button type="button" variant={blocked ? 'outline' : shareable ? 'ghost' : 'primary'} size="small" className={cn('min-w-32 justify-center', shareable && 'text-foreground-muted')} disabled={blocked || pending} loading={pending} onClick={() => onToggle(!enabled)}>{blocked ? (item.github.archived ? 'Archived' : 'Unavailable') : enabled ? 'Disable sharing' : 'Enable sharing'}</Button><button type="button" onClick={onExpand} aria-expanded={expanded} className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-medium text-foreground-muted transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><span className="sm:hidden">Details</span><span className="hidden sm:inline">{expanded ? 'Hide details' : 'Details'}</span><ChevronDown className={cn('size-3.5 transition-transform', expanded && 'rotate-180')} aria-hidden="true" /></button></div></div>{expanded ? <RepositoryDetails item={item} enabled={enabled} onExpand={onExpand} /> : null}</li>
+  const rules = repositoryRulesSummary(item)
+  const canEditPolicy = Boolean(item.local && item.rules)
+  const hasOverflowActions = !blocked && (enabled || canEditPolicy)
+
+  return (
+    <Fragment>
+      <TableRow data-state={selected ? 'selected' : undefined} aria-busy={pending || undefined}>
+        <TableCell className="w-1 py-2"><Checkbox checked={selected} onChange={onSelect} aria-label={`Select ${item.github.fullName}`} /></TableCell>
+        <TableCell className="min-w-0 max-w-0 py-2">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <Github className="size-4 shrink-0 text-foreground-muted" aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="truncate font-mono text-sm font-semibold leading-4 tracking-[-0.01em] text-foreground" title={item.github.fullName}>{item.github.fullName}</p>
+              <p className="truncate text-xs leading-4 text-foreground-muted" title={item.github.description ?? undefined}>{item.github.description || 'No description'}</p>
+            </div>
+          </div>
+        </TableCell>
+        <TableCell className="whitespace-nowrap py-2 text-sm text-foreground-light">{item.github.private ? 'Private' : 'Public'}</TableCell>
+        <TableCell className="py-2"><Badge variant={state.variant}>{state.label}</Badge></TableCell>
+        <TableCell className="min-w-0 py-2"><span className={cn('block truncate text-sm', rules.muted ? 'text-foreground-muted' : 'text-foreground-light')} title={rules.title}>{rules.label}</span></TableCell>
+        <TableCell className="w-1 whitespace-nowrap py-2 text-right">
+          <div className="flex items-center justify-end gap-1">
+            {!blocked && !enabled ? <Button type="button" variant="outline" size="tiny" className="h-8 px-2.5" disabled={pending} loading={pending} onClick={() => onToggle(true)}>Enable</Button> : null}
+            {hasOverflowActions ? <DropdownMenu>
+              <DropdownMenuTrigger aria-label={`More actions for ${item.github.fullName}`} className="size-8 border-transparent bg-transparent p-0 text-foreground-muted shadow-none hover:border-transparent hover:bg-surface-200 hover:text-foreground focus-visible:ring-offset-background"><EllipsisVertical className="size-4" aria-hidden="true" /></DropdownMenuTrigger>
+              <DropdownMenuContent className="w-48">
+                {enabled ? <DropdownMenuItem className="gap-2" disabled={pending} onClick={() => onToggle(false)}><PowerOff className="size-3.5" aria-hidden="true" /><span>Disable sharing</span></DropdownMenuItem> : null}
+                {canEditPolicy ? <DropdownMenuItem className="gap-2" onClick={() => setPolicyOpen(true)}><Settings2 className="size-3.5" aria-hidden="true" /><span>Edit visibility policy</span></DropdownMenuItem> : null}
+              </DropdownMenuContent>
+            </DropdownMenu> : null}
+            <Button type="button" variant="ghost" size="icon" className="size-8 text-foreground-muted" aria-expanded={expanded} aria-label={`${expanded ? 'Collapse' : 'Expand'} details for ${item.github.fullName}`} onClick={onExpand}><ChevronDown className={cn('size-4 transition-transform', expanded && 'rotate-180')} aria-hidden="true" /></Button>
+          </div>
+          {canEditPolicy ? <RepositoryRulesEditor repositoryId={item.local!.id} repositoryName={item.github.fullName} rules={item.rules!} open={policyOpen} onOpenChange={setPolicyOpen} hideTrigger /> : null}
+        </TableCell>
+      </TableRow>
+      {expanded ? <TableRow className="hover:bg-transparent"><TableCell colSpan={6} className="bg-surface-200/45 px-4 py-3 sm:px-5"><RepositoryDetails item={item} enabled={enabled} onEditPolicy={canEditPolicy ? () => setPolicyOpen(true) : undefined} /></TableCell></TableRow> : null}
+    </Fragment>
+  )
 }
 
-function RepositoryDetails({ item, enabled, onExpand }: { item: RepositoryDashboardItem; enabled: boolean; onExpand: () => void }) {
+function RepositoryDetails({ item, enabled, onEditPolicy }: { item: RepositoryDashboardItem; enabled: boolean; onEditPolicy?: () => void }) {
   const state = repositoryState(item, enabled)
-  return <div className="mx-4 mb-3 rounded-lg border border-primary/15 bg-primary-soft/35 px-4 py-4 sm:ml-16 sm:mr-5"><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><DetailField label="Default branch" value={item.github.defaultBranch} mono /><DetailField label="GitHub visibility" value={item.github.private ? 'Private' : 'Public'} /><DetailField label="Installation state" value={state.detail} /><div className="min-w-0"><p className="text-xs text-foreground-muted">Visibility policy</p>{item.local && item.rules ? <div className="mt-1 flex items-center gap-2"><span className="truncate text-sm" title={`${item.rules.hidden.length} hidden patterns${item.rules.allowOnly.length > 0 ? ` · ${item.rules.allowOnly.length} allow-only` : ''}`}>{item.rules.hidden.length} hidden{item.rules.allowOnly.length > 0 ? ` · ${item.rules.allowOnly.length} allow-only` : ''}</span><RepositoryRulesEditor repositoryId={item.local.id} repositoryName={item.github.fullName} rules={item.rules} /></div> : <p className="mt-1 text-sm text-foreground-muted">Available after enabling</p>}</div></div><button type="button" onClick={onExpand} className="mt-4 text-xs text-foreground-muted underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Hide repository details</button></div>
+  const rules = repositoryRulesSummary(item)
+  return <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.5fr)] sm:items-start"><DetailField label="Default branch" value={item.github.defaultBranch} mono /><DetailField label="GitHub installation" value={state.detail} /><div className="min-w-0"><p className="text-xs text-foreground-muted">Visibility policy</p><div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2"><span className="truncate text-sm text-foreground-light" title={rules.title}>{rules.detail}</span>{onEditPolicy ? <Button type="button" variant="text" size="tiny" className="h-7 px-0 text-xs" onClick={onEditPolicy}>Edit policy</Button> : null}</div></div></div>
 }
 
 function DetailField({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
-  return <div className="min-w-0"><p className="text-xs text-foreground-muted">{label}</p><p className={cn('mt-1 truncate text-sm', mono && 'font-mono text-xs')} title={value}>{value}</p></div>
+  return <div className="min-w-0"><p className="text-xs text-foreground-muted">{label}</p><p className={cn('mt-1 truncate text-sm text-foreground-light', mono && 'font-mono text-xs')} title={value}>{value}</p></div>
 }
 
 function repositoryState(item: RepositoryDashboardItem, enabled: boolean) {
   if (item.github.archived) return { label: 'Archived', detail: 'Archived in GitHub', variant: 'secondary' as const }
   if (item.github.disabled) return { label: 'Unavailable', detail: 'Disabled by GitHub', variant: 'destructive' as const }
-  if (isShareable(item, enabled)) return { label: 'Ready to share', detail: 'Enabled in RepoView', variant: 'success' as const }
+  if (isShareable(item, enabled)) return { label: 'Ready', detail: 'Enabled in RepoView', variant: 'success' as const }
   return { label: 'Disabled', detail: 'Not enabled in RepoView', variant: 'secondary' as const }
+}
+
+function repositoryRulesSummary(item: RepositoryDashboardItem) {
+  if (!item.local || !item.rules) return { label: 'Available after enabling', detail: 'Available after enabling', title: 'Visibility policy becomes available after enabling this repository.', muted: true }
+  if (item.rules.hidden.length === 0 && item.rules.allowOnly.length === 0) return { label: 'Default', detail: 'Default visibility rules', title: 'Default visibility rules', muted: false }
+  const parts = [
+    item.rules.hidden.length > 0 ? `${item.rules.hidden.length} hidden` : null,
+    item.rules.allowOnly.length > 0 ? `${item.rules.allowOnly.length} allow-only` : null,
+  ].filter(Boolean)
+  const label = parts.join(' · ')
+  return { label, detail: `${label} patterns`, title: `${label} visibility rules`, muted: false }
 }
 
 function statusLabel(value: StatusFilter) { return { all: 'All', shareable: 'Ready to share', disabled: 'Disabled', archived: 'Archived' }[value] }
@@ -245,7 +338,22 @@ function BulkPolicyEditor({ repositories, onSaved }: { repositories: RepositoryD
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [isPending, startTransition] = useTransition()
-  function saveRules(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); setError(null); setSaved(false); startTransition(async () => { try { await updateRepositoriesRules({ repositoryIds: repositories.flatMap((item) => item.local ? [item.local.id] : []), hidden: toPatterns(hidden), allowOnly: toPatterns(allowOnly) }); setSaved(true); onSaved() } catch (saveError) { setError(saveError instanceof Error ? saveError.message : 'Visibility policies could not be saved.') } }) }
+
+  function saveRules(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(null)
+    setSaved(false)
+    startTransition(async () => {
+      try {
+        await updateRepositoriesRules({ repositoryIds: repositories.flatMap((item) => item.local ? [item.local.id] : []), hidden: toPatterns(hidden), allowOnly: toPatterns(allowOnly) })
+        setSaved(true)
+        onSaved()
+      } catch (saveError) {
+        setError(saveError instanceof Error ? saveError.message : 'Visibility policies could not be saved.')
+      }
+    })
+  }
+
   return <Dialog><DialogTrigger variant="outline" size="small" className="min-w-28 justify-center" icon={<Settings2 className="size-3.5" />}>Edit policy</DialogTrigger><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Edit visibility policy</DialogTitle><DialogDescription>Apply the same share policy to {repositories.length} selected {repositories.length === 1 ? 'repository' : 'repositories'}.</DialogDescription></DialogHeader><form onSubmit={saveRules}><div className="space-y-5 py-5"><div className="space-y-2"><Label htmlFor="bulk-hidden">Hidden patterns</Label><Textarea id="bulk-hidden" value={hidden} onChange={(event) => setHidden(event.target.value)} placeholder="**/.env*\n**/secrets/**" rows={6} /><p className="text-xs text-foreground-muted">Hidden paths are never fetched for a viewer.</p></div><div className="space-y-2"><Label htmlFor="bulk-allow-only">Allow-only patterns</Label><Textarea id="bulk-allow-only" value={allowOnly} onChange={(event) => setAllowOnly(event.target.value)} placeholder="src/**\ndocs/**" rows={4} /><p className="text-xs text-foreground-muted">When present, a path must match at least one allow-only pattern.</p></div>{error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}{saved ? <p className="text-sm text-success" role="status">Visibility policies saved.</p> : null}</div><DialogFooter><DialogClose>Cancel</DialogClose><Button type="submit" variant="primary" loading={isPending}>Save policies</Button></DialogFooter></form></DialogContent></Dialog>
 }
 

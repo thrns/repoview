@@ -171,7 +171,7 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
       <div className="viewer-tree-header space-y-1.5 border-b border-border px-3 py-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-start gap-2">
-            <FolderTree className="mt-0.5 size-3.5 shrink-0 text-primary-readable" aria-hidden="true" />
+            <FolderTree className="mt-0.5 size-3.5 shrink-0 text-foreground-light" aria-hidden="true" />
             <div className="min-w-0">
               <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground-muted">Explorer</p>
               <p className="mt-0.5 text-[11px] text-foreground-muted" aria-live="polite">
@@ -246,7 +246,7 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
                   onKeyDown={(event) => handleTreeKeyDown(event, node, index)}
                   className={cn(
                     'viewer-tree-row relative flex min-h-8 w-full items-center gap-1.5 rounded px-2 text-left text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
-                    isSelected ? 'bg-primary-soft text-primary-readable before:absolute before:inset-y-0.5 before:left-0 before:w-0.5 before:bg-primary' : 'text-foreground-muted hover:bg-accent/60 hover:text-foreground',
+                    isSelected ? 'bg-surface-200 text-foreground-light before:absolute before:inset-y-0.5 before:left-0 before:w-0.5 before:bg-brand-default' : 'text-foreground-muted hover:bg-accent/60 hover:text-foreground',
                   )}
                   style={{ paddingLeft: `${Math.min(8 + (depth - 1) * 12, 152)}px` }}
                 >

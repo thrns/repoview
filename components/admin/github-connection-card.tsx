@@ -100,7 +100,7 @@ export function GitHubConnectionCard({
           </p>
         )}
         {canConnect ? (
-          <a href="/api/github/connect" className="inline-flex h-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <a href="/api/github/connect" className="inline-flex h-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-brand-default px-4 text-sm font-medium text-brand-foreground transition-colors hover:bg-brand-default/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             {activeInstallations.length > 0 ? 'Connect another GitHub account' : 'Connect GitHub'}
             <ArrowRight className="size-4" aria-hidden="true" />
           </a>

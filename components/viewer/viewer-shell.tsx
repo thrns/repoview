@@ -206,7 +206,7 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
     <ViewerAnalyticsProvider shareId={shareId} initialPath={activePath} analyticsMode={analyticsMode} gpcApplied={gpcApplied}>
       <ViewerWorkspaceProvider value={{ tree, root, selectedPath, openPath, prefetchPath }}>
       <div className="viewer-shell flex h-dvh min-h-0 flex-col overflow-hidden bg-background text-foreground">
-        <header className="viewer-header sticky top-0 z-40 shrink-0 border-b border-border bg-card shadow-[0_1px_0_hsl(var(--border)/0.35)]">
+        <header className="viewer-header sticky top-0 z-40 shrink-0 border-b border-border bg-surface-100">
           <div className="viewer-header-inner flex h-11 items-center gap-2.5 px-3 sm:gap-3 sm:px-5">
             <div className="md:hidden">
               <Sheet open={mobileTreeOpen} onOpenChange={setMobileTreeOpen}>

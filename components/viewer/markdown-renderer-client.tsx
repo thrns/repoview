@@ -74,7 +74,7 @@ function MarkdownSkeleton() {
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-10/12" />
       </div>
-      <div className="space-y-3 rounded-xl border border-border p-5">
+      <div className="space-y-3 rounded-md border border-border p-5">
         <Skeleton className="h-4 w-1/3" />
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-5/6" />
