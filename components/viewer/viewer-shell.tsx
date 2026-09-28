@@ -205,16 +205,16 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
   return (
     <ViewerAnalyticsProvider shareId={shareId} initialPath={activePath} analyticsMode={analyticsMode} gpcApplied={gpcApplied}>
       <ViewerWorkspaceProvider value={{ tree, root, selectedPath, openPath, prefetchPath }}>
-      <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-background text-foreground">
-        <header className="sticky top-0 z-40 shrink-0 border-b border-border bg-background">
-          <div className="flex h-11 items-center gap-2.5 px-3 sm:gap-3 sm:px-5">
+      <div className="viewer-shell flex h-dvh min-h-0 flex-col overflow-hidden bg-background text-foreground">
+        <header className="viewer-header sticky top-0 z-40 shrink-0 border-b border-border bg-card shadow-[0_1px_0_hsl(var(--border)/0.35)]">
+          <div className="viewer-header-inner flex h-11 items-center gap-2.5 px-3 sm:gap-3 sm:px-5">
             <div className="md:hidden">
               <Sheet open={mobileTreeOpen} onOpenChange={setMobileTreeOpen}>
                 <SheetTrigger size="icon" variant="ghost" aria-label="Open file tree">
                   <Menu className="size-4" aria-hidden="true" />
                 </SheetTrigger>
-                <SheetContent side="left" className="h-full overscroll-none p-0">
-                  <SheetHeader className="border-b border-border/80 p-4">
+                <SheetContent side="left" className="viewer-mobile-tree-sheet h-full overscroll-none p-0">
+                  <SheetHeader className="viewer-mobile-tree-header border-b border-border/80 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <SheetTitle>Explorer</SheetTitle>
@@ -229,14 +229,14 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
                 </SheetContent>
               </Sheet>
             </div>
-            <div className="flex min-w-0 flex-1 items-center gap-2">
+            <div className="viewer-brand-lockup flex min-w-0 flex-1 items-center gap-2">
               <BrandLogo size={24} />
               <span aria-hidden="true" className="hidden text-foreground-muted sm:inline">/</span>
               <span className="min-w-0 truncate font-mono text-[13px] font-medium text-foreground" title={repositoryName}>{repositoryName}</span>
             </div>
             <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5">
               <ViewerPrivacySettings shareId={shareId} compact />
-              <Badge variant="outline" className="flex max-w-[5rem] items-center gap-1 rounded px-1.5 font-mono text-[10px] sm:max-w-[12rem] sm:px-2 sm:text-[11px]">
+              <Badge variant="outline" className="viewer-ref-badge flex max-w-[5rem] items-center gap-1 rounded px-1.5 font-mono text-[10px] sm:max-w-[12rem] sm:px-2 sm:text-[11px]">
                 <GitBranch className="size-3.5" aria-hidden="true" />
                 <span className="truncate" title={refName}>{refName}</span>
               </Badge>
@@ -246,10 +246,10 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
           </div>
         </header>
         <div className="relative flex min-h-0 flex-1 overflow-hidden">
-          <aside className="fixed bottom-0 left-0 top-11 z-30 hidden w-64 overflow-hidden overscroll-none border-r border-border bg-background md:flex md:flex-col">
+          <aside className="viewer-sidebar fixed bottom-0 left-0 top-11 z-30 hidden w-64 overflow-hidden overscroll-none border-r border-border bg-card md:flex md:flex-col">
             <ViewerFileTree tree={tree} selectedPath={activePath} onSelectPath={openPath} onPrefetchPath={prefetchPath} />
           </aside>
-          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain md:ml-64">
+          <main className="viewer-main min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain md:ml-64">
             {authorizationFailed ? <ViewerAccessUnavailable /> : activeFile ? <ViewerFileContent file={activeFile.file} shareId={shareId} tree={tree} onOpenPath={openPath} allowDownload={allowDownload} /> : loadingPath ? <ViewerFileLoading path={loadingPath} /> : children}
           </main>
         </div>
@@ -261,7 +261,7 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
 
 function ViewerAccessUnavailable() {
   return (
-    <section className="repository-file-page min-h-[calc(100vh-2.75rem)]" role="alert">
+    <section className="repository-file-page viewer-empty-state min-h-[calc(100vh-2.75rem)]" role="alert">
       <div className="mx-auto max-w-2xl px-5 py-16 text-center">
         <h1 className="font-heading text-lg font-semibold">Private preview unavailable</h1>
         <p className="mt-2 text-sm leading-6 text-foreground-muted">The viewer session or repository access is no longer valid, or could not be revalidated. Private file content has been cleared from this page.</p>
@@ -273,7 +273,7 @@ function ViewerAccessUnavailable() {
 
 function ViewerFileLoading({ path }: { path: string }) {
   return (
-    <section className="repository-file-page min-h-[calc(100vh-2.75rem)]" aria-busy="true" aria-label={`Loading ${path}`}>
+    <section className="repository-file-page viewer-file-loading min-h-[calc(100vh-2.75rem)]" aria-busy="true" aria-label={`Loading ${path}`}>
       <div className="border-b border-border px-3 py-2.5 sm:px-5">
         <p className="truncate font-mono text-xs text-foreground-muted" title={path}>{path}</p>
       </div>

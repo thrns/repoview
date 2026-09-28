@@ -1,7 +1,7 @@
 'use client'
 
 import { ListFilter, Search, X } from 'lucide-react'
-import type { ReactNode } from 'react'
+import type { HTMLAttributes, ReactNode } from 'react'
 
 import {
   Badge,
@@ -16,6 +16,7 @@ import {
   DialogTrigger,
   Input,
   Label,
+  cn,
 } from '@/components/ui'
 
 export function OwnerPageHeader({
@@ -30,13 +31,76 @@ export function OwnerPageHeader({
   actions?: ReactNode
 }) {
   return (
-    <header className="flex flex-col gap-4 border-b border-border/70 pb-6 sm:flex-row sm:items-end sm:justify-between">
+    <header className="flex flex-col gap-4 border-b border-border/60 pb-7 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <h1 className="font-heading text-3xl font-semibold tracking-[-0.04em] text-wrap-balance">{title}</h1>
+        <h1 className="font-heading text-3xl font-semibold tracking-[-0.045em] text-wrap-balance sm:text-[2rem]">{title}</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-foreground-muted text-pretty">{description}</p>
       </div>
       {actions || meta ? <div className="flex shrink-0 items-center gap-3 sm:pb-0.5">{meta ? <span className="text-xs tabular-nums text-foreground-muted">{meta}</span> : null}{actions}</div> : null}
     </header>
+  )
+}
+
+export function OwnerListSurface({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground shadow-[0_0_0_1px_hsl(var(--border)/0.16),0_1px_2px_hsl(var(--foreground)/0.03),0_4px_14px_hsl(var(--foreground)/0.02)] dark:shadow-[0_0_0_1px_hsl(var(--border)/0.72)]', className)} {...props} />
+}
+
+export function OwnerListHeader({
+  icon,
+  title,
+  description,
+  meta,
+  className,
+}: {
+  icon: ReactNode
+  title: string
+  description: string
+  meta?: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn('flex flex-col gap-3 border-b border-border/70 bg-muted/18 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5', className)}>
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border border-primary/15 bg-primary-soft text-primary-readable">
+          {icon}
+        </span>
+        <div className="min-w-0">
+          <h2 className="font-heading text-sm font-semibold tracking-[-0.015em] text-foreground">{title}</h2>
+          <p className="mt-1 max-w-2xl text-xs leading-5 text-foreground-muted">{description}</p>
+        </div>
+      </div>
+      {meta ? <div className="shrink-0 text-xs tabular-nums text-foreground-muted sm:text-right">{meta}</div> : null}
+    </div>
+  )
+}
+
+export function OwnerListToolbar({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('bg-card px-4 py-4 sm:px-5', className)} {...props} />
+}
+
+export function OwnerEmptyState({
+  icon,
+  title,
+  description,
+  action,
+  align = 'center',
+  className,
+}: {
+  icon: ReactNode
+  title: string
+  description: string
+  action?: ReactNode
+  align?: 'center' | 'left'
+  className?: string
+}) {
+  const centered = align === 'center'
+  return (
+    <div className={cn('flex min-h-56 flex-col justify-center px-6 py-14', centered ? 'items-center text-center' : 'items-start text-left', className)}>
+      <span className="flex size-9 items-center justify-center rounded-lg border border-primary/15 bg-primary-soft text-primary-readable">{icon}</span>
+      <h2 className="mt-4 font-heading text-lg font-semibold tracking-[-0.02em] text-foreground">{title}</h2>
+      <p className={cn('mt-1.5 max-w-md text-sm leading-6 text-foreground-muted', centered && 'text-pretty')}>{description}</p>
+      {action ? <div className="mt-5">{action}</div> : null}
+    </div>
   )
 }
 
@@ -122,7 +186,7 @@ export function ActiveFilterSummary({
           key={`${filter.label}-${filter.value}`}
           type="button"
           onClick={filter.onClear}
-          className="inline-flex min-h-7 items-center gap-1.5 rounded-md border border-border-strong/70 bg-accent/60 px-2 text-accent-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex min-h-7 items-center gap-1.5 rounded-md border border-primary/20 bg-primary-soft px-2 text-accent-foreground transition-colors hover:border-primary/30 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={`Clear ${filter.label} filter: ${filter.value}`}
         >
           <span className="text-foreground-muted">{filter.label}</span>

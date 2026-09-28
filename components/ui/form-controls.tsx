@@ -2,7 +2,7 @@ import { forwardRef, type InputHTMLAttributes, type LabelHTMLAttributes, type Se
 
 import { cn } from './utils'
 
-const controlClasses = 'flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-1 text-sm text-foreground transition-[background-color,border-color,box-shadow] placeholder:text-foreground-muted focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50'
+const controlClasses = 'flex h-10 w-full rounded-md border border-input bg-muted/45 px-3 py-1 text-sm text-foreground shadow-[inset_0_1px_1px_hsl(var(--foreground)/0.025)] transition-[background-color,border-color,box-shadow] duration-150 placeholder:text-foreground-muted hover:border-border-strong focus-visible:border-ring focus-visible:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50'
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...props }, ref) {
   return <input ref={ref} className={cn(controlClasses, className)} {...props} />
@@ -25,5 +25,5 @@ export const Checkbox = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInp
 })
 
 export const Switch = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Switch({ className, type = 'checkbox', role = 'switch', ...props }, ref) {
-  return <input ref={ref} type={type} role={role} className={cn('h-6 w-11 cursor-pointer appearance-none rounded-full border border-input bg-muted transition-colors checked:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background', className)} {...props} />
+  return <input ref={ref} type={type} role={role} className={cn('h-6 w-11 cursor-pointer appearance-none rounded-full border border-input bg-muted transition-[background-color,border-color,box-shadow] checked:border-primary checked:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background', className)} {...props} />
 })

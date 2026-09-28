@@ -15,13 +15,13 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-  default: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-  primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
-  secondary: 'bg-accent text-accent-foreground hover:bg-accent/80',
-  outline: 'border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground',
+  default: 'border border-input bg-secondary text-secondary-foreground shadow-sm hover:border-border-strong hover:bg-secondary/80',
+  primary: 'bg-primary text-primary-foreground shadow-sm shadow-primary/20 hover:bg-primary/90 hover:shadow-md hover:shadow-primary/20',
+  secondary: 'border border-primary/15 bg-primary-soft text-primary-readable hover:border-primary/25 hover:bg-primary-soft/75',
+  outline: 'border border-input bg-card text-foreground shadow-sm hover:border-border-strong hover:bg-accent hover:text-accent-foreground',
   ghost: 'text-foreground-muted hover:bg-accent hover:text-accent-foreground',
   text: 'text-foreground-muted hover:bg-accent/70 hover:text-foreground',
-  destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+  destructive: 'bg-destructive text-destructive-foreground shadow-sm shadow-destructive/15 hover:bg-destructive/90 hover:shadow-md',
 }
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -40,7 +40,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     <button
       ref={ref}
       className={cn(
-        'inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap font-medium transition-[background-color,color,border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
+        'inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap font-medium transition-[background-color,color,border-color,box-shadow,transform] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50',
         variantClasses[variant],
         sizeClasses[size],
         className

@@ -105,7 +105,7 @@ export function AdminShell({ email, children, onboardingIncomplete = false, work
         <SidebarHeader>
           <div className="flex items-center gap-3 px-2 py-2">
             <BrandLogo size={32} />
-            <div><div className="font-heading text-sm font-semibold">RepoView</div><div className="font-mono text-[10px] uppercase tracking-widest text-foreground-muted">Private source</div></div>
+            <div><div className="font-heading text-[15px] font-semibold tracking-[-0.02em]">RepoView</div><div className="font-mono text-[10px] uppercase tracking-[0.14em] text-foreground-muted">Private source</div></div>
           </div>
         </SidebarHeader>
         <SidebarContent><Navigation pathname={pathname} onboardingIncomplete={onboardingIncomplete} /></SidebarContent>
@@ -115,7 +115,7 @@ export function AdminShell({ email, children, onboardingIncomplete = false, work
       </Sidebar>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4 lg:hidden">
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-4 lg:hidden">
           <Sheet>
             <SheetTrigger variant="ghost" size="icon"><Menu className="size-4" /><span className="sr-only">Open navigation</span></SheetTrigger>
             <SheetContent side="left" aria-label="Primary navigation" className="max-w-xs p-4">

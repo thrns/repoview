@@ -1,8 +1,28 @@
-import { ArrowLeft, CheckCircle2, ChevronDown, LockKeyhole, MoreHorizontal, XCircle } from 'lucide-react'
+import {
+  Activity,
+  AlertTriangle,
+  ArrowDownToLine,
+  ArrowLeft,
+  Bell,
+  CalendarClock,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  Clock3,
+  Copy,
+  Eye,
+  FileCode2,
+  FileText,
+  Link2,
+  LockKeyhole,
+  MoreHorizontal,
+  ShieldCheck,
+  XCircle,
+} from 'lucide-react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 
-import { Badge, DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui'
+import { Badge, Card, DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui'
 import type { ShareActivitySummary, ShareDetailData, ShareNotificationSummary, ShareSessionSummary } from '@/lib/shares/detail'
 
 import { RevokeShareButton } from './revoke-share-button'
@@ -16,6 +36,7 @@ export function ShareDetailView({ data }: { data: ShareDetailData }) {
   const repositoryName = item.repository
     ? `${item.repository.github_owner}/${item.repository.github_repo}`
     : 'Repository unavailable'
+  const shareLabel = item.share.recipient_label || (item.share.share_type === 'recipient' ? 'Recipient share' : 'Generic share')
 
   return (
     <section className="mx-auto w-full max-w-[1180px] px-5 py-6 sm:px-8 lg:px-10 lg:py-10">
@@ -24,36 +45,39 @@ export function ShareDetailView({ data }: { data: ShareDetailData }) {
         Shares
       </Link>
 
-      <header className="mt-8 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="font-heading text-[28px] font-semibold tracking-[-0.035em] text-wrap-balance">{item.share.recipient_label || (item.share.share_type === 'recipient' ? 'Recipient share' : 'Generic share')}</h1>
-            <ShareStatusBadge status={item.status} />
+      <Card className="mt-7 overflow-hidden rounded-xl">
+        <header className="flex flex-col gap-5 px-5 py-5 sm:px-6 sm:py-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="font-heading text-[28px] font-semibold tracking-[-0.035em] text-wrap-balance">{shareLabel}</h1>
+              <ShareStatusBadge status={item.status} />
+            </div>
+            <div className="mt-3 flex min-w-0 max-w-full flex-wrap items-center gap-2 text-xs text-foreground-muted">
+              <Link2 className="size-3.5 shrink-0 text-primary-readable" aria-hidden="true" />
+              <span className="min-w-0 max-w-full break-all rounded-md bg-muted/45 px-2 py-1 font-mono text-[12px] text-foreground" title={repositoryName}>{repositoryName}</span>
+              <span aria-hidden="true" className="text-foreground-muted/60">/</span>
+              <span className="max-w-full break-all rounded-md bg-muted/45 px-2 py-1 font-mono text-[12px] text-foreground-muted" title={item.share.ref}>{item.share.ref}</span>
+            </div>
           </div>
-          <p className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground-muted">
-            <span className="max-w-full break-all font-mono text-[13px] text-foreground">{repositoryName}</span>
-            <span aria-hidden="true">/</span>
-            <span className="max-w-full break-all font-mono text-[13px]">{item.share.ref}</span>
-          </p>
-        </div>
 
-        <div className="flex items-center gap-2 sm:pt-0.5">
-          <RotateShareButton shareId={item.share.id} revoked={item.status === 'revoked'} />
-          <ShareOverflowMenu shareId={item.share.id} currentExpiresAt={item.share.expires_at} disabled={item.status === 'revoked'} />
-        </div>
-      </header>
+          <div className="flex items-center gap-2 sm:self-start">
+            <RotateShareButton shareId={item.share.id} revoked={item.status === 'revoked'} />
+            <ShareOverflowMenu shareId={item.share.id} currentExpiresAt={item.share.expires_at} disabled={item.status === 'revoked'} />
+          </div>
+        </header>
 
-      <section aria-labelledby="engagement-summary" className="mt-10 border-y border-border/60 py-4">
-        <h2 id="engagement-summary" className="sr-only">Engagement summary</h2>
-        <dl className="flex flex-wrap gap-x-10 gap-y-4 sm:gap-x-14">
-          <SummaryItem label="Views" value={<span className="text-base font-semibold tabular-nums">{item.confirmedViews}</span>} />
-          <SummaryItem label="Last viewed" value={item.lastViewedAt ? <Timestamp value={item.lastViewedAt} /> : <span>Never</span>} />
-          <SummaryItem label="Created" value={<Timestamp value={item.share.created_at} mode="date" />} />
-          <SummaryItem label="Expires" value={item.share.expires_at ? <Timestamp value={item.share.expires_at} mode="date" /> : <span>Never</span>} />
-        </dl>
-      </section>
+        <section aria-labelledby="engagement-summary" className="border-t border-border/60 bg-muted/18 px-3 py-3 sm:px-4">
+          <h2 id="engagement-summary" className="sr-only">Engagement summary</h2>
+          <dl className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            <SummaryItem icon={<Eye className="size-3.5" />} label="Views" value={<span className="font-heading text-lg font-semibold tabular-nums">{item.confirmedViews}</span>} tone="primary" />
+            <SummaryItem icon={<Clock3 className="size-3.5" />} label="Last viewed" value={item.lastViewedAt ? <Timestamp value={item.lastViewedAt} /> : <span>Never</span>} />
+            <SummaryItem icon={<CalendarDays className="size-3.5" />} label="Created" value={<Timestamp value={item.share.created_at} mode="date" />} />
+            <SummaryItem icon={<CalendarClock className="size-3.5" />} label="Expires" value={item.share.expires_at ? <Timestamp value={item.share.expires_at} mode="date" /> : <span>Never</span>} tone={item.share.expires_at ? undefined : 'muted'} />
+          </dl>
+        </section>
+      </Card>
 
-      <div className="space-y-14 pt-12">
+      <div className="mt-8 space-y-8">
         <SessionsSection sessions={sessions} activity={activity} />
         {activity.length > 0 ? <ActivitySection activity={activity} sessions={sessions} /> : null}
         <ShareSettingsSection shareId={item.share.id} item={item} notifications={notifications} />
@@ -70,8 +94,8 @@ function ShareOverflowMenu({ shareId, currentExpiresAt, disabled }: { shareId: s
       </DropdownMenuTrigger>
       <DropdownMenuContent className="right-0 mt-1 w-64 p-2">
         <DropdownMenuLabel className="px-2 py-1 text-[11px] font-medium uppercase tracking-[0.08em]">Share options</DropdownMenuLabel>
-        <div className="flex gap-2 px-2 py-2.5 text-xs text-foreground-muted">
-          <LockKeyhole className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+        <div className="flex gap-2 rounded-md bg-muted/30 px-2 py-2.5 text-xs text-foreground-muted">
+          <LockKeyhole className="mt-0.5 size-3.5 shrink-0 text-primary-readable" aria-hidden="true" />
           <div className="min-w-0">
             <p className="font-medium text-foreground">Secret URL</p>
             <p className="mt-0.5 leading-5">Stored as a one-way hash and not recoverable.</p>
@@ -90,11 +114,14 @@ function ShareOverflowMenu({ shareId, currentExpiresAt, disabled }: { shareId: s
   )
 }
 
-function SummaryItem({ label, value }: { label: string; value: ReactNode }) {
+function SummaryItem({ icon, label, value, tone }: { icon: ReactNode; label: string; value: ReactNode; tone?: 'primary' | 'muted' }) {
   return (
-    <div className="min-w-[7rem]">
-      <dt className="text-[11px] font-medium text-foreground-muted">{label}</dt>
-      <dd className="mt-1 truncate text-sm font-medium text-foreground">{value}</dd>
+    <div className="min-w-0 rounded-lg border border-border/55 bg-card/75 px-3 py-3 sm:px-3.5">
+      <div className="flex items-center gap-2 text-[11px] font-medium text-foreground-muted">
+        <span className={`flex size-6 shrink-0 items-center justify-center rounded-md ${tone === 'primary' ? 'bg-primary-soft text-primary-readable' : 'bg-muted text-foreground-muted'}`} aria-hidden="true">{icon}</span>
+        <dt className="truncate">{label}</dt>
+      </div>
+      <dd className={`mt-2 truncate text-sm font-medium ${tone === 'muted' ? 'text-foreground-muted' : 'text-foreground'}`}>{value}</dd>
     </div>
   )
 }
@@ -109,26 +136,32 @@ function SessionsSection({ sessions, activity }: { sessions: ShareSessionSummary
   const confirmedCount = sessions.filter((session) => session.confirmedAt).length
 
   return (
-    <section aria-labelledby="viewer-sessions">
+    <Card className="overflow-hidden rounded-xl">
       <SectionHeading
         id="viewer-sessions"
+        icon={<Eye className="size-4" />}
         title="Viewer sessions"
         description={`${sessions.length} ${sessions.length === 1 ? 'session' : 'sessions'} · ${confirmedCount} confirmed`}
       />
-      {sessions.length === 0 ? <EmptyDetailState text="No viewer sessions yet. Confirmed sessions will appear here after someone meaningfully opens the share." /> : (
-        <ul className="mt-5 divide-y divide-border/55 border-y border-border/60" aria-label="Viewer sessions">
+      {sessions.length === 0 ? <EmptyDetailState icon={<Eye className="size-4" />} text="No viewer sessions yet. Confirmed sessions will appear here after someone meaningfully opens the share." /> : (
+        <ul className="divide-y divide-border/55 px-2 pb-2 sm:px-3" aria-label="Viewer sessions">
           {sessions.map((session) => <li key={session.id}><SessionRow session={session} activityCount={activityCountBySession.get(session.id) ?? 0} /></li>)}
         </ul>
       )}
-    </section>
+    </Card>
   )
 }
 
-function SectionHeading({ id, title, description }: { id: string; title: string; description: string }) {
+function SectionHeading({ id, icon, title, description }: { id: string; icon: ReactNode; title: string; description: string }) {
   return (
-    <header className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-      <h2 id={id} className="font-heading text-lg font-semibold tracking-[-0.02em]">{title}</h2>
-      <p className="text-xs text-foreground-muted">{description}</p>
+    <header className="flex flex-col gap-3 border-b border-border/55 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary-readable" aria-hidden="true">{icon}</span>
+        <div className="min-w-0">
+          <h2 id={id} className="font-heading text-base font-semibold tracking-[-0.02em]">{title}</h2>
+          <p className="mt-0.5 text-xs text-foreground-muted">{description}</p>
+        </div>
+      </div>
     </header>
   )
 }
@@ -136,28 +169,26 @@ function SectionHeading({ id, title, description }: { id: string; title: string;
 function SessionRow({ session, activityCount }: { session: ShareSessionSummary; activityCount: number }) {
   const confirmed = Boolean(session.confirmedAt)
   const likelyScanner = session.isProbableBot && !confirmed
-  const statusLabel = confirmed ? 'Confirmed' : likelyScanner ? 'Likely scanner' : 'Pending'
   const context = [session.browser, session.os].filter(Boolean).join(' · ')
   const device = session.deviceType || 'Unknown device'
   const location = session.country || 'Unknown location'
 
   return (
     <details className="group">
-      <summary className="flex cursor-pointer list-none flex-col gap-3 px-4 py-3.5 outline-none transition-colors hover:bg-muted/25 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-        <span className="flex min-w-0 items-center justify-between gap-3 text-sm font-medium text-foreground">
+      <summary className="flex cursor-pointer list-none flex-col gap-3 rounded-lg px-3 py-3.5 outline-none transition-colors hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset [&::-webkit-details-marker]:hidden">
+        <span className="flex min-w-0 items-center justify-between gap-3">
           <span className="inline-flex min-w-0 items-center gap-2">
-            <span className={`size-1.5 shrink-0 rounded-full ${confirmed ? 'bg-success' : 'bg-foreground-muted/60'}`} aria-hidden="true" />
-            <span className="truncate">{statusLabel}</span>
+            <SessionStatus confirmed={confirmed} likelyScanner={likelyScanner} />
           </span>
-          <ChevronDown className="size-3.5 shrink-0 text-foreground-muted transition-transform group-open:rotate-180" aria-hidden="true" />
+          <ChevronDown className="size-4 shrink-0 text-foreground-muted transition-transform duration-150 group-open:rotate-180" aria-hidden="true" />
         </span>
         <span className="grid grid-cols-2 gap-3 text-xs text-foreground-muted sm:grid-cols-3">
-          <span><span className="block text-[11px] text-foreground-muted/80">Last seen</span><span className="mt-0.5 block whitespace-nowrap"><Timestamp value={session.lastSeenAt} /></span></span>
-          <span><span className="block text-[11px] text-foreground-muted/80">Duration</span><span className="mt-0.5 block tabular-nums">~{formatDuration(session.approximateDurationMinutes)}</span></span>
-          <span><span className="block text-[11px] text-foreground-muted/80">Activity</span><span className="mt-0.5 block"><span className="font-medium tabular-nums text-foreground">{activityCount}</span> {activityCount === 1 ? 'event' : 'events'}</span></span>
+          <SessionMetric label="Last seen" value={<Timestamp value={session.lastSeenAt} />} />
+          <SessionMetric label="Duration" value={<span className="tabular-nums">~{formatDuration(session.approximateDurationMinutes)}</span>} />
+          <SessionMetric label="Activity" value={<><span className="font-medium tabular-nums text-foreground">{activityCount}</span> {activityCount === 1 ? 'event' : 'events'}</>} />
         </span>
       </summary>
-      <div className="grid gap-4 border-t border-border/50 bg-muted/15 px-4 py-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mx-1 mb-2 grid gap-3 rounded-lg border border-primary/15 bg-primary-soft/25 px-3.5 py-3.5 sm:grid-cols-2 lg:grid-cols-4">
         <DetailField label="Session ID" value={session.id} mono />
         <DetailField label="Context" value={context || 'Unavailable'} />
         <DetailField label="Device" value={device} />
@@ -169,39 +200,68 @@ function SessionRow({ session, activityCount }: { session: ShareSessionSummary; 
   )
 }
 
+function SessionStatus({ confirmed, likelyScanner }: { confirmed: boolean; likelyScanner: boolean }) {
+  if (confirmed) return <Badge variant="success" className="gap-1.5"><CheckCircle2 className="size-3.5" aria-hidden="true" />Confirmed</Badge>
+  if (likelyScanner) return <Badge variant="warning" className="gap-1.5"><AlertTriangle className="size-3.5" aria-hidden="true" />Likely scanner</Badge>
+  return <Badge variant="secondary" className="gap-1.5"><Clock3 className="size-3.5" aria-hidden="true" />Pending</Badge>
+}
+
+function SessionMetric({ label, value }: { label: string; value: ReactNode }) {
+  return <span><span className="block text-[11px] text-foreground-muted/80">{label}</span><span className="mt-0.5 block whitespace-nowrap text-foreground-muted">{value}</span></span>
+}
+
 function ActivitySection({ activity, sessions }: { activity: ShareActivitySummary[]; sessions: ShareSessionSummary[] }) {
   const groups = groupActivity(activity, sessions)
 
   return (
-    <section aria-labelledby="recent-activity">
-      <SectionHeading id="recent-activity" title="Recent activity" description="Latest viewer events" />
-      <div className="mt-5 space-y-5">
+    <Card className="overflow-hidden rounded-xl">
+      <SectionHeading id="recent-activity" icon={<Activity className="size-4" />} title="Recent activity" description="Events connected to viewer sessions" />
+      <div className="space-y-3 p-3 sm:p-4">
         {groups.map((group) => <ActivityGroup key={group.id} group={group} />)}
       </div>
-    </section>
+    </Card>
   )
 }
 
 function ActivityGroup({ group }: { group: ActivityGroupData }) {
+  const confirmed = Boolean(group.session?.confirmedAt)
+
   return (
-    <div className="grid gap-3 border-b border-border/50 pb-5 last:border-b-0 last:pb-0 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-6">
-      <div className="flex items-center gap-2 text-xs font-medium text-foreground">
-        <span className={`size-1.5 rounded-full ${group.session?.confirmedAt ? 'bg-success' : 'bg-foreground-muted/60'}`} aria-hidden="true" />
-        <span>{group.session ? getSessionStatusLabel(group.session) : 'Share lifecycle'}</span>
+    <div className="rounded-lg border border-border/60 bg-muted/18 p-3.5 transition-colors hover:border-primary/20 hover:bg-accent/20 sm:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2 text-xs font-medium text-foreground">
+          <span className={`flex size-6 shrink-0 items-center justify-center rounded-md ${confirmed ? 'bg-success/10 text-success' : 'bg-muted text-foreground-muted'}`} aria-hidden="true">
+            {confirmed ? <CheckCircle2 className="size-3.5" /> : <Clock3 className="size-3.5" />}
+          </span>
+          <span className="truncate">{group.session ? getSessionStatusLabel(group.session) : 'Share lifecycle'}</span>
+        </div>
+        <span className="text-[11px] text-foreground-muted">{group.events.length} {group.events.length === 1 ? 'event' : 'events'}</span>
       </div>
-          <ol className="min-w-0 space-y-2">
-            {group.events.map((event) => (
-              <li key={event.id} className="flex min-w-0 flex-col gap-1 text-xs sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-                <div className="min-w-0">
-                  <span className="font-medium text-foreground">{formatEventType(event.eventType)}</span>
-                  {event.path ? <span className="ml-2 inline-block max-w-full truncate align-bottom font-mono text-[11px] text-foreground-muted sm:max-w-[55%]" title={event.path}>{event.path}</span> : null}
-                </div>
+      <ol className="mt-3 space-y-2">
+        {group.events.map((event) => (
+          <li key={event.id} className="flex min-w-0 items-start gap-2.5 rounded-md bg-background/45 px-2.5 py-2 text-xs transition-colors hover:bg-background/75">
+            <EventIcon eventType={event.eventType} />
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                <span className="font-medium text-foreground">{formatEventType(event.eventType)}</span>
                 <span className="shrink-0 text-foreground-muted"><Timestamp value={event.createdAt} /></span>
-              </li>
-            ))}
-          </ol>
+              </div>
+              {event.path ? <p className="mt-1 max-w-full truncate font-mono text-[11px] text-foreground-muted" title={event.path}>{event.path}</p> : null}
+            </div>
+          </li>
+        ))}
+      </ol>
     </div>
   )
+}
+
+function EventIcon({ eventType }: { eventType: string }) {
+  const normalized = eventType.toLowerCase()
+  if (normalized.includes('notification')) return <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-warning/10 text-warning" aria-hidden="true"><Bell className="size-3.5" /></span>
+  if (normalized.includes('copy')) return <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary-soft text-primary-readable" aria-hidden="true"><Copy className="size-3.5" /></span>
+  if (normalized.includes('download')) return <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary-soft text-primary-readable" aria-hidden="true"><ArrowDownToLine className="size-3.5" /></span>
+  if (normalized.includes('file') || normalized.includes('markdown') || normalized.includes('directory')) return <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-success/10 text-success" aria-hidden="true"><FileCode2 className="size-3.5" /></span>
+  return <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-foreground-muted" aria-hidden="true"><Activity className="size-3.5" /></span>
 }
 
 type ActivityGroupData = { id: string; session: ShareSessionSummary | null; events: ShareActivitySummary[] }
@@ -221,56 +281,66 @@ function groupActivity(activity: ShareActivitySummary[], sessions: ShareSessionS
 
 function ShareSettingsSection({ shareId, item, notifications }: { shareId: string; item: ShareDetailData['item']; notifications: ShareNotificationSummary[] }) {
   const repositoryName = item.repository ? `${item.repository.github_owner}/${item.repository.github_repo}` : 'Repository unavailable'
+  const hasNotificationIssue = notifications.some((notification) => notification.status !== 'sent' || notification.errorText)
 
   return (
-    <section aria-labelledby="share-settings">
-      <details className="group border-y border-border/60">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-          <h2 id="share-settings" className="font-heading text-base font-semibold tracking-[-0.01em]">Share settings</h2>
-          <span className="flex items-center gap-2 text-xs text-foreground-muted">
-            Access, visibility, notifications, and notes
-            <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" aria-hidden="true" />
-          </span>
+    <Card className="overflow-hidden rounded-xl">
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 outline-none transition-colors hover:bg-accent/25 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-6 [&::-webkit-details-marker]:hidden">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground-muted" aria-hidden="true"><ShieldCheck className="size-4" /></span>
+            <div className="min-w-0">
+              <h2 id="share-settings" className="font-heading text-base font-semibold tracking-[-0.01em]">Share settings</h2>
+              <p className="mt-0.5 truncate text-xs text-foreground-muted">Access, visibility, notifications, and notes</p>
+            </div>
+          </div>
+          <ChevronDown className="size-4 shrink-0 text-foreground-muted transition-transform duration-150 group-open:rotate-180" aria-hidden="true" />
         </summary>
-        <div className="space-y-8 border-t border-border/50 py-6">
-          <div className="grid gap-8 sm:grid-cols-2">
-            <div>
-              <h3 className="text-sm font-medium">Access</h3>
-              <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="border-t border-border/55 bg-muted/12 p-3 sm:p-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SettingsPanel icon={<LockKeyhole className="size-3.5" />} title="Access">
+              <dl className="grid gap-3 sm:grid-cols-2">
                 <DetailField label="Repository" value={repositoryName} mono />
                 <DetailField label="Ref" value={item.share.ref} mono />
                 <DetailField label="Downloads" value={item.share.allow_download ? 'Allowed' : 'Disabled'} />
                 <DetailField label="Notify on view" value={item.share.notify_on_view ? 'Enabled' : 'Disabled'} />
               </dl>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium">Visibility policy</h3>
-              <div className="mt-4 space-y-3"><VisibilityRules rules={item.share.rules} /></div>
-            </div>
-          </div>
+            </SettingsPanel>
 
-          <div className="grid gap-8 sm:grid-cols-2">
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-medium">Notifications</h3>
-                {notifications.some((notification) => notification.status !== 'sent' || notification.errorText) ? <Badge variant="destructive" className="text-[10px]">Needs attention</Badge> : null}
-              </div>
-              <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+            <SettingsPanel icon={<ShieldCheck className="size-3.5" />} title="Visibility policy">
+              <VisibilityRules rules={item.share.rules} />
+            </SettingsPanel>
+
+            <SettingsPanel icon={<Bell className="size-3.5" />} title="Notifications" badge={hasNotificationIssue ? <Badge variant="destructive" className="text-[10px]">Needs attention</Badge> : undefined}>
+              <dl className="grid gap-3 sm:grid-cols-2">
                 <DetailField label="On meaningful view" value={item.share.notify_on_view ? 'Enabled' : 'Disabled'} />
                 {notifications.length > 0 ? <DetailField label="Delivery attempts" value={String(notifications.length)} /> : null}
               </dl>
               {notifications.length > 0 ? <NotificationHistory notifications={notifications} /> : null}
-            </div>
-            <div>
-              <h3 className="text-sm font-medium">Notes</h3>
-              <div className="mt-4 flex items-start justify-between gap-4">
-                <p className="min-w-0 whitespace-pre-wrap text-sm leading-6 text-foreground-muted">{item.share.note || 'No note added.'}</p>
-                <UpdateShareNoteButton shareId={shareId} note={item.share.note} compact />
-              </div>
-            </div>
+            </SettingsPanel>
+
+            <SettingsPanel icon={<FileText className="size-3.5" />} title="Notes" action={<UpdateShareNoteButton shareId={shareId} note={item.share.note} compact />}>
+              <p className="whitespace-pre-wrap text-sm leading-6 text-foreground-muted">{item.share.note || 'No note added.'}</p>
+            </SettingsPanel>
           </div>
         </div>
       </details>
+    </Card>
+  )
+}
+
+function SettingsPanel({ icon, title, badge, action, children }: { icon: ReactNode; title: string; badge?: ReactNode; action?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="min-w-0 rounded-lg border border-border/60 bg-card/75 p-4">
+      <header className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
+          <span className="text-primary-readable" aria-hidden="true">{icon}</span>
+          <h3 className="truncate">{title}</h3>
+          {badge}
+        </div>
+        {action}
+      </header>
+      <div className="mt-4">{children}</div>
     </section>
   )
 }
@@ -279,7 +349,7 @@ function DetailField({ label, value, mono = false }: { label: string; value: str
   return (
     <div className="min-w-0 space-y-1">
       <dt className="text-xs text-foreground-muted">{label}</dt>
-      <dd className={mono ? 'truncate font-mono text-xs text-foreground' : 'text-sm text-foreground'} title={value}>{value}</dd>
+      <dd className={mono ? 'break-all font-mono text-xs text-foreground' : 'break-words text-sm text-foreground'} title={value}>{value}</dd>
     </div>
   )
 }
@@ -289,26 +359,21 @@ function VisibilityRules({ rules }: { rules: unknown }) {
   const hidden = Array.isArray(parsed.hidden) ? parsed.hidden.filter((value): value is string => typeof value === 'string') : []
   const allowOnly = Array.isArray(parsed.allowOnly) ? parsed.allowOnly.filter((value): value is string => typeof value === 'string') : []
 
-  return (
-    <>
-      <RuleList label="Hidden" values={hidden} />
-      <RuleList label="Allow only" values={allowOnly} />
-    </>
-  )
+  return <div className="space-y-2"><RuleList label="Hidden" values={hidden} /><RuleList label="Allow only" values={allowOnly} /></div>
 }
 
 function RuleList({ label, values }: { label: string; values: string[] }) {
-  return <p className="text-sm leading-6"><span className="text-foreground-muted">{label}:</span> <span className={values.length > 0 ? 'font-mono text-xs text-foreground' : 'text-foreground-muted'}>{values.length > 0 ? values.join(', ') : 'None'}</span></p>
+  return <div className="rounded-md bg-muted/35 px-3 py-2 text-sm leading-6"><span className="text-foreground-muted">{label}</span><span className="mx-2 text-foreground-muted/50">·</span><span className={values.length > 0 ? 'break-words font-mono text-xs text-foreground' : 'text-foreground-muted'}>{values.length > 0 ? values.join(', ') : 'None'}</span></div>
 }
 
 function NotificationHistory({ notifications }: { notifications: ShareNotificationSummary[] }) {
   return (
-    <details className="group mt-5">
+    <details className="group mt-4 rounded-md border border-border/55 bg-muted/25 px-3 py-2.5">
       <summary className="flex cursor-pointer list-none items-center gap-2 text-xs text-foreground-muted underline-offset-4 hover:text-foreground hover:underline [&::-webkit-details-marker]:hidden">
         View delivery history
-        <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" aria-hidden="true" />
+        <ChevronDown className="size-3.5 transition-transform duration-150 group-open:rotate-180" aria-hidden="true" />
       </summary>
-      <div className="mt-3 space-y-3">
+      <div className="mt-3 space-y-3 border-t border-border/50 pt-3">
         {notifications.map((notification) => <NotificationRow key={notification.id} notification={notification} />)}
       </div>
     </details>
@@ -328,8 +393,8 @@ function NotificationRow({ notification }: { notification: ShareNotificationSumm
   )
 }
 
-function EmptyDetailState({ text }: { text: string }) {
-  return <p className="mt-4 py-6 text-center text-sm text-foreground-muted">{text}</p>
+function EmptyDetailState({ icon, text }: { icon: ReactNode; text: string }) {
+  return <div className="mx-3 my-3 flex min-h-40 flex-col items-center justify-center rounded-lg border border-border/55 bg-muted/18 px-5 py-8 text-center sm:mx-4"><span className="flex size-9 items-center justify-center rounded-lg bg-muted text-foreground-muted" aria-hidden="true">{icon}</span><p className="mt-3 max-w-md text-sm leading-6 text-foreground-muted">{text}</p></div>
 }
 
 function getSessionStatusLabel(session: ShareSessionSummary) {

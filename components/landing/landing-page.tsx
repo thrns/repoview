@@ -68,11 +68,13 @@ export function LandingPage() {
           </div>
 
           <div className="hero-product-stage">
-            <div className="hero-stage-meta">
-              <span>What the recipient sees</span>
-              <span><i className="status-dot" /> scoped share</span>
+            <div className="hero-stage-frame">
+              <div className="hero-stage-meta">
+                <span>What the recipient sees</span>
+                <span><i className="status-dot" /> scoped share</span>
+              </div>
+              <HeroRepositoryPreview />
             </div>
-            <HeroRepositoryPreview />
           </div>
         </div>
       </section>

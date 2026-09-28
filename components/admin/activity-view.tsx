@@ -21,9 +21,9 @@ import {
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 
-import { Select } from '@/components/ui'
+import { cn, Select } from '@/components/ui'
 import type { ActivityFilter, DashboardActivityItem } from '@/lib/dashboard/activity'
-import { ActiveFilterSummary, OwnerFilterDialog, OwnerFilterField, OwnerSearchField } from './owner-workspace-controls'
+import { ActiveFilterSummary, OwnerEmptyState, OwnerFilterDialog, OwnerFilterField, OwnerListHeader, OwnerListSurface, OwnerSearchField } from './owner-workspace-controls'
 
 type EventFilter = 'all' | 'view' | 'file_opened' | 'copy' | 'download' | 'share' | 'session' | 'notification'
 type DateFilter = 'default' | 'all' | 'today' | '7d' | '30d'
@@ -104,7 +104,7 @@ export function ActivityView({ items, filter }: { items: DashboardActivityItem[]
 
   return (
     <section className="mx-auto w-full max-w-6xl px-5 pb-10 sm:px-8 lg:px-10 lg:pb-14">
-      <div className="sticky top-14 z-30 -mx-5 bg-background/95 px-5 pb-4 pt-7 backdrop-blur-sm sm:-mx-8 sm:px-8 lg:top-0 lg:-mx-10 lg:px-10 lg:pb-5 lg:pt-10">
+      <div className="sticky top-0 z-30 -mx-5 bg-background/95 px-5 pb-4 pt-7 backdrop-blur-sm sm:-mx-8 sm:px-8 lg:-mx-10 lg:px-10 lg:pb-5 lg:pt-10">
         <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -144,12 +144,8 @@ export function ActivityView({ items, filter }: { items: DashboardActivityItem[]
         ]} onClear={clearFilters} />
       </div>
 
-      <div className="mt-5 flex items-center justify-between gap-4 border-b border-border/70 pb-3">
-        <p className="text-xs text-foreground-muted"><span className="font-mono tabular-nums text-foreground">{sessions.length}</span> {sessions.length === 1 ? 'session' : 'sessions'} <span className="px-1 text-foreground-muted/50">·</span> <span className="font-mono tabular-nums text-foreground">{totalEventCount}</span> {totalEventCount === 1 ? 'event' : 'events'}</p>
-        <span className="hidden text-xs text-foreground-muted sm:inline">Latest sessions first</span>
-      </div>
-
-      <section className="mt-3 overflow-hidden border-y border-border/70 bg-card" aria-label="Activity sessions">
+      <OwnerListSurface className="mt-3" aria-label="Activity sessions">
+        <OwnerListHeader icon={<Clock3 className="size-4" aria-hidden="true" />} title="Session timeline" description="Sessions are grouped by share open so the audit trail stays readable." meta={<><span className="font-mono">{sessions.length}</span> {sessions.length === 1 ? 'session' : 'sessions'} · <span className="font-mono">{totalEventCount}</span> {totalEventCount === 1 ? 'event' : 'events'}</>} />
         {visibleSessions.length === 0 ? (
           <EmptyActivity hasFilters={Boolean(activeFilterCount || query)} onClear={clearFilters} />
         ) : (
@@ -164,7 +160,7 @@ export function ActivityView({ items, filter }: { items: DashboardActivityItem[]
             />
           ))
         )}
-      </section>
+      </OwnerListSurface>
 
       {visibleSessions.length < sessions.length ? (
         <div className="flex justify-center pt-5">
@@ -213,7 +209,7 @@ function ActivityToolbar({
   setDateFilter: (value: DateFilter) => void
 }) {
   return (
-    <div className="mt-5 flex items-center gap-2">
+    <div className="mt-5 flex items-center gap-2 rounded-lg border border-border/70 bg-card/75 p-2 shadow-sm">
       <OwnerSearchField value={query} onChange={setQuery} label="Search activity" placeholder="Search activity" className="lg:max-w-sm" />
       <OwnerFilterDialog
         title="Activity filters"
@@ -277,15 +273,15 @@ function SessionBlock({ session, index, isOpen, now, onToggle }: { session: Acti
   const headerLabel = `${viewer}, ${first.recipientLabel}, ${first.repositoryName}`
 
   return (
-    <article className="border-b border-border/70 last:border-b-0">
-      <div className="flex items-stretch gap-1 px-4 py-3.5 sm:px-5">
+    <article className="group/session border-b border-border/70 last:border-b-0">
+      <div className="flex items-stretch gap-1 px-3 py-3 transition-colors hover:bg-accent/28 sm:px-4 sm:py-3.5">
         {hasAnalytics ? (
           <Link href={`/dashboard/viewers/${first.viewerId}`} className="min-w-0 flex-1 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`Open analytics for ${headerLabel}`}>
-            <SessionHeaderContent first={first} viewer={viewer} duration={duration} eventCount={session.items.length} lastActivity={session.lastActivity} now={now} />
+            <SessionHeaderContent first={first} viewer={viewer} duration={duration} eventCount={session.items.length} lastActivity={session.lastActivity} now={now} hasAnalytics />
           </Link>
         ) : (
           <button type="button" onClick={onToggle} className="min-w-0 flex-1 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-expanded={isOpen}>
-            <SessionHeaderContent first={first} viewer={viewer} duration={duration} eventCount={session.items.length} lastActivity={session.lastActivity} now={now} />
+            <SessionHeaderContent first={first} viewer={viewer} duration={duration} eventCount={session.items.length} lastActivity={session.lastActivity} now={now} hasAnalytics={false} />
           </button>
         )}
         <button type="button" onClick={onToggle} aria-expanded={isOpen} aria-label={isOpen ? `Collapse ${headerLabel}` : `Expand ${headerLabel}`} className="mt-0.5 flex size-8 shrink-0 items-center justify-center self-start rounded-md text-foreground-muted transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -294,7 +290,7 @@ function SessionBlock({ session, index, isOpen, now, onToggle }: { session: Acti
       </div>
 
       {isOpen ? (
-        <div className="border-t border-border/50 bg-muted/20 px-4 py-2.5 sm:px-5">
+        <div className="mx-3 mb-3 rounded-lg border border-primary/15 bg-primary-soft/30 px-4 py-3 sm:ml-12 sm:mr-4">
           <div className="mb-2 grid gap-3 border-b border-border/50 pb-3 text-xs sm:ml-9 sm:grid-cols-3">
             <ContextValue label="Browser" value={first.browser} />
             <ContextValue label="Device" value={first.deviceType} />
@@ -310,21 +306,26 @@ function SessionBlock({ session, index, isOpen, now, onToggle }: { session: Acti
   )
 }
 
-function SessionHeaderContent({ first, viewer, duration, eventCount, lastActivity, now }: { first: DashboardActivityItem; viewer: string; duration: string; eventCount: number; lastActivity: string; now: number }) {
+function SessionHeaderContent({ first, viewer, duration, eventCount, lastActivity, now, hasAnalytics }: { first: DashboardActivityItem; viewer: string; duration: string; eventCount: number; lastActivity: string; now: number; hasAnalytics: boolean }) {
   return (
-    <div className="min-w-0">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <span className="inline-flex items-center gap-1.5 text-sm font-semibold tracking-[-0.01em] text-foreground"><UserRound className="size-3.5 text-foreground-muted" aria-hidden="true" />{viewer}</span>
-        <span className="text-foreground-muted/50" aria-hidden="true">/</span>
-        <span className="truncate text-sm text-foreground">{first.recipientLabel}</span>
-      </div>
-      <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-foreground-muted">
-        <span className="truncate font-mono">{first.repositoryName}</span>
-      </div>
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] tabular-nums text-foreground-muted">
-        <span>{duration}</span>
-        <span>{eventCount} {eventCount === 1 ? 'event' : 'events'}</span>
-        <time dateTime={lastActivity} title={formatExactDate(lastActivity)}>{formatRelative(lastActivity, now)}</time>
+    <div className="flex min-w-0 gap-3">
+      <span className={cn('mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border', hasAnalytics ? 'border-analytical/20 bg-analytical/10 text-analytical' : 'border-border bg-muted text-foreground-muted')}><UserRound className="size-3.5" aria-hidden="true" /></span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="truncate text-sm font-semibold tracking-[-0.01em] text-foreground">{viewer}</span>
+            <span className="text-foreground-muted/50" aria-hidden="true">/</span>
+            <span className="truncate text-sm text-foreground">{first.recipientLabel}</span>
+          </div>
+          <time className="shrink-0 font-mono text-xs font-medium tabular-nums text-foreground" dateTime={lastActivity} title={formatExactDate(lastActivity)}>{formatRelative(lastActivity, now)}</time>
+        </div>
+        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-foreground-muted">
+          <span className="truncate font-mono" title={first.repositoryName}>{first.repositoryName}</span>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] tabular-nums text-foreground-muted">
+          <span>{duration}</span>
+          <span>{eventCount} {eventCount === 1 ? 'event' : 'events'}</span>
+        </div>
       </div>
     </div>
   )
@@ -355,7 +356,7 @@ function EventRow({ event }: { event: DisplayEvent }) {
   const text = eventText(item)
   return (
     <div className="flex items-start gap-2 py-2.5 text-xs">
-      <span className="flex size-5 shrink-0 items-center justify-center text-foreground-muted"><EventIcon item={item} /></span>
+      <span className="flex size-5 shrink-0 items-center justify-center"><EventIcon item={item} /></span>
       <p className="min-w-0 flex-1 leading-5 text-foreground">
         <span className="font-medium">{text.label}</span>{text.target ? <> <span className="font-mono text-[11px] text-foreground-muted">{text.target}</span></> : null}
       </p>
@@ -388,18 +389,18 @@ function EventIcon({ item }: { item: DashboardActivityItem }) {
                       : item.eventType === 'file_viewed' || item.eventType === 'raw_file_viewed' || item.eventType === 'image_viewed' || item.eventType === 'mermaid_viewed'
                         ? Eye
                         : Activity
-  return <Icon className="size-3.5" aria-hidden="true" />
+  const tone = item.category === 'notification'
+    ? 'text-warning'
+    : ['copy', 'download'].includes(item.eventType)
+      ? 'text-analytical'
+      : item.eventType === 'view_confirmed' || item.eventType === 'repository_opened'
+        ? 'text-success'
+        : 'text-primary-readable'
+  return <Icon className={cn('size-3.5', tone)} aria-hidden="true" />
 }
 
 function EmptyActivity({ hasFilters, onClear }: { hasFilters: boolean; onClear: () => void }) {
-  return (
-    <div className="px-6 py-14 text-center">
-      <div className="mx-auto flex size-8 items-center justify-center rounded-md bg-muted text-foreground-muted"><Activity className="size-4" aria-hidden="true" /></div>
-      <p className="mt-3 text-sm font-medium text-foreground">{hasFilters ? 'No activity matches these filters.' : 'No activity recorded yet.'}</p>
-      <p className="mt-1 text-xs text-foreground-muted">{hasFilters ? 'Try a broader search or reset the filters.' : 'Confirmed viewer sessions will appear here.'}</p>
-      {hasFilters ? <button type="button" onClick={onClear} className="mt-4 text-xs font-medium text-foreground underline underline-offset-4 hover:text-foreground-muted">Reset filters</button> : null}
-    </div>
-  )
+  return <OwnerEmptyState icon={<Activity className="size-4" aria-hidden="true" />} title={hasFilters ? 'No activity matches these filters.' : 'No activity recorded yet.'} description={hasFilters ? 'Try a broader search or reset the filters.' : 'Confirmed viewer sessions will appear here.'} action={hasFilters ? <button type="button" onClick={onClear} className="text-xs font-medium text-link underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Reset filters</button> : undefined} />
 }
 
 function groupActivity(items: DashboardActivityItem[]): ActivitySession[] {

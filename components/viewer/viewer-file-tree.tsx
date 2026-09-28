@@ -167,11 +167,11 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
   }
 
   return (
-    <div className={cn('flex min-h-0 flex-1 flex-col', className)}>
-      <div className="space-y-1.5 border-b border-border px-3 py-2">
+    <div className={cn('viewer-tree-panel flex min-h-0 flex-1 flex-col', className)}>
+      <div className="viewer-tree-header space-y-1.5 border-b border-border px-3 py-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-start gap-2">
-            <FolderTree className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden="true" />
+            <FolderTree className="mt-0.5 size-3.5 shrink-0 text-primary-readable" aria-hidden="true" />
             <div className="min-w-0">
               <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground-muted">Explorer</p>
               <p className="mt-0.5 text-[11px] text-foreground-muted" aria-live="polite">
@@ -202,7 +202,7 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
               placeholder="Search files…"
               aria-label="Search files"
               aria-keyshortcuts="/"
-              className="h-9 rounded-lg border-border bg-muted/50 pl-8 pr-9 text-xs !shadow-none"
+              className="viewer-tree-search h-9 rounded-lg border-border bg-muted/50 pl-8 pr-9 text-xs !shadow-none"
             />
             <kbd aria-hidden="true" className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border/80 bg-background px-1.5 py-0.5 font-mono text-[10px] leading-none text-foreground-muted">/</kbd>
           </div>
@@ -213,7 +213,7 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
         <TreeError reason={tree.reason} />
       ) : (
         <ScrollArea className="min-h-0 flex-1 overscroll-none">
-          <div role="tree" aria-label="Authorized files" className="space-y-0.5 p-1.5">
+          <div role="tree" aria-label="Authorized files" className="viewer-tree-list space-y-0.5 p-1.5">
             {visibleNodes.map((node, index) => {
               const isSelected = node.kind === 'file' && selectedPath === node.path
               const isFocused = focusedPath === node.path || (!focusedPath && index === 0) || (!visiblePaths.has(focusedPath ?? '') && index === 0)
@@ -245,8 +245,8 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
                   }}
                   onKeyDown={(event) => handleTreeKeyDown(event, node, index)}
                   className={cn(
-                    'relative flex min-h-8 w-full items-center gap-1.5 rounded px-2 text-left text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
-                    isSelected ? 'bg-primary/10 text-foreground before:absolute before:inset-y-0.5 before:left-0 before:w-0.5 before:bg-primary' : 'text-foreground-muted hover:bg-accent/60 hover:text-foreground',
+                    'viewer-tree-row relative flex min-h-8 w-full items-center gap-1.5 rounded px-2 text-left text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+                    isSelected ? 'bg-primary-soft text-primary-readable before:absolute before:inset-y-0.5 before:left-0 before:w-0.5 before:bg-primary' : 'text-foreground-muted hover:bg-accent/60 hover:text-foreground',
                   )}
                   style={{ paddingLeft: `${Math.min(8 + (depth - 1) * 12, 152)}px` }}
                 >

@@ -13,7 +13,7 @@ export function Tabs({ defaultValue, children, className }: { defaultValue: stri
 }
 
 export function TabsList({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div role="tablist" className={cn('inline-flex h-9 items-center rounded-md bg-muted p-1 text-foreground-muted', className)} {...props} />
+  return <div role="tablist" className={cn('inline-flex h-10 items-center rounded-lg border border-border/70 bg-muted/70 p-1 text-foreground-muted shadow-sm', className)} {...props} />
 }
 
 export function TabsTrigger({ value, className, children, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { value: string }) {
@@ -42,7 +42,7 @@ export function TabsTrigger({ value, className, children, ...props }: ButtonHTML
     nextTab.click()
   }
 
-  return <button {...buttonProps} type="button" id={tabId} role="tab" aria-selected={active} aria-controls={panelId} tabIndex={active ? 0 : -1} onClick={() => tabs?.setValue(value)} onKeyDown={handleKeyDown} className={cn('inline-flex h-8 items-center justify-center rounded-sm px-3 text-sm font-medium transition-[background-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-muted', active && 'bg-background text-foreground shadow-sm', className)}>{children}</button>
+  return <button {...buttonProps} type="button" id={tabId} role="tab" aria-selected={active} aria-controls={panelId} tabIndex={active ? 0 : -1} onClick={() => tabs?.setValue(value)} onKeyDown={handleKeyDown} className={cn('inline-flex h-8 items-center justify-center rounded-md px-3 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-muted', active && 'bg-card text-foreground shadow-sm', className)}>{children}</button>
 }
 
 export function TabsContent({ value, className, ...props }: HTMLAttributes<HTMLDivElement> & { value: string }) {

@@ -17,7 +17,7 @@ function RootEmptyState({ root }: { root: ViewerRootState }) {
     : readmeUnavailableMessage(root.reason)
 
   return (
-    <section className="repository-file-page min-h-[calc(100vh-2.75rem)]">
+    <section className="repository-file-page viewer-empty-state min-h-[calc(100vh-2.75rem)]">
       <div className="mx-auto max-w-2xl px-5 py-16 text-center">
         <h1 className="font-heading text-lg font-semibold">README.md unavailable</h1>
         <p className="mt-2 text-sm leading-6 text-foreground-muted">{message}</p>

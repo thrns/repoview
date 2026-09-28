@@ -27,7 +27,7 @@ export async function ViewerFilePreview({ file, shareId, tree, allowDownload = f
   const language = detectViewerLanguage(file.path)
 
   return (
-    <section className="min-h-[calc(100vh-2.75rem)] bg-background">
+    <section className="viewer-file-content min-h-[calc(100vh-2.75rem)] bg-background">
       <FileToolbar path={file.path} size={file.size} language={language} content={file.content} shareId={shareId} allowDownload={allowDownload} />
       {language === 'markdown' ? (
         <div className="repository-markdown-page">

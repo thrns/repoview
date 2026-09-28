@@ -14,11 +14,11 @@ export default function NewShareLoading() {
         <FormSectionSkeleton fields={2} optional />
         <FormSectionSkeleton fields={1} toggles={2} />
 
-        <section className="border-t border-border/70 pt-6">
+        <section className="rounded-xl border border-border/70 bg-card/75 p-5 shadow-sm sm:p-6">
           <div className="flex items-center justify-between gap-3"><div className="space-y-2"><Skeleton className="h-4 w-44" /><Skeleton className="h-3 w-64 max-w-full" /></div><Skeleton className="size-4 rounded-full" /></div>
         </section>
 
-        <div className="sticky bottom-0 z-10 -mx-5 border-t border-border/80 bg-background/95 px-5 py-3 sm:-mx-8 sm:px-8">
+        <div className="sticky bottom-4 z-10 rounded-xl border border-border/70 bg-card/95 px-4 py-3 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="space-y-2"><Skeleton className="h-3 w-28" /><Skeleton className="h-3 w-64 max-w-full" /></div><div className="flex justify-end gap-2"><Skeleton className="h-9 w-16" /><Skeleton className="h-9 w-28" /></div></div>
         </div>
       </div>
@@ -28,7 +28,7 @@ export default function NewShareLoading() {
 
 function FormSectionSkeleton({ fields, optional = false, toggles = 0 }: { fields: number; optional?: boolean; toggles?: number }) {
   return (
-    <section className="border-t border-border/70 pt-6">
+    <section className="rounded-xl border border-border/70 bg-card/75 p-5 shadow-sm sm:p-6">
       <div className="mb-4 space-y-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-3 w-72 max-w-full" /></div>
       <div className="grid gap-4 sm:grid-cols-2">{Array.from({ length: fields }, (_, index) => <div key={index} className="space-y-2"><Skeleton className="h-3 w-24" /><Skeleton className="h-9 w-full" /></div>)}</div>
       {optional ? <div className="mt-5 flex items-center justify-between border-t border-border/70 pt-4"><Skeleton className="h-4 w-40" /><Skeleton className="size-4 rounded-full" /></div> : null}

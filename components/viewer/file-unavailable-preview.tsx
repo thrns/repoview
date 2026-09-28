@@ -24,7 +24,7 @@ export function UnavailableFilePreview({ file }: { file: UnavailableFileState })
         : 'This file preview is temporarily unavailable.'
 
   return (
-    <section className="repository-file-page min-h-[calc(100vh-2.75rem)]">
+    <section className="repository-file-page viewer-empty-state min-h-[calc(100vh-2.75rem)]">
       <div className="border-b border-border px-3 py-3 sm:px-5">
         <p className="break-all font-mono text-xs text-foreground-muted" title={file.path}>{file.path}</p>
       </div>

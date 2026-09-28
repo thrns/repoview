@@ -202,7 +202,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
         </div>
       </FormSection>
 
-      <section className="border-t border-border/70 pt-6">
+      <section className="rounded-xl border border-border/70 bg-card/75 p-5 shadow-[0_0_0_1px_hsl(var(--border)/0.12),0_2px_8px_hsl(var(--foreground)/0.02)] sm:p-6">
         <details className="group">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
             <span><span className="block">Advanced visibility rules</span><span className="mt-1 block text-xs font-normal text-foreground-muted">Further narrow which paths can appear in this share.</span></span>
@@ -221,7 +221,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
         </details>
       </section>
 
-      <div className="border-t border-border/80 bg-background py-3 sm:sticky sm:bottom-0 sm:z-10 sm:-mx-8 sm:px-8 sm:backdrop-blur">
+      <div className="rounded-xl border border-border/70 bg-card/95 px-4 py-3 shadow-sm sm:sticky sm:bottom-4 sm:z-10 sm:backdrop-blur">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 text-xs leading-5">
             <p className="font-medium text-foreground">Ready to create</p>
@@ -240,7 +240,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
 }
 
 function FormSection({ title, description, children }: { title: string; description: string; children: ReactNode }) {
-  return <section className="border-t border-border/70 pt-6"><div className="mb-4"><h2 className="font-heading text-sm font-semibold tracking-[-0.01em]">{title}</h2><p className="mt-1 text-xs leading-5 text-foreground-muted">{description}</p></div>{children}</section>
+  return <section className="rounded-xl border border-border/70 bg-card/75 p-5 shadow-[0_0_0_1px_hsl(var(--border)/0.12),0_2px_8px_hsl(var(--foreground)/0.02)] sm:p-6"><div className="mb-4"><h2 className="font-heading text-sm font-semibold tracking-[-0.01em]">{title}</h2><p className="mt-1 text-xs leading-5 text-foreground-muted">{description}</p></div>{children}</section>
 }
 
 function Field({ label, htmlFor, help, className, children }: { label: ReactNode; htmlFor: string; help?: string; className?: string; children: ReactNode }) {
@@ -252,7 +252,7 @@ function Field({ label, htmlFor, help, className, children }: { label: ReactNode
 }
 
 function ToggleRow({ checked, onChange, title, description }: { checked: boolean; onChange: (checked: boolean) => void; title: string; description: string }) {
-  return <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)} className="flex min-h-[68px] w-full items-center justify-between gap-5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
+  return <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)} className="flex min-h-[68px] w-full items-center justify-between gap-5 rounded-md px-2 text-left transition-colors hover:bg-accent/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
     <span className="min-w-0"><span className="block text-sm font-medium">{title}</span><span className="mt-0.5 block text-xs leading-5 text-foreground-muted">{description}</span></span>
     <span className={`relative flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors ${checked ? 'border-foreground bg-foreground' : 'border-input bg-muted'}`} aria-hidden="true"><span className={`absolute left-0.5 size-3.5 rounded-full bg-background shadow-sm transition-transform ${checked ? 'translate-x-4' : ''}`} /></span>
   </button>
@@ -293,7 +293,7 @@ function OneTimeShareResult({ share, onboarding, onCreateAnother }: { share: Cre
           <p className="mt-2 text-sm leading-6 text-foreground-muted">Save this exact URL now. RepoView stores only its hash, so the plaintext link will not be recoverable after you leave this page.</p>
         </div>
       </div>
-      <div className="space-y-3 border-y border-success/35 bg-success/5 px-4 py-5 sm:px-5">
+      <div className="space-y-3 rounded-lg border border-success/35 bg-success/5 px-4 py-5 sm:px-5">
         <div className="flex items-center gap-2 text-xs font-medium text-success"><LockKeyhole className="size-3.5" aria-hidden="true" />One-time secret URL</div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input ref={urlInputRef} readOnly value={share.url} aria-label="New share URL" className="min-w-0 bg-background font-mono text-xs" onFocus={(event) => event.currentTarget.select()} />
@@ -301,7 +301,7 @@ function OneTimeShareResult({ share, onboarding, onCreateAnother }: { share: Cre
         </div>
         <p aria-live="polite" className="min-h-5 text-xs text-success">{copied ? 'Copied to your clipboard.' : copyError ? <span role="alert" className="text-destructive">{copyError}</span> : 'Copy the link before navigating away.'}</p>
       </div>
-      <dl className="grid gap-4 border-b border-border/70 pb-5 sm:grid-cols-2">
+      <dl className="grid gap-3 rounded-lg border border-border/60 bg-muted/18 p-4 sm:grid-cols-2">
         <ResultField label="Repository" value={share.repository} mono />
         <ResultField label="Ref" value={share.ref} mono />
         <ResultField label={onboarding ? 'Share identity' : 'Recipient'} value={share.recipient} />
