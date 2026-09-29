@@ -56,8 +56,7 @@ export function SettingsNotifications({ settings, canManage }: { settings: Setti
       </Card>
 
       <Card>
-        <PreferenceRow first label="First confirmed view" detail="Email when a viewer meaningfully opens a share." checked={values.view_opened} disabled={!canManage} onChange={(checked) => setValues((current) => ({ ...current, view_opened: checked }))} />
-        <PreferenceRow label="Returning viewer" detail="Include repeat visits in view notifications." checked={values.returning_view} disabled={!canManage} onChange={(checked) => setValues((current) => ({ ...current, returning_view: checked }))} />
+        <PreferenceRow first label="View opened" detail="Email for every genuine confirmed visit, including repeat visits." checked={values.view_opened} disabled={!canManage} onChange={(checked) => setValues((current) => ({ ...current, view_opened: checked }))} />
         <PreferenceRow label="Download alerts" detail="Notify when a viewer downloads an allowed file." checked={values.download} disabled={!canManage} onChange={(checked) => setValues((current) => ({ ...current, download: checked }))} />
         <PreferenceRow label="Session summary" detail="Send a compact summary when a viewer session ends." checked={values.session_summary} disabled={!canManage} onChange={(checked) => setValues((current) => ({ ...current, session_summary: checked }))} />
         <PreferenceRow label="Security alerts" detail="Receive notices for unusual viewer security signals." checked={values.security_alerts} disabled={!canManage} onChange={(checked) => setValues((current) => ({ ...current, security_alerts: checked }))} />
@@ -171,7 +170,6 @@ function toInput(settings: Settings) {
   return {
     notificationEmail: settings.destination_email ?? '',
     notifyOnView: settings.view_opened,
-    notifyOnReturningView: settings.returning_view,
     notifyOnDownload: settings.download,
     notifyOnSessionSummary: settings.session_summary,
     notifyOnSecurityAlert: settings.security_alerts,

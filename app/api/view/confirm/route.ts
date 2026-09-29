@@ -10,6 +10,8 @@ import type { ViewerClientContext } from '../../../../lib/viewer/analytics-types
 import { isGlobalPrivacyControl } from '../../../../lib/viewer/privacy-shared'
 import { recordViewerViewEvent } from '../../../../lib/viewer/view-events'
 import { isRequestBodyTooLarge, readJsonBody } from '../../../../lib/security/body-limit'
+import { SHARE_IDENTIFIER_PATTERN } from '../../../../lib/shares/share-code'
+import { logViewerDiagnostic } from '../../../../lib/viewer/diagnostics'
 
 const MAX_CONFIRM_BODY_BYTES = 32 * 1024
 
@@ -19,7 +21,7 @@ const clientContextSchema = z.object({
   os: z.string().max(255).nullable().optional(),
 })
 const confirmRequestSchema = z.object({
-  shareId: z.string().uuid().or(z.string().regex(/^[A-Za-z0-9_-]{8}$/)),
+  shareId: z.string().uuid().or(z.string().regex(SHARE_IDENTIFIER_PATTERN)),
   entryPath: z.string().trim().max(512).nullable().optional(),
   clientContext: clientContextSchema.optional(),
 })
@@ -66,10 +68,8 @@ export async function POST(request: Request) {
     .from('viewer_sessions')
     .update({
       last_seen_at: confirmedAt,
-      ...(collectOptionalAnalytics ? {
-        confirmed_at: confirmedAt,
-        entry_path: parsedRequest.entryPath ?? null,
-      } : {}),
+      confirmed_at: confirmedAt,
+      ...(collectOptionalAnalytics ? { entry_path: parsedRequest.entryPath ?? null } : {}),
       ...(collectOptionalAnalytics && clientContext ? {
         device_type: clientContext.deviceType ?? null,
         browser: clientContext.browser ?? null,
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
     .eq('share_id', internalShareId)
     .eq('workspace_id', viewer.share.workspace_id)
     .is('confirmed_at', null)
-    .select('id, share_id, confirmed_at')
+    .select('id, share_id, workspace_id, viewer_id, analytics_mode, gpc_applied, first_seen_at, last_seen_at, confirmed_at, entry_path, browser, os, device_type, country, region, city, referrer_host, vpn_indication, proxy_indication, tor_indication, datacenter_indication, security_signals, is_probable_bot, is_returning_visit, previous_visit_count')
     .maybeSingle()
 
   if (confirmError) {
@@ -90,6 +90,12 @@ export async function POST(request: Request) {
   if (!confirmedSession) {
     return NextResponse.json({ confirmed: false }, { headers: { 'Cache-Control': 'no-store' } })
   }
+
+  logViewerDiagnostic('viewer-visit-confirmed', {
+    shareId: internalShareId,
+    sessionId: confirmedSession.id,
+    analyticsMode: confirmedSession.analytics_mode,
+  })
 
   // Confirmation is already durable on the session. The companion event is
   // best-effort so an analytics write cannot make a valid viewer lose access.
@@ -109,19 +115,24 @@ export async function POST(request: Request) {
     }
   }
 
-  if (collectOptionalAnalytics) try {
+  try {
     const notification = await notifyConfirmedViewer({
       shareId: internalShareId,
       sessionId: confirmedSession.id,
       confirmedAt: confirmedSession.confirmed_at ?? confirmedAt,
       share: viewer.share,
       repository: viewer.repository,
-      session: viewer.session,
+      session: confirmedSession,
     })
     if (notification.status === 'queued') {
       after(() => dispatchNotificationDelivery(notification.deliveryId).catch(() => undefined))
     }
   } catch {
+    logViewerDiagnostic('viewer-notification-failed', {
+      shareId: internalShareId,
+      sessionId: confirmedSession.id,
+      reason: 'queueing-error',
+    })
     // Notification queueing must not make a confirmed viewer lose access.
   }
 

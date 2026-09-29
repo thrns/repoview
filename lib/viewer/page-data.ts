@@ -4,6 +4,7 @@ import { headers } from 'next/headers'
 
 import { requireViewerRepositoryAccess } from '@/lib/auth/viewer-access'
 import { isGlobalPrivacyControl } from '@/lib/viewer/privacy-shared'
+import { isShareCode } from '../shares/share-code'
 
 import { loadAuthorizedViewerRoot } from './root-loader'
 import { loadAuthorizedViewerTree } from './tree-loader'
@@ -67,6 +68,6 @@ export async function getViewerPageData(shareIdentifier: string) {
 
 function getShareIdentifierType(value: string) {
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) return 'uuid'
-  if (/^[A-Za-z0-9_-]{8}$/.test(value)) return 'share_code'
+  if (isShareCode(value)) return 'share_code'
   return 'invalid'
 }

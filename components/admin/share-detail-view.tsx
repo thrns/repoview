@@ -105,8 +105,8 @@ function ShareOverflowMenu({ shareId, currentExpiresAt, disabled }: { shareId: s
         <div className="flex gap-2 rounded-md bg-muted/30 px-2 py-2.5 text-xs text-foreground-muted">
           <LockKeyhole className="mt-0.5 size-3.5 shrink-0 text-foreground-light" aria-hidden="true" />
           <div className="min-w-0">
-            <p className="font-medium text-foreground">Secret URL</p>
-            <p className="mt-0.5 leading-5">Stored as a one-way hash and not recoverable.</p>
+            <p className="font-medium text-foreground">Public capability link</p>
+            <p className="mt-0.5 leading-5">The nine-character code is the public lookup value; its HMAC is validated server-side.</p>
           </div>
         </div>
         <DropdownMenuSeparator />

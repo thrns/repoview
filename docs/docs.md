@@ -198,13 +198,13 @@ Environment secrets live in Vercel project environment variables.
                                   └───────────────────────┘
 
 Recipient:
-https://code.thrn.im/s/<secret>
+https://code.thrn.im/view/<9-character-code>
           │
           ▼
-token validation + viewer session cookie
+share-code validation + viewer session cookie
           │
           ▼
-/view/<share-id>/...
+/view/<9-character-code>/...
           │
           ├── file tree
           ├── code / Shiki
@@ -307,27 +307,30 @@ download toggle
         ↓
 visibility rules
         ↓
-crypto.randomBytes(32+)
+crypto.randomInt() over the fixed A-Z/a-z/0-9 alphabet
         ↓
-raw token ───────────────► shown once in URL
+9-character code ────────► shown in the public URL
         │
-        └─ SHA-256/HMAC ─► stored in Supabase
+        ├─ share_code ────► stored as the public code
+        └─ HMAC(code) ────► stored as token_hash
 ```
 
 Example URL:
 
-`https://code.thrn.im/s/3GC5...high-entropy-token...`
+`https://code.thrn.im/view/aB3xK9pQ2`
 
-The application cannot reconstruct the link later because only its hash is stored. The owner can rotate/regenerate it.
+The `share_code` column is unique. Code generation retries only a bounded number of times when that unique key collides; unrelated database errors are propagated. Historical eight-character codes remain valid for existing shares.
 
-### 5.4 Share-token exchange
+### 5.4 Share-code exchange and legacy token exchange
 
-Do not keep the secret token in normal browsing URLs.
+New links exchange their nine-character capability code in the existing root
+proxy, without changing the address bar. Historical `/s/<token>` links remain
+supported and keep their redirect behavior.
 
 ```text
-GET /s/<token>
+GET /view/<shareCode>
         ↓
-normalize + hash token
+normalize + HMAC(code)
         ↓
 find shares.token_hash
         ↓
@@ -345,9 +348,19 @@ set raw viewer-session token as HttpOnly cookie
         ↓
 record link_opened
         ↓
-303 redirect
+render the same /view/<shareCode> URL
+```
+
+The legacy path is:
+
+```text
+GET /s/<historical-token>
         ↓
-/view/<shareId>
+validate token_hash and share state
+        ↓
+set viewer-session cookie + record link_opened
+        ↓
+303 redirect to /view/<historical-share-code>
 ```
 
 Cookie properties:
@@ -356,11 +369,13 @@ Cookie properties:
 HttpOnly
 Secure (production)
 SameSite=Lax
-Path=/view/<shareId> or suitable protected scope
+Path=/ or suitable protected scope
 Expires <= share expiry
 ```
 
-The URL's `shareId` is not an access credential. The server always validates the viewer-session cookie too.
+The new share code is the capability used only to establish the viewer session;
+the server still validates the HttpOnly viewer-session cookie for the viewer
+page, API, asset, download, confirmation, and heartbeat requests.
 
 ### 5.5 Meaningful view confirmation
 
@@ -533,7 +548,7 @@ app/
                 └── route.ts
 ```
 
-Route naming can change slightly if implementation quality improves, but preserve the token-exchange and token-free-viewer concepts.
+Route naming can change slightly if implementation quality improves, but preserve the direct public share-code exchange and session-authorized viewer concepts. Historical `/s/[token]` links remain a compatibility path.
 
 ---
 
@@ -617,6 +632,9 @@ references remain unchanged.
 create table public.shares (
   id uuid primary key default gen_random_uuid(),
   repository_id uuid not null references public.repositories(id) on delete cascade,
+  -- New shares use nine alphanumeric characters. Historical eight-character
+  -- codes remain valid for backwards-compatible viewer URLs.
+  share_code varchar(9) not null,
   token_hash text not null unique,
   recipient_label text not null,
   ref text not null,
@@ -630,6 +648,11 @@ create table public.shares (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create unique index shares_share_code_idx on public.shares(share_code);
+
+-- The current migration accepts either the new code or a historical code:
+-- ^[A-Za-z0-9]{9}$ or ^[A-Za-z0-9_-]{8}$
 ```
 
 Share-specific rules extend or narrow repository defaults. A share should not be able to override a hard repository deny unless the design explicitly supports that and the admin understands it. Safer v1 behavior: effective hidden paths are the union of repository + share hidden rules.
@@ -763,7 +786,25 @@ The direct cross-tenant policy suite is `supabase/tests/rls_workspace.test.sql`;
 
 ## 9. Cryptographic token model
 
-### Share token
+### New public share capability code
+
+Generate exactly nine characters by sampling independently from the fixed,
+case-sensitive alphabet with a cryptographically secure random source:
+
+```ts
+const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+const code = Array.from({ length: 9 }, () => alphabet[randomInt(alphabet.length)]).join('')
+```
+
+New shares store the public code in `share_code` and store
+`HMAC-SHA-256(SHARE_TOKEN_PEPPER, code)` in `token_hash`. The code is the
+capability presented in `/view/<code>`; direct access validates it in the
+proxy, creates the normal viewer session, and keeps the browser on that URL.
+
+### Legacy share token
+
+Historical `/s/[token]` links use the original long token format and remain
+supported for persisted shares. New shares must not expose this format.
 
 Generate:
 
@@ -1464,7 +1505,7 @@ Advanced:
 After creation:
 - one-time secret URL display;
 - copy button;
-- explicit “This exact URL cannot be recovered because RepoView stores only its hash.”
+- explicit “This exact URL contains the nine-character public capability code.”
 - optional “Create another”.
 
 ### Share detail

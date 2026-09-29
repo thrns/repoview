@@ -6,11 +6,12 @@ import { createSupabaseAdminClient } from '../../../../lib/supabase/admin'
 import { isGlobalPrivacyControl } from '../../../../lib/viewer/privacy-shared'
 import { checkPublicRateLimit, checkRateLimits, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../lib/security/rate-limit'
 import { isRequestBodyTooLarge, readJsonBody } from '../../../../lib/security/body-limit'
+import { SHARE_IDENTIFIER_PATTERN } from '../../../../lib/shares/share-code'
 
 const MAX_HEARTBEAT_BODY_BYTES = 16 * 1024
 
 const heartbeatRequestSchema = z.object({
-  shareId: z.string().uuid().or(z.string().regex(/^[A-Za-z0-9_-]{8}$/)),
+  shareId: z.string().uuid().or(z.string().regex(SHARE_IDENTIFIER_PATTERN)),
   activeMs: z.number().finite().min(0).max(86_400_000).optional(),
   exitPath: z.string().trim().max(512).nullable().optional(),
 })

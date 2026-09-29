@@ -15,7 +15,6 @@ const profileSchema = z.object({
 const notificationSettingsSchema = z.object({
   notificationEmail: z.union([z.string().trim().email().max(320), z.literal('')]),
   notifyOnView: z.boolean(),
-  notifyOnReturningView: z.boolean(),
   notifyOnDownload: z.boolean(),
   notifyOnSessionSummary: z.boolean(),
   notifyOnSecurityAlert: z.boolean(),
@@ -56,7 +55,6 @@ export async function updateProfile(input: { fullName: string }) {
 export async function updateNotificationSettings(input: {
   notificationEmail: string
   notifyOnView: boolean
-  notifyOnReturningView: boolean
   notifyOnDownload: boolean
   notifyOnSessionSummary: boolean
   notifyOnSecurityAlert: boolean
@@ -95,7 +93,6 @@ export async function updateNotificationSettings(input: {
       destination_email: destinationEmail,
       email_verified: emailVerified,
       view_opened: parsed.notifyOnView,
-      returning_view: parsed.notifyOnReturningView,
       download: parsed.notifyOnDownload,
       session_summary: parsed.notifyOnSessionSummary,
       security_alerts: parsed.notifyOnSecurityAlert,

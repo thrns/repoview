@@ -10,6 +10,7 @@ import { findOrCreateViewer } from '../analytics/identity'
 import { createSupabaseAdminClient } from '../supabase/admin'
 import type { ViewerAnalyticsMode } from '../viewer/privacy'
 import { recordViewerViewEvent } from '../viewer/view-events'
+import { logViewerDiagnostic } from '../viewer/diagnostics'
 
 export const VIEWER_SESSION_COOKIE = 'repoview_viewer_session'
 
@@ -126,6 +127,7 @@ export async function exchangeShareToken(
     }
   }
   const rawSessionToken = generateViewerSessionToken()
+  const probableBot = metadata.isProbableBot || metadata.isPrefetch
   const sessionInsert = {
     workspace_id: share.workspace_id,
     share_id: share.id,
@@ -133,7 +135,7 @@ export async function exchangeShareToken(
     analytics_mode: analyticsMode,
     gpc_applied: gpcApplied,
     ip_hash: ipHash,
-    is_probable_bot: metadata.isProbableBot,
+    is_probable_bot: probableBot,
     vpn_indication: metadata.vpnIndication,
     proxy_indication: metadata.proxyIndication,
     tor_indication: metadata.torIndication,
@@ -144,7 +146,7 @@ export async function exchangeShareToken(
       proxy: metadata.proxyIndication,
       tor: metadata.torIndication,
       datacenter: metadata.datacenterIndication,
-      automation: metadata.isProbableBot,
+      automation: probableBot,
     },
     ...(collectOptionalAnalytics ? {
       viewer_id: viewer?.id ?? null,
@@ -168,6 +170,14 @@ export async function exchangeShareToken(
   if (sessionError || !session) {
     throw new ShareExchangeError('upstream')
   }
+
+  logViewerDiagnostic('viewer-visit-created', {
+    shareId: share.id,
+    shareCode: share.share_code ?? share.id,
+    sessionId: session.id,
+    analyticsMode,
+    probableBot,
+  })
 
   // Link opening is optional engagement analytics. Necessary-only mode still
   // records the security/access attempt below, but not an owner-facing event.
@@ -194,11 +204,23 @@ export async function exchangeShareToken(
     valid: true,
     token_age_seconds: tokenAgeSeconds,
     ip_hash: ipHash,
-    is_probable_bot: metadata.isProbableBot,
+    is_probable_bot: probableBot,
   }
   void Promise.resolve(admin.from('share_access_attempts').insert(accessAttempt)).then(() => undefined).catch(() => undefined)
 
-  void annotateSessionSecurity({ admin, workspaceId: share.workspace_id, shareId: share.id, sessionId: session.id, viewerId: viewer?.id ?? null, ipHash }).catch(() => undefined)
+  void annotateSessionSecurity({
+    admin,
+    workspaceId: share.workspace_id,
+    shareId: share.id,
+    sessionId: session.id,
+    viewerId: viewer?.id ?? null,
+    ipHash,
+    vpnIndication: metadata.vpnIndication,
+    proxyIndication: metadata.proxyIndication,
+    torIndication: metadata.torIndication,
+    datacenterIndication: metadata.datacenterIndication,
+    probableBot,
+  }).catch(() => undefined)
 
   return {
     shareId: share.id,
@@ -210,7 +232,7 @@ export async function exchangeShareToken(
   }
 }
 
-async function annotateSessionSecurity({ admin, workspaceId, shareId, sessionId, viewerId, ipHash }: { admin: ReturnType<typeof createSupabaseAdminClient>; workspaceId: string; shareId: string; sessionId: string; viewerId: string | null; ipHash: string | null }) {
+async function annotateSessionSecurity({ admin, workspaceId, shareId, sessionId, viewerId, ipHash, vpnIndication, proxyIndication, torIndication, datacenterIndication, probableBot }: { admin: ReturnType<typeof createSupabaseAdminClient>; workspaceId: string; shareId: string; sessionId: string; viewerId: string | null; ipHash: string | null; vpnIndication: boolean | null | undefined; proxyIndication: boolean | null | undefined; torIndication: boolean | null | undefined; datacenterIndication: boolean | null | undefined; probableBot: boolean }) {
   const { data: previousSessions } = await admin.from('viewer_sessions').select('id, viewer_id, ip_hash, last_seen_at').eq('share_id', shareId).eq('workspace_id', workspaceId).neq('id', sessionId).order('last_seen_at', { ascending: false }).limit(25)
   const sessions = previousSessions ?? []
   const otherViewer = Boolean(viewerId && sessions.some((session) => session.viewer_id && session.viewer_id !== viewerId))
@@ -218,6 +240,11 @@ async function annotateSessionSecurity({ admin, workspaceId, shareId, sessionId,
   const concurrent = sessions.filter((session) => Date.now() - new Date(session.last_seen_at).getTime() < 5 * 60_000).length + 1
   const signals = {
     token_valid: true,
+    vpn: vpnIndication ?? null,
+    proxy: proxyIndication ?? null,
+    tor: torIndication ?? null,
+    datacenter: datacenterIndication ?? null,
+    automation: probableBot,
     ...(otherViewer ? { possible_link_forwarding: true } : {}),
     ...(newNetwork ? { new_network: true } : {}),
     ...(concurrent > 1 ? { concurrent_sessions: concurrent } : {}),

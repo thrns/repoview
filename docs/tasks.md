@@ -604,20 +604,20 @@ Added protected `/dashboard/shares/new` with repository/ref loading, recipient l
 
 ## Task 8.2 — Implement secure share creation
 
-- [x] Generate 32+ random bytes.
-- [x] Store only token HMAC/hash.
+- [x] Generate a cryptographically random nine-character A-Z/a-z/0-9 code.
+- [x] Store the public code plus its peppered HMAC/hash.
 - [x] Persist share row.
-- [x] Return raw token only once.
+- [x] Return the public code and `/view/<code>` URL.
 - [x] Construct:
-  - `https://code.thrn.im/s/<token>` in production
+  - `https://code.thrn.im/view/<9-character-code>` in production
   - local URL in development
 
 **Acceptance criteria**
-- Database never contains raw share token.
-- Created share can be resolved from its token.
+- New URLs never expose a long raw token.
+- Created shares can be resolved from their nine-character code; historical `/s/[token]` links remain compatible.
 
 **Implementation note:**  
-Added the server-only share creation action to revalidate admin access, enabled repository/ref state, expiry, and visibility rules before generating a token. It inserts only the HMAC digest into `shares`, records the authenticated creator, and returns the raw token only inside a one-time share URL built from `NEXT_PUBLIC_APP_URL`.
+Added the server-only share creation action to revalidate admin access, enabled repository/ref state, expiry, and visibility rules before generating a nine-character alphanumeric capability code. New rows store that public code and its HMAC digest in `shares`, with bounded retries for share-code uniqueness collisions.
 
 ---
 
@@ -626,21 +626,21 @@ Added the server-only share creation action to revalidate admin access, enabled 
 - [x] After creating a share:
   - display URL
   - copy button
-  - explain that the exact link cannot be recovered
+  - explain that the exact public URL contains the nine-character share capability code
 - [x] Add “Create another”.
-- [x] Do not store raw token in local storage.
+- [x] Do not store the public URL or code in local storage.
 
 **Acceptance criteria**
-- Owner clearly understands one-time token behavior.
+- Owner clearly understands the public share-code URL behavior.
 
 **Implementation note:**  
-Added the in-memory one-time result panel to `CreateShareForm` with a copy button, explicit hash-only recovery warning, and “Create another share” reset. The raw URL is held only in component state for the current page session and is never written to local storage.
+Added the in-memory result panel to `CreateShareForm` with a copy button, the generated public code, and “Create another share” reset. The URL is held only in component state for the current page session and is never written to local storage.
 
 ---
 
 # Phase 9 — Share Exchange and Viewer Sessions
 
-## Task 9.1 — Implement `/s/[token]` exchange
+## Task 9.1 — Implement share-code exchange and preserve `/s/[token]`
 
 - [x] Validate token hash server-side.
 - [x] Reject:
@@ -652,14 +652,14 @@ Added the in-memory one-time result panel to `CreateShareForm` with a copy butto
 - [x] Store only viewer-session hash.
 - [x] Set secure HttpOnly cookie.
 - [x] Record `link_opened`.
-- [x] Redirect to `/view/[shareId]`.
+- [x] Keep new `/view/[shareCode]` opens in place while preserving the legacy redirect.
 
 **Acceptance criteria**
 - Secret share token disappears from URL immediately after exchange.
 - Raw session token never enters database.
 
 **Implementation note:**  
-Added server-only `lib/shares/exchange.ts` and `/s/[token]` route handling. Valid links are HMAC-validated, checked against expiry/revocation/repository state, issued a scoped HttpOnly SameSite cookie with an expiry no later than the share, recorded as `link_opened`, and redirected with 303 to `/view/[shareId]`. Invalid paths return no-store safe errors; exchange tests verify session hashes never receive raw tokens.
+Added server-only `lib/shares/exchange.ts`, the legacy `/s/[token]` route, and direct `/view/[shareCode]` exchange through `proxy.ts`. Valid links are HMAC-validated, checked against expiry/revocation/repository state, issued an HttpOnly SameSite cookie with an expiry no later than the share, and recorded as `link_opened`; new viewer requests remain on `/view/[shareCode]`, while historical links retain their 303 redirect.
 
 ---
 

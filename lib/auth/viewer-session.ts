@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 
 import { VIEWER_SESSION_COOKIE } from '../shares/exchange'
 import { hashViewerSessionToken } from '../security/tokens'
+import { isShareCode } from '../shares/share-code'
 import { createSupabaseAdminClient } from '../supabase/admin'
 import type { Database } from '../supabase/database.types'
 import { logViewerDiagnostic, summarizeViewerError } from '../viewer/diagnostics'
@@ -181,10 +182,6 @@ export async function authorizeViewerSession(shareId: string, rawSessionToken: s
 
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
-}
-
-function isShareCode(value: string) {
-  return /^[A-Za-z0-9_-]{8}$/.test(value)
 }
 
 function getShareIdentifierType(value: string) {

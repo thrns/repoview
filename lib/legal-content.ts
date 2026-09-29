@@ -6,7 +6,7 @@ export const TERMS_MARKDOWN = String.raw`
 **Effective date:** September 23, 2026  
 **Last updated:** September 24, 2026
 
-RepoView is an independently developed, publicly available software project operated by **Tharun Pranav Sakthivel**, an individual developer based in **6088 Walter Gage Road, Vancouver, BC, Canada V6T 0B4** ("**RepoView**," "**I**," "**me**," or "**my**").
+RepoView is an independently developed, publicly available software project operated by **Tharun Pranav Sakthivel**, an individual developer based in **Vancouver, British Columbia, Canada** ("**RepoView**," "**I**," "**me**," or "**my**").
 
 These Terms of Service ("**Terms**") govern access to and use of the RepoView website, Owner dashboard, repository-sharing features, share pages, rendering features, analytics, and related functionality (collectively, the "**Service**").
 
@@ -36,7 +36,7 @@ RepoView is not intended for use by children in circumstances where they cannot 
 RepoView may allow Owners to:
 
 - connect or select repositories and refs;
-- create limited-distribution or private share links;
+- create limited-distribution bearer-link Shares; the connected repository itself may be private on GitHub;
 - render source code, Markdown, images, diagrams, and other repository files;
 - review engagement associated with a Share;
 - receive configured notifications; and
@@ -111,7 +111,9 @@ Owners are responsible for choosing a sharing method appropriate to the sensitiv
 
 ## 8. Analytics are signals, not proof
 
-RepoView may provide Analytics for a Share as described in the Privacy Policy. Depending on configuration and privacy choices, Analytics may include session timing, file/page interactions, searches, copy/download actions, coarse browser/device context, approximate city/region/country labels, and probabilistic security signals.
+RepoView may provide Analytics for a Share as described in the Privacy Policy. Depending on configuration and privacy choices, Analytics may include session timing, repository-relative file and directory interactions, searches, copy/download actions, coarse browser/device context, approximate city/region/country labels, and probabilistic security signals.
+
+Depending on the Owner's settings and the Viewer's privacy choice, Owners may receive Analytics through dashboard interfaces, view notifications, and session-summary emails. A view notification may include a pseudonymous Viewer label, Recipient Label, first-or-returning-visit status, repository/ref, timestamp, browser, operating system, device category, approximate location, and referring host. A session-summary email may include session duration, files and directories viewed, search/copy/download counts, first and last file, top files by dwell, and probabilistic security signals.
 
 Analytics can be incomplete or inaccurate.
 
@@ -126,7 +128,7 @@ You must not represent RepoView Analytics as verified proof of:
 
 VPN/proxy/Tor detection, IP-to-company mapping, bot detection, approximate location, and similar signals are probabilistic and may be wrong.
 
-RepoView may suppress, aggregate, delay, de-identify, or remove Analytics where reasonably necessary for privacy, security, legal compliance, abuse prevention, or system integrity.
+RepoView may suppress, delay, or remove Analytics where reasonably necessary for privacy, security, legal compliance, abuse prevention, or system integrity.
 
 ## 9. Privacy and lawful use of Analytics
 
@@ -255,7 +257,7 @@ Sections that logically survive termination, including ownership, disclaimers, l
 
 ## 19. Third-party services and links
 
-RepoView may depend on or link to third-party services, including GitHub and infrastructure providers.
+RepoView may depend on or link to third-party services, including GitHub, Supabase, hosting or infrastructure providers, and email providers.
 
 I do not control and am not responsible for third-party content, terms, privacy practices, security, availability, or decisions.
 
@@ -316,7 +318,7 @@ Nothing in this Section prevents either party from seeking urgent injunctive or 
 
 I may update these Terms as RepoView evolves.
 
-The "Last updated" date will identify the latest version. If a change materially affects existing Owners' rights or obligations, I will provide reasonable notice where practical or where required by law.
+The displayed effective and last-updated dates identify the published copy. RepoView's application legal-version records may be maintained separately. If a change materially affects existing Owners' rights or obligations, I will provide reasonable notice where practical or where required by law.
 
 Continued use after updated Terms take effect constitutes acceptance to the extent permitted by law. If applicable law requires express agreement to a particular change, I will seek that agreement.
 
@@ -344,9 +346,11 @@ Questions about these Terms or rights complaints: **tharunpranav.ubc@gmail.com**
 Technical or account support: **tharunpranav.ubc@gmail.com**  
 Privacy requests: **tharunpranav.ubc@gmail.com**
 
-**RepoView**  
-Operator: **Tharun Pranav Sakthivel**  
-Location: **6088 Walter Gage Road, Vancouver, BC, Canada V6T 0B4**
+**RepoView**
+- Operator: **Tharun Pranav Sakthivel**
+- Location: **Vancouver, British Columbia, Canada**
+- Privacy contact / Privacy Officer: **Tharun Pranav Sakthivel**
+- Email: **tharunpranav.ubc@gmail.com**
 `
 
 export const PRIVACY_MARKDOWN = String.raw`
@@ -355,7 +359,7 @@ export const PRIVACY_MARKDOWN = String.raw`
 **Effective date:** September 23, 2026  
 **Last updated:** September 24, 2026
 
-RepoView is an independently developed, publicly available software project operated by **Tharun Pranav Sakthivel**, an individual developer based in **6088 Walter Gage Road, Vancouver, BC, Canada V6T 0B4** ("**RepoView**," "**I**," "**me**," or "**my**").
+RepoView is an independently developed, publicly available software project operated by **Tharun Pranav Sakthivel**, an individual developer based in **Vancouver, British Columbia, Canada** ("**RepoView**," "**I**," "**me**," or "**my**").
 
 This Privacy Policy explains what information RepoView collects, why it is collected, how it is used and disclosed, how long it is kept, and the choices available to people who use RepoView.
 
@@ -375,20 +379,20 @@ RepoView may link to or integrate with third-party services such as GitHub. Thos
 
 RepoView is designed to let an Owner share selected repository content and understand how a share is used without requiring the Viewer to create a RepoView account.
 
-When a Viewer opens a valid share, RepoView may process:
+When a Viewer opens a valid Share, RepoView may process:
 
-- a **pseudonymous** first-party viewer identifier, only after optional engagement analytics is enabled;
-- a server-side session identifier;
-- repository and file interaction events;
-- coarse browser, operating-system, and device-category context when optional analytics is enabled;
-- coarse city, region, or country labels when optional analytics is enabled; and
-- a salted IP hash and compact security/abuse-prevention signals. The ordinary request IP may be processed in memory for security, but the raw IP is not stored.
+- a **pseudonymous** first-party Viewer identifier, only after Optional engagement analytics is enabled;
+- a server-side Viewer session and bearer-link/access records;
+- repository and file interaction events, only in Optional engagement analytics mode;
+- coarse browser, operating-system, and device-category context when Optional engagement analytics is enabled;
+- coarse city, region, or country labels when Optional engagement analytics is enabled; and
+- a salted, workspace-scoped IP hash and compact security/abuse-prevention signals. The ordinary request IP may be processed transiently for security and rate limiting, but the raw IP is not persisted in the RepoView application database.
 
-RepoView may make relevant share analytics available to the Owner who created the share.
+RepoView may make relevant Share Analytics available to the Owner through dashboard interfaces and, where configured, view notifications or session-summary emails.
 
 A RepoView viewer identifier is **not a verified identity**. A recipient-labelled share link is also **not proof that the intended recipient opened the link**. Links can be forwarded, opened on multiple devices, inspected by automated systems, or used by someone other than the intended recipient.
 
-RepoView does **not** intentionally collect precise GPS location, raw keystrokes, camera or microphone content, Bluetooth or USB information, or clipboard contents for viewer analytics. RepoView does not sell Viewer personal information and does not use Viewer analytics for third-party advertising or cross-service behavioural advertising.
+RepoView does **not** intentionally collect precise GPS location, raw keystrokes, camera or microphone content, Bluetooth or USB information, or clipboard contents for Viewer Analytics. RepoView does not sell Viewer personal information and does not use Viewer Analytics for third-party advertising or cross-service behavioural advertising.
 
 ## 3. Information collected from Owners
 
@@ -412,44 +416,48 @@ Owners can download an account export from Settings. The export includes their a
 
 RepoView may create or receive:
 
-- a first-party pseudonymous viewer identifier, only after optional engagement analytics is enabled;
-- a server-side session identifier;
-- a share or share-token identifier;
-- timestamps, session start/end, active engagement duration, and returning-session status; and
+- a first-party pseudonymous Viewer identifier, only after Optional engagement analytics is enabled;
+- a server-side Viewer session identifier and session-token hash;
+- a Share, hashed Share-token, and access-attempt identifier;
+- timestamps, session start/end, active engagement duration, and returning-session status when Optional engagement analytics is enabled; and
 - consent, objection, or analytics-preference records where applicable.
 
-A pseudonymous identifier distinguishes browser activity over time but does not establish a person's legal name or identity.
+A pseudonymous identifier distinguishes browser activity over time but does not establish a person's legal name or identity. The database Viewer record is workspace-scoped, so the same browser may be recognized across that Owner's Shares in that workspace when the Viewer identifier cookie is available. It is not identity verification.
 
 ### 4.2 Repository interaction analytics
 
 RepoView may record events such as:
 
-- repository and ref viewed;
-- directories, pages, and files opened;
-- order and active engagement duration of file views;
+- a Share link being opened and a Viewer session being confirmed;
+- repository and ref activity;
+- directories, pages, source files, Markdown, images, diagrams, and other repository-relative paths opened or viewed;
+- first-view order and active engagement duration for file views;
 - search and search-result events;
 - copy and download actions; and
-- other clearly disclosed interactions introduced as RepoView evolves.
+- entry and exit paths and session-ended events.
 
 RepoView does not intentionally record every key pressed while a Viewer types. Search events store a bounded signal such as query length, not the submitted search text.
+
+RepoView may add new analytics features in the future. Materially new categories of personal information will be reflected in this Policy and, where required, the relevant notice or privacy choice before the new processing applies.
 
 ### 4.3 Browser, device, and request context
 
 Depending on what the browser, network request, host, CDN, or security layer provides, RepoView may process:
 
-- browser family, operating-system family, and device category when optional analytics is enabled;
-- a referring host, without URL paths, queries, fragments, or credentials, when optional analytics is enabled; and
-- a salted IP hash and bot, VPN, proxy, Tor, datacenter, and unusual-traffic indicators for necessary security processing.
+- browser family, operating-system family, and device category when Optional engagement analytics is enabled;
+- a referring host, without URL paths, queries, fragments, or credentials, for some link-open/security records and, when Optional engagement analytics is enabled, for Viewer session Analytics;
+- fetch-site, prefetch, link-preview, and bot/automation signals for share-open and security processing; and
+- the ordinary request IP transiently, plus a salted workspace-scoped IP hash and VPN, proxy, Tor, datacenter, and unusual-traffic indicators for Necessary-only security processing.
 
 ### 4.4 Approximate location and security/network signals
 
-RepoView may derive a coarse country, region/province/state, or city label from provider infrastructure metadata when optional analytics is enabled.
+RepoView may derive a coarse country, region/province/state, or city label from provider infrastructure metadata when Optional engagement analytics is enabled.
 
 RepoView may also receive or derive probabilistic indicators such as likely VPN, proxy, Tor, hosting/datacenter, bot/automation, or unusual traffic signals.
 
 These signals are **estimates, not facts**. They may be incorrect because of VPNs, proxies, corporate gateways, cellular networks, privacy relays, shared networks, automated previews, or inaccurate third-party databases.
 
-RepoView does not request browser precise-location/GPS permission for share analytics and does not store postal codes, timezones, coordinates, ASN/ISP details, raw user agents, device-profile hashes, screen characteristics, CPU count, memory estimates, or similar fingerprinting inputs.
+RepoView does not request browser precise-location/GPS permission for Share Analytics and does not store postal codes, timezones, coordinates, ASN/ISP details, raw user agents, device-profile hashes, screen characteristics, CPU count, memory estimates, or similar fingerprinting inputs.
 
 ## 5. Recipient-labelled links
 
@@ -461,21 +469,20 @@ For example, if a link labelled for a recruiter is forwarded to a colleague, Rep
 
 For that reason, RepoView should display recipient identity as **Unverified** unless a separate authentication mechanism is introduced.
 
-## 6. What RepoView does not intentionally collect for Viewer analytics
+## 6. What RepoView does not intentionally collect or persist for Viewer Analytics
 
-Unless a future feature is separately disclosed and lawfully enabled, RepoView does not intentionally collect for Viewer analytics:
+RepoView does not intentionally collect or persist in its application database for Viewer Analytics:
 
-- precise GPS location;
-- camera or microphone recordings;
-- Bluetooth, USB, or nearby-device data;
-- raw keystroke logs;
-- passwords typed into unrelated services;
-- background clipboard contents;
-- biometric identifiers;
-- government identification numbers; or
-- cross-site browsing history for advertising or unrelated profiling.
+- raw public IP addresses (the ordinary request IP may still be exposed to and processed by web, hosting, CDN, or security infrastructure);
+- precise GPS location, postal code, timezone, ASN, ISP organization, coordinates, or other precise location/network fields;
+- raw user-agent strings, browser versions, operating-system versions, rendering-engine details, or architecture details;
+- screen resolution, viewport dimensions, pixel ratio, color depth, orientation, CPU count, device-memory estimates, language lists, touch capability, or similar device-profile inputs;
+- network or device fingerprints designed for tracking;
+- raw keystrokes, passwords typed into unrelated services, clipboard contents, camera or microphone content, Bluetooth or USB information, nearby-device data, or biometric information;
+- unrelated cross-site browsing history for advertising or unrelated profiling; or
+- government-identification information for Viewer Analytics.
 
-RepoView does not use browser fingerprinting techniques intended to circumvent a Viewer's privacy choices.
+RepoView does not use browser fingerprinting techniques intended to circumvent a Viewer's privacy choices. Repository Content that an Owner chooses to share may of course contain information of its own; that is different from RepoView collecting it as Viewer Analytics.
 
 ## 7. Why RepoView uses information
 
@@ -491,23 +498,44 @@ RepoView may use the information described above to:
 
 RepoView does not use Viewer analytics to build advertising profiles, sell audiences, or follow Viewers across unrelated websites or apps.
 
-## 8. Consent, cookies, local storage, and similar technologies
+## 8. Privacy choices, Necessary-only processing, cookies, and browser storage
 
-RepoView may use first-party cookies, browser storage, or equivalent first-party technologies for authentication, security, session continuity, preferences, and analytics.
+RepoView may use first-party cookies, browser storage, or equivalent first-party technologies for authentication, security, session continuity, privacy preferences, and Optional engagement analytics.
 
-New share sessions start in **Necessary only** mode. In that mode RepoView may process the share authentication token, a server-side security session, ordinary request IP information, abuse and rate-limit signals, bot-detection signals, and security logs. RepoView does not create a persistent cross-session Viewer analytics identifier or collect detailed engagement analytics in this mode.
+Every new Share session starts in **Necessary only** mode unless the browser presents a previously saved Optional engagement analytics preference and no recognized Global Privacy Control signal overrides it. Necessary-only processing can include:
 
-After a Viewer chooses **Optional engagement analytics**, RepoView may activate a first-party pseudonymous Viewer identifier and collect returning-viewer recognition, file engagement/order, active time spent, coarse browser/OS/device context, coarse location labels, search/copy/download events, and other disclosed engagement events. This choice is stored as a privacy preference and can be changed from the share page. Refusing or later disabling optional analytics does not prevent access to an otherwise valid share.
+- validating the bearer-link Share token and recording its hash, validity or failure reason, token age, and timestamps;
+- creating a server-side Viewer session and storing only a session-token hash;
+- receiving the ordinary request IP as part of the request and processing it transiently for rate limiting, abuse prevention, and security;
+- deriving a salted, workspace-scoped IP hash rather than storing the raw IP;
+- processing fetch-site, prefetch, link-preview, bot/automation, VPN, proxy, Tor, datacenter, and unusual-traffic indicators;
+- writing compact Share access-attempt, rate-limit, quota, session, and security records; and
+- keeping the Share and Repository Content protected by server-side authorization checks.
 
-Where applicable law requires consent before non-essential storage or access on a Viewer's device, RepoView will ask for that consent before activating a persistent individual-level Viewer analytics identifier. Refusing optional analytics will not, by itself, prevent access to an otherwise valid repository share.
+Necessary-only mode does not create a persistent cross-session Viewer identifier and does not store the detailed Owner-facing engagement events described below. A confirmed session can nevertheless trigger a configured Owner view-notification email under the current implementation, even in Necessary only mode; that notification may contain the Share's Recipient Label, repository/ref, confirmation time, and available security/context fields, but it does not provide the Optional engagement event set or a verified identity. Some necessary session and security records are still stored, and their retention is described in Section 11. Security processing is not necessarily anonymous: salted hashes, session identifiers, bearer-link records, and compact security signals may be pseudonymous or personal information under applicable law.
 
-Strictly necessary processing may continue without optional analytics where permitted by law. Examples include receiving an IP address as part of an ordinary web request, preventing abuse, maintaining a server-side request/session log, enforcing rate limits, and preserving the security of a share.
+After a Viewer chooses **Optional engagement analytics**, RepoView may activate a first-party pseudonymous Viewer identifier and collect returning-Viewer recognition, first/returning visit state, repository/ref activity, directories/files and repository-relative paths, first-view order, active engagement duration, entry/exit paths, referring host, coarse browser/OS/device context, coarse country/region/city labels, search/search-result events, copy events, download events, and other specific event categories described in this Policy. Optional Analytics can be displayed to the Owner; the current implementation can also send a configured view notification after confirmation, while session-summary emails use Optional engagement event data after a session ends. Refusing or later disabling Optional engagement analytics does not prevent access to an otherwise valid Share.
+
+The privacy preference is not stored per individual Share. When the same browser presents the same valid first-party preference token, RepoView may recognize that preference again when the browser opens another RepoView Share. This can cause Optional engagement analytics to be enabled across more than one Share; it is not a guarantee that a choice is limited to the Share where it was made. The pseudonymous Viewer identifier is separately scoped to each workspace in the database.
+
+The relevant browser-side lifetimes are:
+
+| Browser item | Current behavior |
+|---|---|
+| \`repoview_viewer_privacy\` | Opaque HttpOnly first-party preference token; may remain in the browser for approximately **730 days** after a choice. The server-side preference record is retained separately for **${RETENTION_DAYS.viewerPrivacyPreferences} days from update**. |
+| \`repoview_viewer_id\` | Opaque HttpOnly first-party pseudonymous Viewer token; may remain in the browser for approximately **730 days** while Optional engagement analytics is active. Selecting Necessary only clears this cookie, but does not by itself erase already stored server-side records. |
+| \`repoview_viewer_session\` | HttpOnly server-session cookie used for the current Share. If the Share has an expiry, the cookie is set to expire with that Share; otherwise it is a browser-session cookie. The server stores a hash and session record, not the raw session token. |
+| \`repoview_share_redirect\` | Short-lived HttpOnly marker used during the legacy Share redirect flow; it may remain in the browser for up to approximately **60 seconds** and is not a Viewer analytics identifier. |
+
+Where applicable law requires consent before non-essential storage or access on a Viewer's device, RepoView will ask for that consent before activating a persistent individual-level Viewer analytics identifier. Refusing Optional engagement analytics will not, by itself, prevent access to an otherwise valid Share.
+
+Strictly necessary processing may continue without Optional engagement analytics where permitted by law. Examples include receiving an IP address as part of an ordinary web request, preventing abuse, maintaining server-side session and access records, enforcing rate limits, and preserving the security of a Share.
 
 Where an objection rather than prior consent is legally sufficient for a limited analytics use, RepoView will provide a simple way to object.
 
 A Viewer should be able to revisit **Privacy / Analytics Settings** from a share page and change a prospective analytics preference.
 
-If RepoView receives a recognized **Global Privacy Control (GPC)** signal, RepoView is designed to treat it as an objection to optional individual-level Viewer analytics to the extent technically applicable. Necessary security processing may continue.
+If RepoView receives a recognized **Global Privacy Control (GPC)** signal, RepoView is designed to treat it as an objection to Optional engagement analytics to the extent technically applicable. GPC keeps the optional Viewer identifier and optional engagement collection off for that request/session; Necessary-only security processing may continue.
 
 ## 9. When information is disclosed
 
@@ -517,22 +545,43 @@ Information may be disclosed only as reasonably necessary in the following circu
 
 ### 9.1 To the Owner of a share
 
-The Owner who created a share may receive analytics associated with that share, including the categories described in this Policy. Owners do not automatically receive a verified identity for the Viewer.
+The Owner who created a Share may receive Optional engagement Analytics associated with that Share through dashboard interfaces. Where the Owner has enabled the relevant notification settings, the current implementation may also email the Owner a view notification after a confirmed browser session, including when the session is in Necessary only mode, or a session summary after an Optional-analytics session ends. Delivery may be suppressed for probable-bot sessions or when the Share, destination, or notification setting is not eligible.
+
+A view notification may contain:
+
+- a pseudonymous Viewer label such as \`Anonymous Viewer #...\` when Optional engagement analytics provides one, or a generic/Recipient Label when it does not;
+- the Recipient Label, which represents the Owner's intended recipient or context;
+- first-visit or returning-visit status;
+- repository and ref;
+- the date and time of the confirmed browser session;
+- browser family, operating-system family, and device category;
+- approximate country, region, or city; and
+- referring host.
+
+A session-summary email, which the current implementation builds from Optional engagement event data, may contain:
+
+- the pseudonymous Viewer label, Recipient Label, repository, and ref;
+- session duration and end time;
+- numbers of files and directories viewed, searches, copies, and downloads;
+- first file, last file, and top files by dwell; and
+- probabilistic security signals such as possible link forwarding, automation/headless activity, or a VPN/proxy/Tor/datacenter signal.
+
+These signals do not verify identity, employment or company affiliation, precise location, intent, interest, competence, decision-making, or misconduct. Approximate location can be wrong. The Recipient Label is the Owner's intended label, not authentication. A forwarded bearer link may be opened by someone else, and bots, link previews, scanners, shared networks, and other automated or network behavior may affect the Analytics.
+
+RepoView's notification system also stores a delivery record for operational purposes. Depending on the message, that record may include the recipient address, message payload, status, provider message identifier, and delivery timestamps.
 
 ### 9.2 Service providers
 
-RepoView may rely on service providers that process information on my behalf to operate the project. Depending on the deployed configuration, these may include:
+RepoView may rely on service providers that process information on my behalf to operate the project. Depending on the deployed configuration, RepoView may use:
 
 - **GitHub**, for repository authorization and repository content requested by an Owner;
 - **Supabase**, for database, authentication, storage, or backend infrastructure where used;
 - a hosting, CDN, DNS, or edge-network provider;
-- an email delivery or SMTP provider;
-- error-monitoring, logging, or security infrastructure; and
-- IP/network-context or abuse-prevention providers, if enabled.
+- **SMTP, Resend, Postmark, or another configured email provider**, for Owner notification delivery;
+- error-monitoring, logging, or security infrastructure, if configured; and
+- other configuration-dependent infrastructure reasonably necessary to operate the Service.
 
-A provider receives only the information reasonably necessary for the service it performs. Its own handling may also be governed by its privacy terms and applicable law.
-
-A current list of production providers should be available at **[Privacy Policy](https://repoview.thrn.im/privacy)** or on request at **tharunpranav.ubc@gmail.com**.
+A provider receives only the information reasonably necessary for the service it performs. RepoView supports these provider categories, but a provider being supported by the repository does not mean that provider is active in every deployment. The provider's own handling may also be governed by its privacy terms and applicable law.
 
 ### 9.3 Legal, security, and rights protection
 
@@ -546,7 +595,7 @@ If RepoView is later transferred to another operator or legal entity, informatio
 
 ## 10. International processing
 
-RepoView is operated by an individual developer in **6088 Walter Gage Road, Vancouver, BC, Canada V6T 0B4**, but hosting and service providers may process information in other countries.
+RepoView is operated by an individual developer in **Vancouver, British Columbia, Canada**, but hosting and service providers may process information in other countries.
 
 As a result, personal information may be subject to the laws of the jurisdiction where it is processed and may be accessible to courts, law-enforcement bodies, or regulators in accordance with those laws.
 
@@ -554,55 +603,52 @@ Where cross-border transfer rules apply, RepoView will use an appropriate legal 
 
 ## 11. Retention
 
-RepoView follows data-minimization principles and is intended to use the following **default maximum retention periods** unless a shorter period is required by law or selected by the Owner:
+RepoView follows data-minimization principles. Analytics cleanup is workspace-aware: Owners can select **30, 90, or 180 days** for the workspace's engagement analytics retention. The following describes the current cleanup behavior; a shorter period may apply where selected, and records can be removed earlier when a Share or account is deleted:
 
 | Data category | Default maximum retention |
 |---|---|
-| Repository/view events, file engagement, and Viewer sessions | **${RETENTION_DAYS.repositoryViewEvents} days from the event or last activity** |
-| Persistent pseudonymous Viewer identifier/profile | **${RETENTION_DAYS.persistentViewerIdentifiers} days from last Viewer activity** |
-| Salted IP hashes, coarse network/location metadata, and security indicators | **${RETENTION_DAYS.networkLocationMetadata} days from the event**, unless needed for an active investigation |
-| Share access attempts and security/abuse request logs | **${RETENTION_DAYS.shareAccessAttempts} days** unless needed for an active investigation |
-| Hashed application rate-limit counters | **${RETENTION_DAYS.rateLimitBuckets} days** |
-| Tenant-scoped quota counters used for abuse/cost control | **${RETENTION_DAYS.quotaCounters} days** |
-| Notification delivery logs | **${RETENTION_DAYS.notificationDeliveryLogs} days** |
+| Viewer sessions, View Analytics events, repository events, and file engagement | **30, 90, or ${RETENTION_DAYS.repositoryViewEvents} days** based on the workspace setting, measured from the relevant event or the session/file's last activity; session deletion can wait until dependent event rows are gone |
+| Persistent pseudonymous Viewer identifiers/profiles | **30, 90, or ${RETENTION_DAYS.persistentViewerIdentifiers} days** based on the workspace setting, measured from last Viewer activity; references are cleared before the Viewer record is deleted |
+| Salted IP hashes, coarse network/location metadata, and compact security indicators | Scrubbed after approximately **${RETENTION_DAYS.networkLocationMetadata} days** based on the Viewer session's first-seen time; the session may remain until its selected analytics retention period |
+| Share access attempts and security/abuse request records | **${RETENTION_DAYS.shareAccessAttempts} days** from creation |
+| Hashed application rate-limit buckets | **${RETENTION_DAYS.rateLimitBuckets} days** from update |
+| Tenant-scoped quota counters used for abuse/cost control | **${RETENTION_DAYS.quotaCounters} days** from update |
+| Notification delivery records, including delivery metadata and the queued message payload | Up to **${RETENTION_DAYS.notificationDeliveryLogs} days** from creation, and potentially earlier when the associated session reaches the workspace's selected analytics retention or the Share/workspace is deleted |
+| Viewer privacy-preference records | **${RETENTION_DAYS.viewerPrivacyPreferences} days** from update |
 | GitHub webhook delivery/idempotency records | **${RETENTION_DAYS.githubWebhookDeliveries} days** |
 | Expired GitHub connection transactions and step-up confirmations | Deleted after expiry |
-| Server-side cleanup run records | **${RETENTION_DAYS.retentionCleanupRuns} days** |
-| Revoked/expired Share configuration and recipient labels | **${RETENTION_DAYS.revokedExpiredShareMetadata} days** from revocation or expiry; minimal references may remain until related analytics age out |
-| Owner account/configuration data | Until account deletion, then **${RETENTION_DAYS.deletedAccountsWorkspaces} days** from active systems |
-| Workspace security/activity audit logs | **${RETENTION_DAYS.securityAuditLogs} days**, unless needed for an active investigation |
-| Minimal account deletion lifecycle records | **${RETENTION_DAYS.accountLifecycleAudit} days** |
-| Support and privacy correspondence | **24 months** after the matter is closed, unless longer retention is reasonably required for a dispute or legal obligation |
-| Backups | Rotated/deleted within **35 days** after deletion from active systems, unless legally preserved |
-| Aggregated or de-identified statistics that no longer reasonably identify an individual | May be retained longer for project reliability and product improvement |
+| Server-side retention-cleanup run records | **${RETENTION_DAYS.retentionCleanupRuns} days** after completion; stale running records are converted to bounded failed records before normal cleanup |
+| Revoked/expired Share configuration and recipient labels | Scheduled after **${RETENTION_DAYS.revokedExpiredShareMetadata} days** from revocation or expiry; sensitive Share fields are scrubbed, and a minimal inactive row may remain while related Analytics or access records reference it |
+| Workspace security/activity audit logs | **${RETENTION_DAYS.securityAuditLogs} days**; system-admin audit logs use a separate **${RETENTION_DAYS.systemAdminAuditLogs}-day** period |
+| Owner account/workspace data | Account deletion disables the workspace and revokes active Shares before batched cleanup; the account-deletion worker removes workspace data, and any deleted workspace row awaiting finalization is removed after **${RETENTION_DAYS.deletedAccountsWorkspaces} days** from deletion start once workspace data is gone |
+| Account-deletion jobs and lifecycle records | Completed history is retained for **${RETENTION_DAYS.accountDeletionJobs} days** / **${RETENTION_DAYS.accountLifecycleAudit} days**; queued, running, and failed records are preserved while work remains incomplete or retryable |
+| Support and privacy correspondence | Retained as reasonably necessary to respond to and document the matter, comply with law, or handle a dispute; the application has no separate automated correspondence-retention job |
+| Backups and provider-held copies | The RepoView application does not set a backup-rotation period; hosting, database, email, and other providers may retain backups or copies under their own terms and operational schedules |
 
-RepoView may retain specific information longer when reasonably necessary for an active security investigation, fraud/abuse prevention, a legal hold, dispute, or legal requirement. When the reason ends, the information should return to the ordinary deletion schedule. A revoked or expired Share may retain a minimal inactive row while separately scheduled analytics still reference it; the Share cannot be opened during that period.
+The cleanup process is automated and bounded; it does not provide a separate application-level legal-hold mechanism. Information may nevertheless be preserved outside ordinary cleanup where required by applicable law or valid legal process. A revoked or expired Share cannot be opened during the period in which a minimal inactive row remains.
 
-**These periods must match the production implementation.** If RepoView's actual production retention differs, this section should be updated before launch or before the change takes effect.
+## 12. Privacy requests and complaints
 
-## 12. Privacy rights and choices
+Depending on where a person lives and which law applies, a Viewer or Owner may contact the Privacy Officer to:
 
-Depending on where a person lives and which law applies, they may have rights to:
-
-- ask whether RepoView holds personal information about them;
-- request access to personal information;
+- ask what information RepoView holds about them;
+- request access to that information;
 - request correction of inaccurate information;
-- request deletion;
+- request deletion where applicable;
 - withdraw consent prospectively where processing is based on consent;
-- object to or restrict certain processing;
-- receive certain data in a portable format;
-- complain to an applicable privacy regulator; or
-- exercise other rights provided by local law.
+- object to or restrict certain processing where applicable;
+- exercise other rights provided by local law; or
+- raise a privacy complaint.
 
-To make a request, email **tharunpranav.ubc@gmail.com** with enough information to identify the relevant share/session without sending unnecessary sensitive information.
+To make a request or complaint, contact **Tharun Pranav Sakthivel**, Privacy contact / Privacy Officer, at **tharunpranav.ubc@gmail.com**. RepoView may need limited information such as a Share reference, pseudonymous Viewer identifier, approximate access date/time, or Owner account information to locate records. Please do not send unnecessary sensitive information. No response deadline is promised by this Policy, but requests will be handled as required by applicable law.
 
 Owners can start account deletion from Settings after a recent authentication and explicit confirmation. RepoView disables the Owner's workspace and public shares before cleanup begins, stops workspace notifications, disconnects GitHub installations, and deletes the account's workspace metadata, recipient data, and associated analytics. If cleanup is interrupted, the workspace remains disabled and its shares remain unavailable until cleanup can safely complete. Where retention is required for security, legal, or rights-protection reasons, the limited retained information described in this Policy may be kept for that purpose and then deleted under the applicable retention schedule.
 
-Because Viewers are normally pseudonymous, RepoView may need a Viewer identifier, share URL/token reference, approximate date/time of access, or other limited information to locate responsive records. RepoView will not collect substantially more identifying information merely to satisfy a request when the request can be handled another way.
+Because Viewers are normally pseudonymous, RepoView may need a Viewer identifier, Share URL/token reference, approximate date/time of access, or other limited information to locate responsive records. RepoView will not collect substantially more identifying information merely to satisfy a request when the request can be handled another way.
 
 I may need to verify a request before disclosing, correcting, or deleting information. A request may be denied or limited where permitted by law, including where identity cannot reasonably be verified or information must be retained for security, legal, or rights-protection purposes.
 
-RepoView will not discriminate against a person for exercising a privacy right where such discrimination is prohibited by law.
+RepoView will not discriminate against a person for exercising a privacy right where such discrimination is prohibited by law. An applicable privacy regulator may also be contacted where the person has that right.
 
 ## 13. Canadian privacy principles
 
@@ -676,17 +722,17 @@ Where supported, **Global Privacy Control (GPC)** is treated as described in Sec
 
 I may update this Policy as RepoView changes.
 
-The "Last updated" date will be changed when the Policy is revised. If a change materially expands how personal information is collected, used, or disclosed, RepoView will provide additional notice or obtain consent where required by applicable law before the new practice applies.
+The displayed effective and last-updated dates identify the published copy. RepoView's application legal-version records may be maintained separately. If a change materially expands how personal information is collected, used, or disclosed, RepoView will provide additional notice or obtain consent where required by applicable law before the new practice applies.
 
 Older versions should be retained or made available where reasonably practical so material changes can be reviewed.
 
 ## 20. Contact
 
-**RepoView Privacy Contact**  
-Operator: **Tharun Pranav Sakthivel**  
-Location: **6088 Walter Gage Road, Vancouver, BC, Canada V6T 0B4**  
-Privacy: **tharunpranav.ubc@gmail.com**  
-General support: **tharunpranav.ubc@gmail.com**
+**RepoView Privacy Contact**
+- Operator: **Tharun Pranav Sakthivel**
+- Privacy contact / Privacy Officer: **Tharun Pranav Sakthivel**
+- Location: **Vancouver, British Columbia, Canada**
+- Email: **tharunpranav.ubc@gmail.com**
 
 If a privacy concern is not resolved, you may also have the right to contact the privacy or data-protection regulator in your jurisdiction.
 `

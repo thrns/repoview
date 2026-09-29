@@ -2,14 +2,14 @@
 
 RepoView is a private, read-only source-sharing app. A workspace member signs in, registers a GitHub App-backed repository, creates a scoped share link, and receives a deduplicated email when a recipient meaningfully views the source.
 
-Recipients receive a short-lived session cookie after the secret-link exchange. The viewer exposes only the authorized repository tree, Markdown, source code, and protected image assets. Downloads remain disabled by default and are available only when the owner explicitly enables them.
+Recipients receive a short-lived session cookie after the public share-code exchange. The viewer exposes only the authorized repository tree, Markdown, source code, and protected image assets. Downloads remain disabled by default and are available only when the owner explicitly enables them.
 
 ## Architecture
 
 - `app/(auth)/login` provides Supabase email/password sign-in.
 - `app/(admin)/dashboard` is server-guarded workspace UI for repositories, shares, activity, and notification settings.
-- `app/s/[token]` exchanges a one-time URL token for an HttpOnly viewer session, then redirects to a token-free viewer URL.
-- `app/view/[shareId]` renders the session-authorized repository root, tree, Markdown, code, and safe error states.
+- `proxy.ts` exchanges new nine-character `/view/<shareCode>` capabilities in place for an HttpOnly viewer session; historical `/s/[token]` links remain supported by the legacy redirect route.
+- `app/view/[shareId]` renders the session-authorized repository root, tree, Markdown, code, and safe error states while keeping new share URLs unchanged.
 - `app/api/view` confirms secure sessions, accepts optional engagement analytics only after the viewer's choice, updates necessary heartbeats, and serves explicitly allowed downloads; `app/api/assets` serves authorized image bytes.
 - `app/privacy` and the public viewer's Privacy / Analytics Settings control explain necessary security processing, optional engagement analytics, GPC handling, approximate location/network context, recipient-label semantics, and the non-use of raw keylogging or browser permissions.
 - `lib/github` owns GitHub App authentication and server-side repository/tree/file access.
@@ -186,8 +186,8 @@ RepoView composes low-volume, deduplicated first-meaningful-view and session-sum
 
 ## Security model
 
-- Raw share and viewer tokens are generated with cryptographic randomness and stored only as peppered HMAC digests.
-- Secret-link exchange sets a scoped HttpOnly, SameSite cookie and redirects to a token-free viewer route.
+- New public share codes use cryptographic randomness and contain exactly nine case-sensitive alphanumeric characters. The public code is stored in `share_code`; its peppered HMAC is stored in `token_hash`.
+- Direct `/view/<shareCode>` access sets the scoped HttpOnly, SameSite viewer cookie without changing the address bar. Historical `/s/[token]` links retain their legacy redirect exchange.
 - Every viewer page, confirmation, heartbeat, and asset request revalidates the session, share, expiry, revocation, repository, and visibility rules.
 - Hidden files are denied server-side; CSS masking is not used as an access control.
 - Markdown is sanitized and dangerous URLs are rendered inert. Relative links and images resolve only within the authorized tree.

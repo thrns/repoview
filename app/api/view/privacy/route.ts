@@ -12,9 +12,10 @@ import { saveViewerPrivacyPreference } from '../../../../lib/viewer/privacy'
 import { isGlobalPrivacyControl, isViewerAnalyticsMode, VIEWER_PRIVACY_PREFERENCE_COOKIE as PRIVACY_COOKIE, VIEWER_PRIVACY_PREFERENCE_MAX_AGE as PRIVACY_COOKIE_MAX_AGE, type ViewerAnalyticsMode } from '../../../../lib/viewer/privacy-shared'
 import { createSupabaseAdminClient } from '../../../../lib/supabase/admin'
 import { checkPublicRateLimit, checkRateLimits, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../lib/security/rate-limit'
+import { SHARE_IDENTIFIER_PATTERN } from '../../../../lib/shares/share-code'
 
 const requestSchema = z.object({
-  shareId: z.string().uuid().or(z.string().regex(/^[A-Za-z0-9_-]{8}$/)),
+  shareId: z.string().uuid().or(z.string().regex(SHARE_IDENTIFIER_PATTERN)),
   analyticsMode: z.string().refine(isViewerAnalyticsMode),
 })
 

@@ -86,6 +86,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
           allowOnly: toPatterns(allowOnly),
         })
         setCreatedShare({
+          code: result.shareCode,
           url: result.shareUrl,
           repository: result.repository,
           ref: result.ref,
@@ -197,7 +198,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
           </Field>
         </div>
         <div className="divide-y divide-border/70 border-y border-border/70">
-          <ToggleRow checked={notifyOnView} onChange={setNotifyOnView} title="Notify on meaningful view" description="One owner notification after a real browser session is confirmed." />
+          <ToggleRow checked={notifyOnView} onChange={setNotifyOnView} title="Notify on every meaningful view" description="Send one owner notification for each real browser session that is confirmed." />
           <ToggleRow checked={allowDownload} onChange={setAllowDownload} title="Allow downloads" description="Let this recipient download files from the shared repository." />
         </div>
       </FormSection>
@@ -260,7 +261,7 @@ function ToggleRow({ checked, onChange, title, description }: { checked: boolean
   </label>
 }
 
-type CreatedShare = { url: string; repository: string; ref: string; recipient: string; expiry: string }
+type CreatedShare = { code: string; url: string; repository: string; ref: string; recipient: string; expiry: string }
 
 function OneTimeShareResult({ share, onboarding, onCreateAnother }: { share: CreatedShare; onboarding: boolean; onCreateAnother: () => void }) {
   const resultRef = useRef<HTMLElement | null>(null)
@@ -292,11 +293,11 @@ function OneTimeShareResult({ share, onboarding, onCreateAnother }: { share: Cre
         <CircleCheck className="mt-0.5 size-5 shrink-0 text-success" aria-hidden="true" />
         <div>
           <h2 id="share-created-title" className="font-heading text-2xl font-semibold tracking-tight">Share created</h2>
-          <p className="mt-2 text-sm leading-6 text-foreground-muted">Save this exact URL now. RepoView stores only its hash, so the plaintext link will not be recoverable after you leave this page.</p>
+          <p className="mt-2 text-sm leading-6 text-foreground-muted">Save this exact URL now. Its nine-character code is the public capability used to open this share.</p>
         </div>
       </div>
       <div className="space-y-3 rounded-lg border border-success/35 bg-success/5 px-4 py-5 sm:px-5">
-        <div className="flex items-center gap-2 text-xs font-medium text-success"><LockKeyhole className="size-3.5" aria-hidden="true" />One-time secret URL</div>
+        <div className="flex items-center gap-2 text-xs font-medium text-success"><LockKeyhole className="size-3.5" aria-hidden="true" />Scoped share URL</div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input ref={urlInputRef} readOnly value={share.url} aria-label="New share URL" className="min-w-0 bg-background font-mono text-xs" onFocus={(event) => event.currentTarget.select()} />
           <Button type="button" variant="primary" onClick={copyUrl} icon={copied ? <Check className="size-4" /> : <Copy className="size-4" />}>{copied ? 'Copied' : 'Copy link'}</Button>
@@ -304,6 +305,7 @@ function OneTimeShareResult({ share, onboarding, onCreateAnother }: { share: Cre
         <p aria-live="polite" className="min-h-5 text-xs text-success">{copied ? 'Copied to your clipboard.' : copyError ? <span role="alert" className="text-destructive">{copyError}</span> : 'Copy the link before navigating away.'}</p>
       </div>
       <dl className="grid gap-3 rounded-lg border border-border/60 bg-muted/18 p-4 sm:grid-cols-2">
+        <ResultField label="Share code" value={share.code} mono />
         <ResultField label="Repository" value={share.repository} mono />
         <ResultField label="Ref" value={share.ref} mono />
         <ResultField label={onboarding ? 'Share identity' : 'Recipient'} value={share.recipient} />

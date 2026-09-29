@@ -22,6 +22,7 @@ import {
 import type { ReactNode } from 'react'
 
 import { LandingFooter, LandingNav } from '@/components/landing/landing-chrome'
+import type { AccountMenuData } from '@/components/shared/account-menu'
 import { Button } from '@/components/ui'
 
 const analyticsRows = [
@@ -30,12 +31,12 @@ const analyticsRows = [
   { file: 'backend/api.py', attention: '1m 06s', views: 8, percent: 44 },
 ]
 
-export function LandingPage() {
+export function LandingPage({ account }: { account?: AccountMenuData }) {
   const [copied, setCopied] = useState(false)
 
   function copyShareLink() {
     const clipboardWrite = typeof navigator !== 'undefined'
-      ? navigator.clipboard?.writeText('https://repoview.dev/s/4wP7k2m')
+      ? navigator.clipboard?.writeText('https://repoview.dev/view/aB3xK9pQ2')
       : undefined
 
     void clipboardWrite?.catch(() => undefined)
@@ -45,7 +46,7 @@ export function LandingPage() {
 
   return (
     <main className="landing-page">
-      <LandingNav />
+      <LandingNav account={account} />
 
       <section className="hero-section" id="top">
         <div className="landing-container hero-layout">
@@ -165,7 +166,7 @@ function HeroRepositoryPreview() {
     <div className="product-window hero-product-window" aria-hidden="true">
       <div className="preview-browser-bar">
         <span><LockKeyhole className="size-3" aria-hidden="true" /> Scoped link</span>
-        <span className="preview-url">repoview.dev/s/4wP7k2m</span>
+        <span className="preview-url">repoview.dev/view/aB3xK9pQ2</span>
         <span className="preview-readonly"><i className="status-dot" /> read-only</span>
       </div>
       <div className="preview-repository-bar">
@@ -241,7 +242,7 @@ function ShareLinkPreview({ copied, onCopy }: { copied: boolean; onCopy: () => v
           <label>Ref<span className="fake-input"><GitBranch className="size-3.5" aria-hidden="true" /><span>main</span><ChevronDown className="size-3" aria-hidden="true" /></span></label>
           <label>Expiry<span className="fake-input"><Clock3 className="size-3.5" aria-hidden="true" /><span>7 days</span></span></label>
         </div>
-        <div className="generated-link"><span><Link2 className="size-3.5" aria-hidden="true" /> repoview.dev/s/4wP7k2m</span><span className="link-status"><i className="status-dot" /> active</span></div>
+        <div className="generated-link"><span><Link2 className="size-3.5" aria-hidden="true" /> repoview.dev/view/aB3xK9pQ2</span><span className="link-status"><i className="status-dot" /> active</span></div>
         <Button type="button" variant="primary" size="large" className="share-button" onClick={onCopy} iconRight={<ArrowUpRight className="size-3.5" aria-hidden="true" />}>{copied ? 'Link copied' : 'Copy private link'}</Button>
       </div>
       <div className="share-preview-footer"><span><Check className="size-3" aria-hidden="true" /> Read-only</span><span>Revoke anytime</span></div>

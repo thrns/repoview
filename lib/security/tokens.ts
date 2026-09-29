@@ -1,18 +1,23 @@
 import 'server-only'
 
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto'
 
 import { getServerEnv } from '../env/server'
+import { SHARE_CODE_ALPHABET, SHARE_CODE_LENGTH } from '../shares/share-code'
 
 export const TOKEN_BYTES = 32
-export const SHARE_CODE_BYTES = 6
+export { SHARE_CODE_ALPHABET, SHARE_CODE_LENGTH } from '../shares/share-code'
 
 export function generateShareToken() {
   return generateToken()
 }
 
 export function generateShareCode() {
-  return randomBytes(SHARE_CODE_BYTES).toString('base64url')
+  let code = ''
+  for (let index = 0; index < SHARE_CODE_LENGTH; index += 1) {
+    code += SHARE_CODE_ALPHABET[randomInt(SHARE_CODE_ALPHABET.length)]
+  }
+  return code
 }
 
 export function generateViewerSessionToken() {

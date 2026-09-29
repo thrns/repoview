@@ -8,6 +8,7 @@ import { checkPublicRateLimit, checkRateLimits, rateLimitResponse, rateLimitUnav
 import { requireViewerSession } from '../../../../lib/auth/viewer-session'
 import { QuotaExceededError, QuotaUnavailableError, quotaResponse, quotaUnavailableResponse } from '../../../../lib/security/quotas'
 import { isRequestBodyTooLarge, readJsonBody } from '../../../../lib/security/body-limit'
+import { SHARE_IDENTIFIER_PATTERN } from '../../../../lib/shares/share-code'
 
 const MAX_EVENTS_BODY_BYTES = 128 * 1024
 
@@ -31,7 +32,7 @@ const snapshotSchema = z.object({
   ended: z.boolean().optional(),
 })
 const requestSchema = z.object({
-  shareId: z.string().uuid().or(z.string().regex(/^[A-Za-z0-9_-]{8}$/)),
+  shareId: z.string().uuid().or(z.string().regex(SHARE_IDENTIFIER_PATTERN)),
   events: z.array(eventSchema).max(50),
   clientContext: contextSchema.optional(),
   session: snapshotSchema.optional(),

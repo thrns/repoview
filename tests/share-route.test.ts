@@ -65,6 +65,7 @@ describe('share entry route', () => {
     expect(response.status).toBe(303)
     expect(response.headers.get('location')).toBe('https://repoview.test/view/Ab3k9Qx2')
     expect(response.headers.get('set-cookie')).toContain('Path=/')
+    expect(response.headers.get('set-cookie')).toContain('repoview_share_redirect=Ab3k9Qx2')
   })
 
   it('does not make the viewer session unusable for an HTTP production build', async () => {

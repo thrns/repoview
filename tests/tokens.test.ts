@@ -10,7 +10,8 @@ import {
   hashToken,
   hashViewerSessionToken,
   TOKEN_BYTES,
-  SHARE_CODE_BYTES,
+  SHARE_CODE_ALPHABET,
+  SHARE_CODE_LENGTH,
   verifyTokenHash,
 } from '../lib/security/tokens'
 
@@ -48,12 +49,13 @@ describe('secure token utilities', () => {
     expect(shareToken).toMatch(/^[A-Za-z0-9_-]+$/)
   })
 
-  it('generates an 8-character URL-safe public share code', () => {
-    const shareCode = generateShareCode()
+  it('generates independent nine-character alphanumeric public share codes', () => {
+    const shareCodes = Array.from({ length: 100 }, () => generateShareCode())
 
-    expect(Buffer.from(shareCode, 'base64url')).toHaveLength(SHARE_CODE_BYTES)
-    expect(shareCode).toHaveLength(8)
-    expect(shareCode).toMatch(/^[A-Za-z0-9_-]{8}$/)
+    expect(shareCodes.every((shareCode) => shareCode.length === SHARE_CODE_LENGTH)).toBe(true)
+    expect(shareCodes.every((shareCode) => /^[A-Za-z0-9]{9}$/.test(shareCode))).toBe(true)
+    expect(shareCodes.every((shareCode) => [...shareCode].every((character) => SHARE_CODE_ALPHABET.includes(character)))).toBe(true)
+    expect(new Set(shareCodes).size).toBeGreaterThan(1)
   })
 
   it('hashes deterministically with separate token-type peppers', () => {

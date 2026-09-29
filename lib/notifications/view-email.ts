@@ -5,6 +5,7 @@ export type ViewNotificationEmailInput = {
   repositoryName: string
   ref: string
   confirmedAt: string
+  entryPath?: string | null
   browser: string | null
   os: string | null
   deviceType: string | null
@@ -12,6 +13,12 @@ export type ViewNotificationEmailInput = {
   city?: string | null
   region?: string | null
   referrer?: string | null
+  isProbableBot?: boolean
+  vpnIndication?: boolean | null
+  proxyIndication?: boolean | null
+  torIndication?: boolean | null
+  datacenterIndication?: boolean | null
+  securitySignals?: unknown
   shareId: string
   appUrl: string
 }
@@ -23,17 +30,19 @@ export type ViewNotificationEmail = {
 }
 
 export function buildViewNotificationEmail(input: ViewNotificationEmailInput): ViewNotificationEmail {
-  const recipientLabel = cleanText(input.recipientLabel ?? input.viewerLabel ?? 'Share', 'Share')
+  const recipientLabel = cleanText(input.recipientLabel ?? 'Generic share', 'Generic share')
   const viewerLabel = cleanText(input.viewerLabel ?? recipientLabel, recipientLabel)
   const visitLabel = cleanText(input.visitLabel ?? 'First visit', 'First visit')
   const repositoryName = cleanText(input.repositoryName, 'repository')
   const ref = cleanText(input.ref, 'unknown ref')
   const viewedAt = formatDate(input.confirmedAt)
-  const browser = input.browser || 'Unknown'
-  const os = input.os || 'Unknown'
+  const browser = input.browser || 'Not available'
+  const os = input.os || 'Not available'
   const device = formatDevice(input.deviceType)
   const location = formatLocation(input.city, input.region, input.country)
   const referrer = input.referrer || 'Not available'
+  const entryPath = input.entryPath || 'Not available'
+  const securityContext = formatSecurityContext(input)
   const activityUrl = new URL(`/dashboard/shares/${encodeURIComponent(input.shareId)}`, input.appUrl).toString()
   const logoUrl = new URL('/repoview-logo-white.svg', input.appUrl).toString()
   const subject = `RepoView: ${cleanSubject(viewerLabel)} viewed ${cleanSubject(repositoryName)}`
@@ -48,11 +57,13 @@ export function buildViewNotificationEmail(input: ViewNotificationEmailInput): V
     `Repository: ${repositoryName}`,
     `Ref: ${ref}`,
     `Viewed: ${viewedAt}`,
+    `Entry path: ${entryPath}`,
     `Browser: ${browser}`,
     `OS: ${os}`,
     `Device: ${device}`,
     `Approx. location: ${location}`,
-    `Referrer: ${referrer}`,
+    `Referrer host: ${referrer}`,
+    `Security/context (inferred): ${securityContext}`,
     '',
     `View activity: ${activityUrl}`,
   ]
@@ -60,7 +71,7 @@ export function buildViewNotificationEmail(input: ViewNotificationEmailInput): V
   return {
     subject,
     text: lines.join('\n'),
-    html: buildViewHtml({ recipientLabel, viewerLabel, visitLabel, repositoryName, ref, viewedAt, browser, os, device, location, referrer, activityUrl, logoUrl }),
+    html: buildViewHtml({ recipientLabel, viewerLabel, visitLabel, repositoryName, ref, viewedAt, entryPath, browser, os, device, location, referrer, securityContext, activityUrl, logoUrl }),
   }
 }
 
@@ -142,11 +153,13 @@ function buildViewHtml(values: {
   repositoryName: string
   ref: string
   viewedAt: string
+  entryPath: string
   browser: string
   os: string
   device: string
   location: string
   referrer: string
+  securityContext: string
   activityUrl: string
   logoUrl: string
 }) {
@@ -158,9 +171,11 @@ function buildViewHtml(values: {
     field('Repository', values.repositoryName),
     field('Ref', values.ref),
     field('Viewed', values.viewedAt),
+    field('Entry path', values.entryPath),
     field('Browser · OS · device', `${values.browser} · ${values.os} · ${values.device}`),
     field('Approx. location', values.location),
-    field('Referrer', values.referrer, true),
+    field('Referrer host', values.referrer),
+    field('Security/context (inferred)', values.securityContext, true),
   ].join('')
 
   return emailShell({
@@ -267,8 +282,33 @@ function formatDate(value: string) {
   }).format(date)
 }
 
+function formatSecurityContext(input: Pick<ViewNotificationEmailInput, 'isProbableBot' | 'vpnIndication' | 'proxyIndication' | 'torIndication' | 'datacenterIndication' | 'securitySignals'>) {
+  const signals = isRecord(input.securitySignals) ? input.securitySignals : {}
+  const concurrentSessions = typeof signals.concurrent_sessions === 'number' && Number.isFinite(signals.concurrent_sessions)
+    ? `${Math.max(1, Math.floor(signals.concurrent_sessions))} concurrent session(s) (inferred)`
+    : 'Not available'
+  return [
+    `Probable bot signal: ${formatInferredBoolean(input.isProbableBot ?? false)}`,
+    `VPN signal: ${formatInferredBoolean(input.vpnIndication)}`,
+    `Proxy signal: ${formatInferredBoolean(input.proxyIndication)}`,
+    `Tor signal: ${formatInferredBoolean(input.torIndication)}`,
+    `Datacenter signal: ${formatInferredBoolean(input.datacenterIndication)}`,
+    `Possible link forwarding: ${formatInferredBoolean(signals.possible_link_forwarding)}`,
+    `New network: ${formatInferredBoolean(signals.new_network)}`,
+    `Concurrent sessions: ${concurrentSessions}`,
+  ].join('; ')
+}
+
+function formatInferredBoolean(value: unknown) {
+  return value === true ? 'Yes (inferred)' : value === false ? 'No (inferred)' : 'Not available'
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+}
+
 function formatDevice(value: string | null) {
-  if (!value) return 'Unknown'
+  if (!value) return 'Not available'
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
 

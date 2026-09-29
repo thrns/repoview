@@ -12,9 +12,11 @@ application compilation scope; its adopted visual surface lives in
 - `app/(system)/system-admin/` contains the isolated operator surface. It does
   not import customer dashboard routes/components and never loads repository
   source or share content.
-- `app/s/` contains the one-time secret-token exchange route. It must redirect
-  to token-free viewer routes after setting the HttpOnly viewer cookie.
-- `app/view/` contains token-free, session-authorized viewer pages.
+- `app/s/` contains the legacy secret-token exchange route. Historical links
+  continue to redirect after setting the HttpOnly viewer cookie.
+- `app/view/` contains the session-authorized viewer pages. New nine-character
+  share-code requests are exchanged by the root `proxy.ts` in place, so the
+  browser stays on `/view/<shareCode>` while the same cookie setup runs.
 - `app/api/view/` contains confirmation and heartbeat handlers.
 - `app/api/assets/` contains authorized, narrowly scoped private asset delivery.
 

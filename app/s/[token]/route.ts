@@ -1,14 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
-import { getLinkOpenMetadata } from '@/lib/shares/link-open-metadata'
-import { exchangeShareToken, ShareExchangeError, VIEWER_SESSION_COOKIE } from '@/lib/shares/exchange'
+import { exchangeShareToken, ShareExchangeError } from '@/lib/shares/exchange'
+import { getShareExchangeRequestContext, setShareRedirectCookie, setViewerSessionCookies } from '../../../lib/shares/request'
 import { logViewerDiagnostic, summarizeViewerError } from '../../../lib/viewer/diagnostics'
-import { VIEWER_ID_COOKIE } from '../../../lib/analytics/constants'
 import { checkPublicRateLimit, getPublicShareRateLimitKey, rateLimitResponse, rateLimitUnavailableResponse } from '../../../lib/security/rate-limit'
-import {
-  findViewerPrivacyPreference,
-} from '../../../lib/viewer/privacy'
-import { isGlobalPrivacyControl, VIEWER_PRIVACY_PREFERENCE_COOKIE, type ViewerAnalyticsMode } from '../../../lib/viewer/privacy-shared'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,66 +18,18 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
   }
 
   try {
-    const rawPreferenceToken = request.cookies?.get(VIEWER_PRIVACY_PREFERENCE_COOKIE)?.value
-    let preference: Awaited<ReturnType<typeof findViewerPrivacyPreference>> = null
-    if (rawPreferenceToken) {
-      try {
-        preference = await findViewerPrivacyPreference(rawPreferenceToken)
-      } catch {
-        preference = null
-      }
-    }
-    const gpc = isGlobalPrivacyControl(request.headers.get('sec-gpc'))
-    const analyticsMode: ViewerAnalyticsMode = !gpc && preference?.analytics_mode === 'optional' ? 'optional' : 'necessary'
-    const rawViewerId = analyticsMode === 'optional' ? request.cookies?.get(VIEWER_ID_COOKIE)?.value : undefined
-    const result = await exchangeShareToken(
-      token,
-      getLinkOpenMetadata(request),
-      analyticsMode === 'optional' && isViewerIdentity(rawViewerId) ? rawViewerId : undefined,
-      { analyticsMode, gpc },
-    )
+    const exchangeContext = await getShareExchangeRequestContext(request)
+    const result = await exchangeShareToken(token, exchangeContext.metadata, exchangeContext.rawViewerId, exchangeContext.privacy)
     const redirectUrl = new URL(`/view/${result.shareCode}`, request.url)
     const response = NextResponse.redirect(redirectUrl, { status: 303 })
-    const secureCookies = new URL(request.url).protocol === 'https:'
-    response.headers.set('Cache-Control', 'no-store')
-    response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive')
-    response.cookies.set({
-      name: VIEWER_SESSION_COOKIE,
-      value: result.rawSessionToken,
-      httpOnly: true,
-      secure: secureCookies,
-      sameSite: 'lax',
-      // The viewer also authenticates API and asset requests outside /view.
-      path: '/',
-      ...(result.expiresAt ? { expires: new Date(result.expiresAt) } : {}),
-    })
+    setViewerSessionCookies(response, request.url, result)
+    setShareRedirectCookie(response, request.url, result.shareCode)
     logViewerDiagnostic('share-exchange-session-cookie-set', {
       shareCode: result.shareCode,
       sessionCreated: true,
       cookiePath: '/',
-      cookieSecure: secureCookies,
+      cookieSecure: new URL(request.url).protocol === 'https:',
     })
-    if (result.rawViewerId) {
-      response.cookies.set({
-        name: VIEWER_ID_COOKIE,
-        value: result.rawViewerId,
-        httpOnly: true,
-        secure: secureCookies,
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 60 * 60 * 24 * 730,
-      })
-    } else {
-      response.cookies.set({
-        name: VIEWER_ID_COOKIE,
-        value: '',
-        httpOnly: true,
-        secure: secureCookies,
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 0,
-      })
-    }
     return response
   } catch (error) {
     logViewerDiagnostic('share-exchange-failed', {
@@ -95,8 +42,4 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
     response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive')
     return response
   }
-}
-
-function isViewerIdentity(value: string | undefined): value is string {
-  return Boolean(value && /^[A-Za-z0-9_-]{20,128}$/.test(value))
 }

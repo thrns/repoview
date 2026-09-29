@@ -2,14 +2,15 @@
 
 import { z } from 'zod'
 
-import { requireRepositoryAccess, requireWorkspaceRole } from '@/lib/auth/workspace'
-import { getPublicEnv } from '@/lib/env/public'
-import { getRepositoryRef } from '@/lib/github/repositories'
-import { parseVisibilityRules } from '@/lib/security/visibility'
-import { generateShareCode, generateShareToken, hashShareToken } from '@/lib/security/tokens'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { listRegisteredRepositories } from '@/lib/repositories/registry'
-import { synchronizeRepositoryForGitHub } from '@/lib/repositories/synchronize'
+import { requireRepositoryAccess, requireWorkspaceRole } from '../../../../../lib/auth/workspace'
+import { getPublicEnv } from '../../../../../lib/env/public'
+import { getRepositoryRef } from '../../../../../lib/github/repositories'
+import { parseVisibilityRules } from '../../../../../lib/security/visibility'
+import { generateShareCode, hashShareToken } from '../../../../../lib/security/tokens'
+import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
+import { listRegisteredRepositories } from '../../../../../lib/repositories/registry'
+import { synchronizeRepositoryForGitHub } from '../../../../../lib/repositories/synchronize'
+import { SHARE_CODE_MAX_ATTEMPTS, isShareCodeUniqueViolation } from '../../../../../lib/shares/share-code'
 import { enforceAuthenticatedRateLimit } from '../../../../../lib/security/rate-limit'
 import { finalizeResourceQuota, releaseQuota, releaseResourceQuota, reserveQuota, reserveResourceQuota, type ResourceQuotaReservation } from '../../../../../lib/security/quotas'
 import { AUDIT_ACTIONS, recordAuditLogBestEffort } from '../../../../../lib/audit-log'
@@ -105,40 +106,65 @@ export async function createShare(input: unknown) {
     const repositoryRef = await getRepositoryRef(repository.github_owner, repository.github_repo, parsed.ref, repository.github_installation_id, repositoryAccess.workspace.id, 'member')
     const rules = parseVisibilityRules({ hidden: parsed.hidden, allowOnly: parsed.allowOnly })
     const recipientLabel = parsed.recipientName || parsed.recipientLabel || parsed.company || null
-    const rawToken = generateShareToken()
-    resourceReservation = await reserveResourceQuota(
-      'active-shares',
-      repositoryAccess.workspace.id,
-      `share:${hashShareToken(rawToken)}`,
-    )
     const shareCode = generateShareCode()
     const supabase = await createSupabaseServerClient()
-    const { data, error } = await supabase
-      .from('shares')
-      .insert({
-        repository_id: repository.id,
-        share_code: shareCode,
-        share_type: parsed.shareType,
-        token_hash: hashShareToken(rawToken),
-        recipient_label: recipientLabel,
-        commit_sha: repositoryRef.sha,
-        ref: repositoryRef.name,
-        expires_at: parsed.expiresAt,
-        notify_on_view: parsed.notifyOnView,
-        allow_download: parsed.allowDownload,
-        rules: {
-          hidden: [...rules.hidden],
-          allowOnly: [...rules.allowOnly],
-        },
-        note: parsed.note || null,
-        workspace_id: repositoryAccess.workspace.id,
-        created_by: repositoryAccess.user.id,
-      })
-      .select('id, share_code')
-      .single()
+    let data: { id: string; share_code: string } | null = null
+    let generatedShareCode: string | null = null
 
-    if (error || !data) {
-      throw new Error('RepoView could not create this share.')
+    for (let attempt = 0; attempt < SHARE_CODE_MAX_ATTEMPTS; attempt += 1) {
+      const candidate = attempt === 0 ? shareCode : generateShareCode()
+      const tokenHash = hashShareToken(candidate)
+      const candidateReservation = await reserveResourceQuota(
+        'active-shares',
+        repositoryAccess.workspace.id,
+        `share:${tokenHash}`,
+      )
+      const inserted = await supabase
+        .from('shares')
+        .insert({
+          repository_id: repository.id,
+          share_code: candidate,
+          share_type: parsed.shareType,
+          token_hash: tokenHash,
+          recipient_label: recipientLabel,
+          commit_sha: repositoryRef.sha,
+          ref: repositoryRef.name,
+          expires_at: parsed.expiresAt,
+          notify_on_view: parsed.notifyOnView,
+          allow_download: parsed.allowDownload,
+          rules: {
+            hidden: [...rules.hidden],
+            allowOnly: [...rules.allowOnly],
+          },
+          note: parsed.note || null,
+          workspace_id: repositoryAccess.workspace.id,
+          created_by: repositoryAccess.user.id,
+        })
+        .select('id, share_code')
+        .single()
+
+      if (!inserted.error && inserted.data) {
+        resourceReservation = candidateReservation
+        data = inserted.data
+        generatedShareCode = candidate
+        break
+      }
+
+      if (candidateReservation.owned) {
+        try {
+          await releaseResourceQuota(candidateReservation)
+        } catch {
+          // The short reservation lease safely expires if cleanup is unavailable.
+        }
+      }
+
+      if (!isShareCodeUniqueViolation(inserted.error) || attempt === SHARE_CODE_MAX_ATTEMPTS - 1) {
+        throw inserted.error ?? new Error('RepoView could not create this share.')
+      }
+    }
+
+    if (!data || !generatedShareCode || !resourceReservation) {
+      throw new Error('RepoView could not allocate a share code.')
     }
     shareCreated = true
     if (resourceReservation) {
@@ -178,7 +204,7 @@ export async function createShare(input: unknown) {
     return {
       shareId: data.id,
       shareCode: data.share_code,
-      shareUrl: `${appUrl}/s/${rawToken}`,
+      shareUrl: `${appUrl}/view/${data.share_code}`,
       repository: `${repository.github_owner}/${repository.github_repo}`,
       ref: repositoryRef.name,
     }

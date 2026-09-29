@@ -6,6 +6,7 @@ import { createSupabaseAdminClient } from '../supabase/admin'
 import type { Json, Tables } from '../supabase/database.types'
 import { sendTransactionalEmail, TransactionalEmailProviderError, type TransactionalEmail } from './email-provider'
 import { QuotaExceededError, releaseQuota, reserveQuota } from '../security/quotas'
+import { logViewerDiagnostic } from '../viewer/diagnostics'
 
 const MAX_ATTEMPTS = 5
 const RETRY_DELAYS_MS = [60_000, 5 * 60_000, 30 * 60_000, 2 * 60 * 60_000]
@@ -98,13 +99,20 @@ export async function dispatchNotificationDelivery(
   if (claimError) throw claimError
   const delivery = firstRow(claimedData)
   if (!delivery) return { status: 'not-due', deliveryId }
-  if (delivery.status === 'cancelled') return { status: 'cancelled', deliveryId }
-  if (delivery.status === 'provider_result_unknown') return { status: 'provider_result_unknown', deliveryId }
+  if (delivery.status === 'cancelled') {
+    logViewerDiagnostic('viewer-notification-failed', { deliveryId, shareId: delivery.share_id, sessionId: delivery.session_id, status: 'cancelled' })
+    return { status: 'cancelled', deliveryId }
+  }
+  if (delivery.status === 'provider_result_unknown') {
+    logViewerDiagnostic('viewer-notification-failed', { deliveryId, shareId: delivery.share_id, sessionId: delivery.session_id, status: 'provider_result_unknown' })
+    return { status: 'provider_result_unknown', deliveryId }
+  }
   if (delivery.status !== 'processing') return { status: 'not-due', deliveryId }
 
   const email = extractEmail(delivery.payload)
   if (!email) {
     await markPermanentFailure(admin, deliveryId, 'Notification message is unavailable.')
+    logViewerDiagnostic('viewer-notification-failed', { deliveryId, shareId: delivery.share_id, sessionId: delivery.session_id, status: 'permanent', reason: 'message-unavailable' })
     return { status: 'permanent', deliveryId }
   }
 
@@ -119,12 +127,15 @@ export async function dispatchNotificationDelivery(
     }).eq('id', deliveryId).eq('status', 'processing').eq('outbound_attempt_key', delivery.outbound_attempt_key).select('id').maybeSingle()
     if (error || !sentDelivery) {
       await markProviderResultUnknown(admin, deliveryId, error)
+      logViewerDiagnostic('viewer-notification-failed', { deliveryId, shareId: delivery.share_id, sessionId: delivery.session_id, status: 'provider_result_unknown', reason: 'delivery-ledger-update-failed' })
       return { status: 'provider_result_unknown', deliveryId }
     }
+    logViewerDiagnostic('viewer-notification-dispatched', { deliveryId, shareId: delivery.share_id, sessionId: delivery.session_id, status: 'sent' })
     return { status: 'sent', deliveryId }
   } catch (error) {
     if (error instanceof TransactionalEmailProviderError && error.outcomeUnknown) {
       await markProviderResultUnknown(admin, deliveryId, error)
+      logViewerDiagnostic('viewer-notification-failed', { deliveryId, shareId: delivery.share_id, sessionId: delivery.session_id, status: 'provider_result_unknown' })
       return { status: 'provider_result_unknown', deliveryId }
     }
     const retryable = error instanceof TransactionalEmailProviderError ? error.retryable : true
@@ -139,8 +150,10 @@ export async function dispatchNotificationDelivery(
     }).eq('id', deliveryId).eq('status', 'processing').eq('outbound_attempt_key', delivery.outbound_attempt_key)
     if (updateError) {
       await markProviderResultUnknown(admin, deliveryId, updateError)
+      logViewerDiagnostic('viewer-notification-failed', { deliveryId, shareId: delivery.share_id, sessionId: delivery.session_id, status: 'provider_result_unknown', reason: 'retry-state-update-failed' })
       return { status: 'provider_result_unknown', deliveryId }
     }
+    logViewerDiagnostic('viewer-notification-failed', { deliveryId, shareId: delivery.share_id, sessionId: delivery.session_id, status, retryable: shouldRetry })
     return shouldRetry
       ? { status: 'retryable', deliveryId, nextRetryAt: nextRetryAt! }
       : { status: 'permanent', deliveryId }

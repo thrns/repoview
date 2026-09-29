@@ -6,9 +6,10 @@ import { z } from 'zod'
 import { requireShareAccess, requireWorkspaceRole } from '../../../../../lib/auth/workspace'
 import { getPublicEnv } from '../../../../../lib/env/public'
 import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
-import { generateShareToken, hashShareToken } from '../../../../../lib/security/tokens'
+import { generateShareCode, hashShareToken } from '../../../../../lib/security/tokens'
 import { enforceAuthenticatedRateLimit } from '../../../../../lib/security/rate-limit'
 import { AUDIT_ACTIONS, recordAuditLogBestEffort } from '../../../../../lib/audit-log'
+import { SHARE_CODE_MAX_ATTEMPTS, isShareCodeUniqueViolation } from '../../../../../lib/shares/share-code'
 
 const shareIdSchema = z.string().uuid()
 const expiryInputSchema = z.object({
@@ -94,20 +95,33 @@ export async function rotateShare(input: unknown) {
   const access = await requireShareAccess(shareId)
   await requireWorkspaceRole(access.workspace.id, ['owner', 'admin'])
   await enforceAuthenticatedRateLimit('authenticated-share-rotate', access.workspace.id, access.user.id)
-  const rawToken = generateShareToken()
   const supabase = await createSupabaseServerClient()
-  const query = supabase
-    .from('shares')
-    .update({
-      token_hash: hashShareToken(rawToken),
-      revoked_at: null,
-    })
-    .eq('id', shareId)
-  const { data, error } = await query.eq('workspace_id', access.workspace.id)
-    .select('id')
-    .maybeSingle()
+  let shareCode: string | null = null
 
-  if (error || !data) {
+  for (let attempt = 0; attempt < SHARE_CODE_MAX_ATTEMPTS; attempt += 1) {
+    const candidate = generateShareCode()
+    const query = supabase
+      .from('shares')
+      .update({
+        share_code: candidate,
+        token_hash: hashShareToken(candidate),
+        revoked_at: null,
+      })
+      .eq('id', shareId)
+    const { data, error } = await query.eq('workspace_id', access.workspace.id)
+      .select('id')
+      .maybeSingle()
+
+    if (!error && data) {
+      shareCode = candidate
+      break
+    }
+    if (!isShareCodeUniqueViolation(error) || attempt === SHARE_CODE_MAX_ATTEMPTS - 1) {
+      throw error ?? new Error('This share could not be rotated.')
+    }
+  }
+
+  if (!shareCode) {
     throw new Error('This share could not be rotated.')
   }
 
@@ -123,7 +137,7 @@ export async function rotateShare(input: unknown) {
   revalidatePath('/dashboard/shares')
   revalidatePath(`/dashboard/shares/${shareId}`)
   const appUrl = getPublicEnv().NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
-  return { shareUrl: `${appUrl}/s/${rawToken}` }
+  return { shareCode, shareUrl: `${appUrl}/view/${shareCode}` }
 }
 
 export async function updateShareNote(input: unknown) {

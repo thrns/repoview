@@ -3,6 +3,7 @@ import 'server-only'
 import { RepositorySynchronizationError, synchronizeRepositoryForGitHub } from '../repositories/synchronize'
 import { requireViewerSession } from './viewer-session'
 import { logViewerDiagnostic, summarizeViewerError } from '../viewer/diagnostics'
+import { isShareCode } from '../shares/share-code'
 
 export class ViewerRepositoryAccessError extends Error {
   readonly code = 'viewer_repository_access_unavailable' as const
@@ -86,6 +87,6 @@ export async function requireViewerRepositoryAccess(shareIdentifier: string) {
 
 function getShareIdentifierType(value: string) {
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) return 'uuid'
-  if (/^[A-Za-z0-9_-]{8}$/.test(value)) return 'share_code'
+  if (isShareCode(value)) return 'share_code'
   return 'invalid'
 }

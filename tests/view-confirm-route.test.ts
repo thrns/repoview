@@ -72,7 +72,7 @@ describe('view confirmation route', () => {
 
   it('atomically confirms once and records view_confirmed within analytics quotas', async () => {
     requireSession.mockResolvedValue({ session: { id: sessionId, analytics_mode: 'optional', gpc_applied: false }, share: { workspace_id: 'workspace-1' } } as never)
-    const { admin, update, eq, is, select, eventInsert } = createAdminMock({ id: sessionId, share_id: shareId, confirmed_at: '2026-09-22T00:00:00.000Z' })
+    const { admin, update, eq, is, select, eventInsert } = createAdminMock({ id: sessionId, share_id: shareId, confirmed_at: '2026-09-22T00:00:00.000Z', analytics_mode: 'optional', browser: 'Chrome', os: 'macOS', device_type: 'desktop', entry_path: '/view/share' })
     getAdmin.mockReturnValue(admin as never)
 
     const response = await POST(request({ shareId }))
@@ -86,7 +86,7 @@ describe('view confirmation route', () => {
     expect(eq).toHaveBeenNthCalledWith(1, 'id', sessionId)
     expect(eq).toHaveBeenNthCalledWith(2, 'share_id', shareId)
     expect(is).toHaveBeenCalledWith('confirmed_at', null)
-    expect(select).toHaveBeenCalledWith('id, share_id, confirmed_at')
+    expect(select).toHaveBeenCalledWith(expect.stringContaining('entry_path'))
     expect(recordViewEvent).toHaveBeenCalledWith(expect.objectContaining({
       workspaceId: 'workspace-1',
       shareId,
@@ -94,7 +94,42 @@ describe('view confirmation route', () => {
       eventType: 'view_confirmed',
     }))
     expect(eventInsert).not.toHaveBeenCalled()
-    expect(notifyViewer).toHaveBeenCalledWith(expect.objectContaining({ shareId, sessionId }))
+    expect(notifyViewer).toHaveBeenCalledWith(expect.objectContaining({
+      shareId,
+      sessionId,
+      confirmedAt: '2026-09-22T00:00:00.000Z',
+      session: expect.objectContaining({ browser: 'Chrome', entry_path: '/view/share' }),
+    }))
+  })
+
+  it('confirms and queues a basic visit notification for a Necessary-only session', async () => {
+    requireSession.mockResolvedValue({ session: { id: sessionId, analytics_mode: 'necessary', gpc_applied: false }, share: { workspace_id: 'workspace-1' }, repository: {} } as never)
+    const { admin, update } = createAdminMock({ id: sessionId, share_id: shareId, confirmed_at: '2026-09-22T00:00:00.000Z', analytics_mode: 'necessary', browser: null })
+    getAdmin.mockReturnValue(admin as never)
+
+    const response = await POST(request({ shareId, entryPath: '/view/share', clientContext: { browser: 'Chrome', os: 'macOS', deviceType: 'desktop' } }))
+
+    expect(response.status).toBe(200)
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ confirmed_at: expect.any(String), last_seen_at: expect.any(String) }))
+    expect(update.mock.calls[0]?.[0]).not.toHaveProperty('entry_path')
+    expect(recordViewEvent).not.toHaveBeenCalled()
+    expect(notifyViewer).toHaveBeenCalledWith(expect.objectContaining({ session: expect.objectContaining({ analytics_mode: 'necessary' }) }))
+  })
+
+  it('keeps GPC visits on the basic notification path without optional event collection', async () => {
+    requireSession.mockResolvedValue({ session: { id: sessionId, analytics_mode: 'optional', gpc_applied: false }, share: { workspace_id: 'workspace-1' }, repository: {} } as never)
+    const { admin } = createAdminMock({ id: sessionId, share_id: shareId, confirmed_at: '2026-09-22T00:00:00.000Z', analytics_mode: 'necessary' })
+    getAdmin.mockReturnValue(admin as never)
+
+    const response = await POST(new Request('https://repoview.test/api/view/confirm', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'sec-gpc': '1' },
+      body: JSON.stringify({ shareId, clientContext: { browser: 'Chrome' } }),
+    }))
+
+    expect(response.status).toBe(200)
+    expect(recordViewEvent).not.toHaveBeenCalled()
+    expect(notifyViewer).toHaveBeenCalledTimes(1)
   })
 
   it('keeps viewer confirmation successful when SMTP notification fails', async () => {
@@ -120,5 +155,18 @@ describe('view confirmation route', () => {
     await expect(response.json()).resolves.toEqual({ confirmed: false })
     expect(eventInsert).not.toHaveBeenCalled()
     expect(notifyViewer).not.toHaveBeenCalled()
+  })
+
+  it('allows only one notification path to win concurrent confirmation', async () => {
+    requireSession.mockResolvedValue({ session: { id: sessionId, analytics_mode: 'necessary' }, share: { workspace_id: 'workspace-1' }, repository: {} } as never)
+    const { admin, maybeSingle } = createAdminMock({ id: sessionId, share_id: shareId, confirmed_at: '2026-09-22T00:00:00.000Z' })
+    maybeSingle.mockResolvedValueOnce({ data: { id: sessionId, share_id: shareId, workspace_id: 'workspace-1', confirmed_at: '2026-09-22T00:00:00.000Z', analytics_mode: 'necessary' }, error: null })
+    maybeSingle.mockResolvedValueOnce({ data: null, error: null })
+    getAdmin.mockReturnValue(admin as never)
+
+    const responses = await Promise.all([POST(request({ shareId })), POST(request({ shareId }))])
+
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 200])
+    expect(notifyViewer).toHaveBeenCalledTimes(1)
   })
 })

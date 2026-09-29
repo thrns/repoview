@@ -126,22 +126,23 @@ Admin can create a share with:
 - optional path visibility rules
 - optional note
 
-Public link format:
+Public link format for new shares:
 
-`https://code.thrn.im/s/<high-entropy-token>`
+`https://code.thrn.im/view/<9-character-alphanumeric-code>`
 
 Security requirements:
-- generate at least 32 random bytes of entropy.
-- store only a cryptographic hash of the share token in Supabase, never the raw token.
-- the raw token is shown to the owner only when created.
-- on `/s/<token>`, hash and validate it server-side.
+- generate the nine-character code with a cryptographically secure, unbiased random choice from `A-Z`, `a-z`, and `0-9`.
+- store the public code in `share_code` and its HMAC/pepper hash in `token_hash`.
+- enforce a unique `share_code` key and retry only bounded, code-specific uniqueness collisions.
+- on `/view/<shareCode>`, hash and validate the code server-side without redirecting.
+- preserve historical `/s/<token>` resolution for existing persisted shares.
 - reject expired/revoked/disabled shares.
-- create a random viewer session token.
+- create a random viewer session token with at least 32 random bytes.
 - store only the viewer-session token hash in Supabase.
 - set the raw viewer-session token in an `HttpOnly`, `Secure`, `SameSite=Lax` cookie.
-- redirect immediately to a token-free viewer URL.
-- the share token must not remain in normal browsing URLs, analytics URLs, referrers, or page HTML.
-- a UUID/share id in the viewer URL is an identifier, not authorization. Every viewer request still validates the HttpOnly session.
+- keep the browser on the `/view/<shareCode>` URL after direct access.
+- never expose a long token in a newly created public URL.
+- every viewer request still validates the HttpOnly session.
 - revocation must stop future access immediately.
 
 Suggested viewer routes:
@@ -318,7 +319,7 @@ Shares table:
 
 Share detail:
 - status;
-- copy share URL where possible (raw token is not stored, so after creation explain that it cannot be recovered; optionally allow regenerating/rotating the link);
+- copy share URL where possible (the public nine-character code is shown after creation; optionally allow regenerating/rotating the link);
 - revoke;
 - extend expiry;
 - notification toggle;
@@ -336,7 +337,8 @@ Do not pretend you can identify a human merely from a link open. Label the data 
 A server GET alone does not count as a confirmed human view.
 
 Flow:
-1. `/s/<token>` creates the viewer session and records `link_opened`.
+1. `/view/<shareCode>` creates the viewer session and records `link_opened` in the existing proxy exchange.
+   Historical `/s/<token>` links do the same before redirecting to their viewer code.
 2. viewer page loads.
 3. a tiny Client Component waits until the page is visible.
 4. after ~5 seconds of visible browser execution OR after a genuine interaction such as scroll/pointer/key activity, POST `/api/view/confirm`.

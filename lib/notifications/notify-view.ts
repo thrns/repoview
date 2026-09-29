@@ -2,6 +2,7 @@ import 'server-only'
 
 import { getPublicEnv } from '../env/public'
 import { createSupabaseAdminClient } from '../supabase/admin'
+import { logViewerDiagnostic } from '../viewer/diagnostics'
 import { buildSessionSummaryEmail, buildViewNotificationEmail } from './view-email'
 import { queueNotificationDelivery } from './delivery'
 
@@ -22,6 +23,7 @@ type NotifyConfirmedViewerInput = {
     github_repo: string
   }
   session: {
+    entry_path?: string | null
     browser: string | null
     os: string | null
     device_type: string | null
@@ -31,6 +33,11 @@ type NotifyConfirmedViewerInput = {
     referrer_host?: string | null
     is_probable_bot: boolean
     viewer_id?: string | null
+    vpn_indication?: boolean | null
+    proxy_indication?: boolean | null
+    tor_indication?: boolean | null
+    datacenter_indication?: boolean | null
+    security_signals?: unknown
   }
 }
 
@@ -41,32 +48,50 @@ export type NotificationResult =
 
 export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): Promise<NotificationResult> {
   if (!input.share.notify_on_view) {
+    logViewerDiagnostic('viewer-notification-disabled', {
+      shareId: input.shareId,
+      sessionId: input.sessionId,
+      reason: 'share-setting',
+    })
     return { status: 'disabled' }
   }
   if (input.session.is_probable_bot) {
+    logViewerDiagnostic('viewer-notification-skipped-bot', {
+      shareId: input.shareId,
+      sessionId: input.sessionId,
+      reason: 'probable-bot-or-prefetch',
+    })
     return { status: 'probable-bot' }
   }
 
   const admin = createSupabaseAdminClient()
   const notificationSettings = await getNotificationSettings(admin, input.share.workspace_id)
   if (notificationSettings && !notificationSettings.view_opened) {
+    logViewerDiagnostic('viewer-notification-disabled', {
+      shareId: input.shareId,
+      sessionId: input.sessionId,
+      reason: 'workspace-setting',
+    })
     return { status: 'disabled' }
   }
   if (!notificationSettings?.destination_email || !notificationSettings.email_verified) {
+    logViewerDiagnostic('viewer-notification-unconfigured', {
+      shareId: input.shareId,
+      sessionId: input.sessionId,
+      reason: 'missing-or-unverified-destination',
+    })
     return { status: 'unconfigured' }
   }
   const visitContext = await getVisitContext(admin, input.shareId, input.sessionId, input.session.viewer_id, input.share.workspace_id)
-  if (visitContext.visitCount > 1 && !notificationSettings.returning_view) {
-    return { status: 'disabled' }
-  }
-  const viewerLabel = visitContext.viewerCode ? `Anonymous Viewer #${visitContext.viewerCode}` : input.share.recipient_label ?? 'Anonymous Viewer'
+  const viewerLabel = visitContext.viewerCode ? `Anonymous Viewer #${visitContext.viewerCode}` : 'Anonymous Viewer'
   const email = buildViewNotificationEmail({
     recipientLabel: input.share.recipient_label,
     viewerLabel,
-    visitLabel: visitContext.visitCount > 1 ? `Returning visit · ${visitContext.visitCount} visits` : 'First visit',
+    visitLabel: visitContext.visitCount > 1 ? `Returning visit · visit #${visitContext.visitCount}` : 'First visit · visit #1',
     repositoryName: `${input.repository.github_owner}/${input.repository.github_repo}`,
     ref: input.share.ref,
     confirmedAt: input.confirmedAt,
+    entryPath: input.session.entry_path,
     browser: input.session.browser,
     os: input.session.os,
     deviceType: input.session.device_type,
@@ -74,6 +99,12 @@ export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): 
     city: input.session.city,
     region: input.session.region,
     referrer: input.session.referrer_host,
+    isProbableBot: input.session.is_probable_bot,
+    vpnIndication: input.session.vpn_indication,
+    proxyIndication: input.session.proxy_indication,
+    torIndication: input.session.tor_indication,
+    datacenterIndication: input.session.datacenter_indication,
+    securitySignals: input.session.security_signals,
     shareId: input.shareId,
     appUrl: getPublicEnv().NEXT_PUBLIC_APP_URL,
   })
@@ -93,7 +124,28 @@ export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): 
     },
     payload: { viewer_label: viewerLabel, visit_count: visitContext.visitCount },
   })
-  if (queued.status === 'queued' || queued.status === 'quota-exceeded') return queued
+  if (queued.status === 'queued') {
+    logViewerDiagnostic('viewer-notification-queued', {
+      shareId: input.shareId,
+      sessionId: input.sessionId,
+      deliveryId: queued.deliveryId,
+      reason: 'first-confirmation-for-session',
+    })
+    return queued
+  }
+  if (queued.status === 'quota-exceeded') {
+    logViewerDiagnostic('viewer-notification-quota-exceeded', {
+      shareId: input.shareId,
+      sessionId: input.sessionId,
+      reason: 'workspace-daily-email-quota',
+    })
+    return queued
+  }
+  logViewerDiagnostic('viewer-notification-already-queued', {
+    shareId: input.shareId,
+    sessionId: input.sessionId,
+    reason: 'session-idempotency-key',
+  })
   return { status: 'already-attempted' }
 }
 
@@ -163,7 +215,7 @@ export async function notifySessionSummary({ shareId, sessionId, share, reposito
 async function getNotificationSettings(admin: ReturnType<typeof createSupabaseAdminClient>, workspaceId: string) {
   const { data, error } = await admin
     .from('notification_settings')
-    .select('destination_email, email_verified, view_opened, returning_view, session_summary')
+    .select('destination_email, email_verified, view_opened, session_summary')
     .eq('workspace_id', workspaceId)
     .maybeSingle()
   if (error) throw error

@@ -9,17 +9,32 @@ describe('view notification email', () => {
       repositoryName: 'octocat/hello-world',
       ref: 'heads/main',
       confirmedAt: '2026-09-21T19:42:00.000Z',
+      entryPath: '/view/Ab3k9Qx2',
       browser: 'Chrome',
       os: 'macOS',
       deviceType: 'desktop',
       country: 'CA',
+      city: 'Vancouver',
+      region: 'BC',
+      referrer: 'example.com',
+      isProbableBot: false,
+      vpnIndication: true,
+      proxyIndication: false,
+      torIndication: null,
+      datacenterIndication: false,
+      securitySignals: { possible_link_forwarding: true, new_network: true, concurrent_sessions: 2 },
       shareId: '22222222-2222-4222-8222-222222222222',
       appUrl: 'https://code.example.com',
     })
 
     expect(email.subject).toBe('RepoView: Stripe <interview> viewed octocat/hello-world')
     expect(email.text).toContain('Share: Stripe <interview>')
+    expect(email.text).toContain('Visit: First visit')
     expect(email.text).toContain('Repository: octocat/hello-world')
+    expect(email.text).toContain('Entry path: /view/Ab3k9Qx2')
+    expect(email.text).toContain('Approx. location: Vancouver, BC, CA')
+    expect(email.text).toContain('Security/context (inferred):')
+    expect(email.text).toContain('Possible link forwarding: Yes (inferred)')
     expect(email.text).toContain('View activity: https://code.example.com/dashboard/shares/22222222-2222-4222-8222-222222222222')
     expect(email.html).toContain('Stripe &lt;interview&gt;')
     expect(email.html).toContain('href="https://code.example.com/dashboard/shares/22222222-2222-4222-8222-222222222222"')
@@ -38,6 +53,7 @@ describe('view notification email', () => {
       os: null,
       deviceType: null,
       country: null,
+      isProbableBot: false,
       shareId: 'share-id',
       appUrl: 'https://code.example.com',
     })

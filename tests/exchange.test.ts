@@ -22,6 +22,7 @@ const rawShareToken = 'share-token'
 
 beforeEach(() => {
   recordViewEvent.mockClear()
+  getViewer.mockClear()
 })
 
 beforeAll(() => {
@@ -41,17 +42,24 @@ beforeAll(() => {
   })
 })
 
-function createAdminMock(repositoryEnabled = true, workspaceStatus: 'active' | 'deleting' | 'deleted' = 'active') {
+function createAdminMock(
+  repositoryEnabled = true,
+  workspaceStatus: 'active' | 'deleting' | 'deleted' = 'active',
+  shareOverrides: Partial<{ revoked_at: string | null; expires_at: string | null }> = {},
+  sharePresent = true,
+  shareCode = 'Ab3k9Qx2',
+  sessionIds = ['33333333-3333-4333-8333-333333333333'],
+) {
   const share = {
     id: '22222222-2222-4222-8222-222222222222',
     repository_id: '11111111-1111-4111-8111-111111111111',
     workspace_id: '77777777-7777-4777-8777-777777777777',
-    share_code: 'Ab3k9Qx2',
+    share_code: shareCode,
     token_hash: 'stored-hash',
     recipient_label: 'Interview',
     ref: 'heads/main',
-    expires_at: null,
-    revoked_at: null,
+    expires_at: shareOverrides.expires_at ?? null,
+    revoked_at: shareOverrides.revoked_at ?? null,
     notify_on_view: true,
     allow_download: false,
     rules: {},
@@ -71,11 +79,11 @@ function createAdminMock(repositoryEnabled = true, workspaceStatus: 'active' | '
     created_at: '2026-09-21T00:00:00.000Z',
     updated_at: '2026-09-21T00:00:00.000Z',
   }
-  const sessionInsert = vi.fn().mockReturnValue({
+  const sessionInsert = vi.fn().mockImplementation(() => ({
     select: vi.fn().mockReturnValue({
-      single: vi.fn().mockResolvedValue({ data: { id: '33333333-3333-4333-8333-333333333333' }, error: null }),
+      single: vi.fn().mockResolvedValue({ data: { id: sessionIds[Math.min(sessionInsert.mock.calls.length - 1, sessionIds.length - 1)] }, error: null }),
     }),
-  })
+  }))
   const eventInsert = vi.fn().mockResolvedValue({ error: null })
   const admin = {
     from(table: string) {
@@ -83,7 +91,7 @@ function createAdminMock(repositoryEnabled = true, workspaceStatus: 'active' | '
         return {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
-          maybeSingle: vi.fn().mockResolvedValue({ data: share, error: null }),
+          maybeSingle: vi.fn().mockResolvedValue({ data: sharePresent ? share : null, error: null }),
         }
       }
       if (table === 'repositories') {
@@ -111,6 +119,26 @@ function createAdminMock(repositoryEnabled = true, workspaceStatus: 'active' | '
 }
 
 describe('share token exchange', () => {
+  it('rejects an invalid capability and records a failed access attempt', async () => {
+    const { admin, eventInsert } = createAdminMock(true, 'active', {}, false)
+    getAdmin.mockReturnValue(admin as never)
+
+    await expect(exchangeShareToken('not-a-valid-share-code')).rejects.toMatchObject({ code: 'invalid' })
+    expect(eventInsert).toHaveBeenCalledWith(expect.objectContaining({ valid: false, failure_reason: 'invalid' }))
+  })
+
+  it('rejects revoked and expired shares before creating viewer sessions', async () => {
+    const revoked = createAdminMock(true, 'active', { revoked_at: '2026-09-21T01:00:00.000Z' })
+    getAdmin.mockReturnValue(revoked.admin as never)
+    await expect(exchangeShareToken(rawShareToken)).rejects.toMatchObject({ code: 'revoked' })
+    expect(revoked.sessionInsert).not.toHaveBeenCalled()
+
+    const expired = createAdminMock(true, 'active', { expires_at: '2020-01-01T00:00:00.000Z' })
+    getAdmin.mockReturnValue(expired.admin as never)
+    await expect(exchangeShareToken(rawShareToken)).rejects.toMatchObject({ code: 'expired' })
+    expect(expired.sessionInsert).not.toHaveBeenCalled()
+  })
+
   it('stores only the viewer-session hash and records link_opened', async () => {
     const { admin, sessionInsert } = createAdminMock()
     getAdmin.mockReturnValue(admin as never)
@@ -170,6 +198,55 @@ describe('share token exchange', () => {
     expect(eventInsert.mock.calls[0]?.[0]).toMatchObject({ valid: true })
     expect(recordViewEvent).not.toHaveBeenCalled()
     expect(eventInsert.mock.calls[0]?.[0]).not.toMatchObject({ event_type: 'link_opened' })
+  })
+
+  it('creates a new session for every separate share exchange, including the nine-character public code flow', async () => {
+    const sessions = createAdminMock(
+      true,
+      'active',
+      {},
+      true,
+      'aB3xK9pQ2',
+      ['session-1', 'session-2', 'session-3'],
+    )
+    getAdmin.mockReturnValue(sessions.admin as never)
+
+    const first = await exchangeShareToken('aB3xK9pQ2')
+    const second = await exchangeShareToken('aB3xK9pQ2')
+    const third = await exchangeShareToken('aB3xK9pQ2')
+
+    expect([first, second, third].map((result) => result.shareCode)).toEqual(['aB3xK9pQ2', 'aB3xK9pQ2', 'aB3xK9pQ2'])
+    expect(sessions.sessionInsert).toHaveBeenCalledTimes(3)
+    expect(new Set(sessions.sessionInsert.mock.calls.map(([row]) => (row as { session_token_hash: string }).session_token_hash)).size).toBe(3)
+  })
+
+  it('keeps a returning anonymous viewer code stable while allocating new sessions', async () => {
+    const sessions = createAdminMock(true, 'active', {}, true, 'aB3xK9pQ2', ['session-1', 'session-2', 'session-3'])
+    getAdmin.mockReturnValue(sessions.admin as never)
+    getViewer.mockResolvedValue({
+      viewer: { id: 'viewer-1', viewer_code: 'A123', viewer_token_hash: 'hash', workspace_id: '77777777-7777-4777-8777-777777777777', first_seen_at: '2026-09-21T00:00:00.000Z', last_seen_at: '2026-09-21T00:00:00.000Z' },
+      rawViewerId: 'viewer-token-12345678901234567890',
+      isNew: false,
+    })
+
+    const results = await Promise.all([
+      exchangeShareToken(rawShareToken, undefined, 'viewer-token-12345678901234567890', { analyticsMode: 'optional' }),
+      exchangeShareToken(rawShareToken, undefined, 'viewer-token-12345678901234567890', { analyticsMode: 'optional' }),
+      exchangeShareToken(rawShareToken, undefined, 'viewer-token-12345678901234567890', { analyticsMode: 'optional' }),
+    ])
+
+    expect(results.map((result) => result.viewerCode)).toEqual(['A123', 'A123', 'A123'])
+    expect(sessions.sessionInsert).toHaveBeenCalledTimes(3)
+    expect(getViewer).toHaveBeenCalledTimes(3)
+  })
+
+  it('marks prefetch access as non-genuine even when the user agent is not a known bot', async () => {
+    const { admin, sessionInsert } = createAdminMock()
+    getAdmin.mockReturnValue(admin as never)
+
+    await exchangeShareToken(rawShareToken, { isPrefetch: true, isProbableBot: false })
+
+    expect(sessionInsert).toHaveBeenCalledWith(expect.objectContaining({ is_probable_bot: true }))
   })
 
   it('rejects a disabled repository before creating a viewer session', async () => {

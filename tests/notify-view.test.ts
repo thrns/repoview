@@ -59,7 +59,7 @@ describe('confirmed-view notification', () => {
       recipient: 'alice@example.com',
       notificationKind: 'view_opened',
       idempotencyKey: `view_opened:${input.sessionId}`,
-      email: expect.objectContaining({ subject: 'RepoView: Interview viewed octocat/hello-world' }),
+      email: expect.objectContaining({ subject: 'RepoView: Anonymous Viewer viewed octocat/hello-world' }),
     }))
     expect(deliveryInsert).not.toHaveBeenCalled()
   })
@@ -71,6 +71,38 @@ describe('confirmed-view notification', () => {
 
     await expect(notifyConfirmedViewer(input)).resolves.toEqual({ status: 'already-attempted' })
     expect(deliveryInsert).not.toHaveBeenCalled()
+  })
+
+  it('queues a separate delivery for each separately-created visit session', async () => {
+    const { admin } = createAdminMock({ id: input.sessionId })
+    getAdmin.mockReturnValue(admin as never)
+
+    for (const sessionId of ['session-1', 'session-2', 'session-3']) {
+      await expect(notifyConfirmedViewer({ ...input, sessionId })).resolves.toEqual({ status: 'queued', deliveryId: 'delivery-1' })
+    }
+
+    expect(queueDelivery).toHaveBeenCalledTimes(3)
+    expect(queueDelivery.mock.calls.map(([, queued]) => queued.idempotencyKey)).toEqual([
+      'view_opened:session-1',
+      'view_opened:session-2',
+      'view_opened:session-3',
+    ])
+  })
+
+  it('does not suppress returning visits when the legacy returning toggle is false', async () => {
+    const { admin } = createAdminMock({ id: input.sessionId }, { destination_email: 'alice@example.com', email_verified: true, view_opened: true, returning_view: false, session_summary: true })
+    getAdmin.mockReturnValue(admin as never)
+
+    await expect(notifyConfirmedViewer({ ...input, session: { ...input.session, viewer_id: undefined } })).resolves.toEqual({ status: 'queued', deliveryId: 'delivery-1' })
+    expect(queueDelivery).toHaveBeenCalledWith(admin, expect.objectContaining({ idempotencyKey: `view_opened:${input.sessionId}` }))
+  })
+
+  it('returns quota exhaustion without pretending a delivery was queued', async () => {
+    queueDelivery.mockResolvedValue({ status: 'quota-exceeded', message: 'Daily quota exceeded.' })
+    const { admin } = createAdminMock({ id: input.sessionId })
+    getAdmin.mockReturnValue(admin as never)
+
+    await expect(notifyConfirmedViewer(input)).resolves.toEqual({ status: 'quota-exceeded', message: 'Daily quota exceeded.' })
   })
 
   it('keeps queue failures outside the viewer confirmation response boundary', async () => {
