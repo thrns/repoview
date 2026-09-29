@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 import {
   Admonition,
   Breadcrumb,
@@ -10,7 +12,6 @@ import {
   PageBreadcrumbs,
   PageContainer,
 } from '@/components/ui'
-import Link from 'next/link'
 import { CreateShareForm, type ShareFormRepository } from '@/components/admin/create-share-form'
 import { listRepositoryBranches } from '@/lib/github/repositories'
 import { listRegisteredRepositories } from '@/lib/repositories/registry'
@@ -51,7 +52,7 @@ export default async function NewSharePage({ searchParams }: { searchParams?: Pr
       <>
         <ShareBreadcrumbs />
         <PageContainer size="medium" className="!pt-6">
-        <CreateShareForm repositories={repositories} onboarding={onboarding} />
+          <CreateShareForm repositories={repositories} onboarding={onboarding} />
         </PageContainer>
       </>
     )

@@ -158,7 +158,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
           <Card>
             <CardContent className="pt-5">
               <FormItemLayout
-                layout="flex-row-reverse"
+                layout="flex-row"
                 label={<Label htmlFor="share-repository">Repository</Label>}
                 description={<span id="share-repository-description">The private GitHub repository exposed by this share.</span>}
               >
@@ -171,7 +171,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
             </CardContent>
             <CardContent>
               <FormItemLayout
-                layout="flex-row-reverse"
+                layout="flex-row"
                 label={<Label htmlFor="share-ref">Branch or ref</Label>}
                 description={<span id="share-ref-description">Choose the branch/ref used by this share.</span>}
               >
@@ -197,7 +197,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
           <Card>
             <CardContent className="pt-5">
               <FormItemLayout
-                layout="flex-row-reverse"
+                layout="flex-row"
                 label={<Label htmlFor="share-type">Share type</Label>}
                 description={<span id="share-type-description">{shareType === 'recipient' ? 'A recipient share is labelled for your records; it does not verify who opens the link.' : 'A generic share has no recipient identity attached.'}</span>}
               >
@@ -212,7 +212,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
             <CardContent>
               {shareType === 'recipient' ? (
                 <FormItemLayout
-                  layout="flex-row-reverse"
+                  layout="flex-row"
                   label={<Label htmlFor="share-recipient-name"><span>Recipient name</span> <span className="font-normal text-foreground-muted">(optional)</span></Label>}
                   description={<span id="share-recipient-name-description">Saved as recipient metadata and used as the main label in your owner workspace.</span>}
                 >
@@ -222,7 +222,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
                 </FormItemLayout>
               ) : (
                 <FormItemLayout
-                  layout="flex-row-reverse"
+                  layout="flex-row"
                   label={<Label htmlFor="share-generic-label"><span>Share label</span> <span className="font-normal text-foreground-muted">(optional)</span></Label>}
                   description={<span id="share-generic-label-description">Private owner-facing label for finding this share later.</span>}
                 >
@@ -241,7 +241,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
                 <div className="mt-4 space-y-4 border-t border-border-secondary pt-4">
                   {shareType === 'recipient' ? <>
                     <FormItemLayout
-                      layout="flex-row-reverse"
+                      layout="flex-row"
                       label={<Label htmlFor="share-company">Company</Label>}
                       description={<span id="share-company-description">Optional organization context for your records.</span>}
                     >
@@ -250,7 +250,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
                       </div>
                     </FormItemLayout>
                     <FormItemLayout
-                      layout="flex-row-reverse"
+                      layout="flex-row"
                       label={<Label htmlFor="share-email">Email</Label>}
                       description={<span id="share-email-description">Optional contact detail; RepoView does not verify it or send the share automatically.</span>}
                     >
@@ -259,7 +259,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
                       </div>
                     </FormItemLayout>
                     <FormItemLayout
-                      layout="flex-row-reverse"
+                      layout="flex-row"
                       label={<Label htmlFor="share-label">Internal share label</Label>}
                       description={<span id="share-label-description">Optional fallback label for your owner workspace when no recipient name is provided. It is not a verified identity.</span>}
                     >
@@ -268,7 +268,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
                       </div>
                     </FormItemLayout>
                     <FormItemLayout
-                      layout="flex-row-reverse"
+                      layout="flex-row"
                       label={<Label htmlFor="share-role-notes">Role or application context</Label>}
                       description={<span id="share-role-notes-description">Optional context such as a team, role, or application stage.</span>}
                     >
@@ -278,7 +278,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
                     </FormItemLayout>
                   </> : null}
                   <FormItemLayout
-                    layout="flex-row-reverse"
+                    layout="flex-row"
                     label={<Label htmlFor="share-note"><span>General note</span> <span className="font-normal text-foreground-muted">(optional)</span></Label>}
                     description={<span id="share-note-description">A private owner note about why this share exists.</span>}
                   >
@@ -304,7 +304,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
           <Card>
             <CardContent className="pt-5">
               <FormItemLayout
-                layout="flex-row-reverse"
+                layout="flex-row"
                 label={<Label htmlFor="share-expiry">Expiry</Label>}
                 description={<span id="share-expiry-description">Set when access to this share ends.</span>}
               >
@@ -320,7 +320,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
             </CardContent>
             <CardContent>
               <FormItemLayout
-                layout="flex-row-reverse"
+                layout="flex-row"
                 label={<Label htmlFor="share-notify-on-view">Notify on every meaningful view</Label>}
                 description={<span id="share-notify-on-view-description">Send one owner notification for each real browser session that is confirmed.</span>}
               >
@@ -329,7 +329,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
             </CardContent>
             <CardContent>
               <FormItemLayout
-                layout="flex-row-reverse"
+                layout="flex-row"
                 label={<Label htmlFor="share-allow-download">Allow downloads</Label>}
                 description={<span id="share-allow-download-description">Allow the viewer to download files exposed by this share.</span>}
               >
@@ -357,7 +357,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
                 </summary>
                 <div className="mt-4 space-y-4 border-t border-border-secondary pt-4">
                   <FormItemLayout
-                    layout="flex-row-reverse"
+                    layout="flex-row"
                     label={<Label htmlFor="share-hidden">Hidden paths</Label>}
                     description={<span id="share-hidden-description">Paths that must never be fetched for a viewer. Example: **/private/**</span>}
                   >
@@ -366,7 +366,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
                     </div>
                   </FormItemLayout>
                   <FormItemLayout
-                    layout="flex-row-reverse"
+                    layout="flex-row"
                     label={<Label htmlFor="share-allow-only">Only allow paths</Label>}
                     description={<span id="share-allow-only-description">When configured, paths must match at least one allowed pattern. Example: src/** or docs/**</span>}
                   >
@@ -447,7 +447,7 @@ function OneTimeShareResult({ share, onboarding, onCreateAnother }: { share: Cre
             </CardContent>
             <CardContent>
               <FormItemLayout
-                layout="flex-row-reverse"
+                layout="flex-row"
                 label={<Label htmlFor="created-share-url">Scoped share URL</Label>}
                 description={<span id="created-share-url-description">Copy the link before navigating away.</span>}
               >
@@ -466,7 +466,7 @@ function OneTimeShareResult({ share, onboarding, onCreateAnother }: { share: Cre
                   </Button>
                 </div>
                 <p id="created-share-url-status" aria-live="polite" className="min-h-5 text-xs text-success">
-                  {copied ? 'Copied to your clipboard.' : copyError ? <span role="alert" className="text-destructive">{copyError}</span> : null}
+                  {copied ? 'Copied to your clipboard.' : copyError ? <span role="alert" className="text-destructive">{copyError}</span> : 'Copy the link before navigating away.'}
                 </p>
               </FormItemLayout>
             </CardContent>
