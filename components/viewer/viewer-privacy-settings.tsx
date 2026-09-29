@@ -3,7 +3,7 @@
 import { Check, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogSection, DialogTitle, DialogTrigger } from '@/components/ui'
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogSection, DialogTitle, DialogTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui'
 import type { ViewerAnalyticsMode } from '@/lib/viewer/privacy'
 
 import { useViewerAnalytics } from './viewer-analytics'
@@ -39,16 +39,20 @@ export function ViewerPrivacySettings({ shareId, compact = false }: { shareId: s
 
   return (
     <Dialog>
-      <DialogTrigger
-        variant="ghost"
-        size={compact ? 'icon' : 'small'}
-        icon={<ShieldCheck className="size-3.5" aria-hidden="true" />}
-        className="text-foreground-muted hover:text-foreground"
-        aria-label="Open Privacy / Analytics Settings"
-        title="Privacy / Analytics Settings"
-      >
-        {compact ? null : 'Privacy / Analytics'}
-      </DialogTrigger>
+      <Tooltip>
+        <TooltipTrigger>
+          <DialogTrigger
+            variant="ghost"
+            size={compact ? 'icon' : 'small'}
+            icon={<ShieldCheck className="size-3.5" aria-hidden="true" />}
+            className="text-foreground-muted hover:text-foreground"
+            aria-label="Privacy settings"
+          >
+            {compact ? null : 'Privacy / Analytics'}
+          </DialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent placement="bottom">Privacy</TooltipContent>
+      </Tooltip>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Privacy / Analytics Settings</DialogTitle>

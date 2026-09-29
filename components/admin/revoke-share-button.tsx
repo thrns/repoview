@@ -1,13 +1,13 @@
 'use client'
 
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 
 import { revokeShare } from '@/app/(admin)/dashboard/shares/[id]/actions'
-import { Alert, AlertDescription, AlertTitle, Button, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui'
+import { Alert, AlertDescription, AlertTitle, Button, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui'
 
-export function RevokeShareButton({ shareId, disabled = false, compact = false }: { shareId: string; disabled?: boolean; compact?: boolean }) {
+export function RevokeShareButton({ shareId, disabled = false, compact = false, iconOnly = false }: { shareId: string; disabled?: boolean; compact?: boolean; iconOnly?: boolean }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -27,28 +27,44 @@ export function RevokeShareButton({ shareId, disabled = false, compact = false }
   }
 
   if (disabled || completed) {
-    return <span className="text-xs text-foreground-muted">{completed ? 'Share revoked' : 'Already revoked'}</span>
+    return iconOnly ? null : <span className="text-xs text-foreground-muted">{completed ? 'Share revoked' : 'Already revoked'}</span>
   }
 
+  const trigger = (
+    <DialogTrigger
+      variant={iconOnly ? 'text' : compact ? 'text' : 'destructive'}
+      size={iconOnly ? 'icon' : compact ? 'small' : undefined}
+      aria-label={iconOnly ? 'Revoke share link' : undefined}
+      icon={iconOnly ? <Trash2 className="size-3.5" aria-hidden="true" /> : <AlertTriangle className="size-4" aria-hidden="true" />}
+      className={iconOnly ? '!size-8 !p-0 text-foreground-muted hover:bg-destructive/10 hover:text-destructive' : compact ? 'w-full justify-start gap-2 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive' : 'gap-2'}
+    >
+      {iconOnly ? <span className="sr-only">Revoke share link</span> : 'Revoke link'}
+    </DialogTrigger>
+  )
+
   return (
-    <div className={compact ? undefined : 'flex flex-col items-end gap-2'}>
+    <div className={compact || iconOnly ? undefined : 'flex flex-col items-end gap-2'}>
       <Dialog>
-        <DialogTrigger variant={compact ? 'text' : 'destructive'} size={compact ? 'small' : undefined} className={compact ? 'w-full justify-start gap-2 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive' : 'gap-2'}>
-          <AlertTriangle className="size-4" aria-hidden="true" />
-          Revoke share
-        </DialogTrigger>
+        {iconOnly ? (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>{trigger}</TooltipTrigger>
+              <TooltipContent>Revoke link</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : trigger}
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Revoke this share?</DialogTitle>
+            <DialogTitle>Revoke this share link?</DialogTitle>
             <DialogDescription>
-              Recipients will lose access immediately, including any existing viewer sessions. This cannot be undone; create a new share if access is needed again.
+              Anyone using this link will immediately lose access, including existing viewer sessions. The share record, analytics, and history will remain available.
             </DialogDescription>
           </DialogHeader>
           {error ? <Alert className="mt-4 border-destructive/40"><AlertTitle>Could not revoke share</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
           {completed ? <Alert className="mt-4 border-success/40"><AlertTitle>Share revoked</AlertTitle><AlertDescription>All future viewer requests will be denied.</AlertDescription></Alert> : null}
           <DialogFooter>
             <DialogClose>Keep share</DialogClose>
-            <Button type="button" variant="destructive" loading={isPending} onClick={confirmRevoke}>Revoke now</Button>
+            <Button type="button" variant="destructive" loading={isPending} onClick={confirmRevoke}>Revoke link</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

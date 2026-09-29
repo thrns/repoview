@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, ChevronDown, EllipsisVertical, Github, PowerOff, Settings2 } from 'lucide-react'
+import { Check, ChevronDown, EllipsisVertical, Github, Settings2 } from 'lucide-react'
 import { Fragment, useMemo, useState, useTransition, type FormEvent } from 'react'
 
 import {
@@ -223,7 +223,7 @@ export function RepositoriesView({ items }: { items: RepositoryDashboardItem[] }
             <col className="w-28" />
             <col className="w-36" />
             <col className="w-40" />
-            <col className="w-20" />
+            <col className="w-40" />
           </colgroup>
           <TableHeader>
             <TableRow>
@@ -232,7 +232,7 @@ export function RepositoriesView({ items }: { items: RepositoryDashboardItem[] }
               <TableHead>Visibility</TableHead>
               <TableHead>Sharing</TableHead>
               <TableHead>Rules</TableHead>
-              <TableHead><span className="sr-only">Actions</span></TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -255,7 +255,7 @@ function RepositoryTableRows({ item, enabled, selected, pending, expanded, onSel
   const state = repositoryState(item, enabled)
   const rules = repositoryRulesSummary(item)
   const canEditPolicy = Boolean(item.local && item.rules)
-  const hasOverflowActions = !blocked && (enabled || canEditPolicy)
+  const hasOverflowActions = !blocked && canEditPolicy
 
   return (
     <Fragment>
@@ -273,17 +273,18 @@ function RepositoryTableRows({ item, enabled, selected, pending, expanded, onSel
         <TableCell className="whitespace-nowrap py-2 text-sm text-foreground-light">{item.github.private ? 'Private' : 'Public'}</TableCell>
         <TableCell className="py-2"><Badge variant={state.variant}>{state.label}</Badge></TableCell>
         <TableCell className="min-w-0 py-2"><span className={cn('block truncate text-sm', rules.muted ? 'text-foreground-muted' : 'text-foreground-light')} title={rules.title}>{rules.label}</span></TableCell>
-        <TableCell className="w-1 whitespace-nowrap py-2 text-right">
-          <div className="flex items-center justify-end gap-1">
-            {!blocked && !enabled ? <Button type="button" variant="outline" size="tiny" className="h-8 px-2.5" disabled={pending} loading={pending} onClick={() => onToggle(true)}>Enable</Button> : null}
-            {hasOverflowActions ? <DropdownMenu>
-              <DropdownMenuTrigger aria-label={`More actions for ${item.github.fullName}`} className="size-8 border-transparent bg-transparent p-0 text-foreground-muted shadow-none hover:border-transparent hover:bg-surface-200 hover:text-foreground focus-visible:ring-offset-background"><EllipsisVertical className="size-4" aria-hidden="true" /></DropdownMenuTrigger>
-              <DropdownMenuContent className="w-48">
-                {enabled ? <DropdownMenuItem className="gap-2" disabled={pending} onClick={() => onToggle(false)}><PowerOff className="size-3.5" aria-hidden="true" /><span>Disable sharing</span></DropdownMenuItem> : null}
-                {canEditPolicy ? <DropdownMenuItem className="gap-2" onClick={() => setPolicyOpen(true)}><Settings2 className="size-3.5" aria-hidden="true" /><span>Edit visibility policy</span></DropdownMenuItem> : null}
-              </DropdownMenuContent>
-            </DropdownMenu> : null}
-            <Button type="button" variant="ghost" size="icon" className="size-8 text-foreground-muted" aria-expanded={expanded} aria-label={`${expanded ? 'Collapse' : 'Expand'} details for ${item.github.fullName}`} onClick={onExpand}><ChevronDown className={cn('size-4 transition-transform', expanded && 'rotate-180')} aria-hidden="true" /></Button>
+        <TableCell className="whitespace-nowrap py-2 text-right">
+          <div className="flex w-full items-center gap-1">
+            {!blocked ? <Button type="button" variant="outline" size="tiny" className="h-8 px-2.5" disabled={pending} loading={pending} onClick={() => onToggle(!enabled)}>{enabled ? 'Disable' : 'Enable'}</Button> : null}
+            <div className="ml-auto flex items-center gap-1">
+              {hasOverflowActions ? <DropdownMenu>
+                <DropdownMenuTrigger aria-label={`More actions for ${item.github.fullName}`} className="size-8 border-transparent bg-transparent p-0 text-foreground-muted shadow-none hover:border-transparent hover:bg-surface-200 hover:text-foreground focus-visible:ring-offset-background"><EllipsisVertical className="size-4" aria-hidden="true" /></DropdownMenuTrigger>
+                <DropdownMenuContent className="w-48">
+                  {canEditPolicy ? <DropdownMenuItem className="gap-2" onClick={() => setPolicyOpen(true)}><Settings2 className="size-3.5" aria-hidden="true" /><span>Edit visibility policy</span></DropdownMenuItem> : null}
+                </DropdownMenuContent>
+              </DropdownMenu> : <span className="size-8 shrink-0" aria-hidden="true" />}
+              <Button type="button" variant="ghost" size="icon" className="size-8 text-foreground-muted" aria-expanded={expanded} aria-label={`${expanded ? 'Collapse' : 'Expand'} details for ${item.github.fullName}`} onClick={onExpand}><ChevronDown className={cn('size-4 transition-transform', expanded && 'rotate-180')} aria-hidden="true" /></Button>
+            </div>
           </div>
           {canEditPolicy ? <RepositoryRulesEditor repositoryId={item.local!.id} repositoryName={item.github.fullName} rules={item.rules!} open={policyOpen} onOpenChange={setPolicyOpen} hideTrigger /> : null}
         </TableCell>

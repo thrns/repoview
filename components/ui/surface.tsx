@@ -23,8 +23,8 @@ export function AlertDescription({ className, ...props }: HTMLAttributes<HTMLDiv
   return <div className={cn('text-sm text-foreground-muted', className)} {...props} />
 }
 
-export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>) {
-  return <div className="w-full overflow-x-auto"><table className={cn('w-full caption-bottom text-sm', className)} {...props} /></div>
+export function Table({ className, wrapperClassName, ...props }: HTMLAttributes<HTMLTableElement> & { wrapperClassName?: string }) {
+  return <div className={cn('w-full overflow-x-auto', wrapperClassName)}><table className={cn('w-full caption-bottom text-sm', className)} {...props} /></div>
 }
 
 export function TableHeader({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) { return <thead className={cn('bg-surface-200/70 [&_tr]:border-b', className)} {...props} /> }

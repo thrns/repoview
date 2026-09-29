@@ -14,7 +14,7 @@ export function FileToolbar({ path, size, language, content, shareId, allowDownl
     if (language !== 'markdown') analytics.track('raw_file_viewed', path, { content_kind: language })
   }, [analytics, language, path])
   return (
-    <header className="viewer-file-toolbar sticky top-0 z-20 border-b border-border bg-surface-100">
+    <header className="viewer-file-toolbar shrink-0 border-b border-border bg-surface-100 z-20">
       <div className="viewer-file-toolbar-inner flex min-h-11 min-w-0 items-center gap-2 px-3 sm:gap-3 sm:px-5">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <FileCode2 className="size-3.5 shrink-0 text-foreground-light" aria-hidden="true" />

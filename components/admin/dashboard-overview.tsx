@@ -128,8 +128,8 @@ function WorkspaceSignalsCard({ data }: { data: DashboardOverview }) {
   ]
 
   return (
-    <Card className="min-w-0">
-      <section aria-labelledby="workspace-signals">
+    <Card className="min-w-0 h-full">
+      <section aria-labelledby="workspace-signals" className="flex h-full flex-col">
         <DashboardCardHeader
           id="workspace-signals"
           icon={<BarChart3 className="size-3.5" aria-hidden="true" />}
@@ -137,21 +137,42 @@ function WorkspaceSignalsCard({ data }: { data: DashboardOverview }) {
           description="Overview of share activity and file interactions in your workspace."
           action={<DashboardRangeSelector range={data.range} />}
         />
-        <div className="grid grid-cols-2 divide-y divide-border-secondary sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+        <div className="grid flex-1 grid-cols-2 divide-y divide-border-secondary sm:grid-cols-4 sm:divide-x sm:divide-y-0">
           {signals.map((signal) => (
-            <div key={signal.label} className="min-w-0 px-4 py-4 sm:px-5 sm:py-5">
-              <div className="flex items-center gap-2 text-xs text-foreground-muted">
+            <div key={signal.label} className="flex h-full min-w-0 flex-col px-4 py-4 sm:px-5 sm:py-5">
+              <div className="flex items-center gap-2 text-xs font-medium text-foreground-light">
                 <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-md border border-border-secondary bg-surface-200 text-foreground-light">{signal.icon}</span>
                 <span className="truncate">{signal.label}</span>
               </div>
               <p className="mt-3 font-heading text-xl font-semibold tabular-nums">{formatNumber(signal.value)}</p>
               <p className="mt-1 truncate text-[11px] text-foreground-muted" title={signal.description}>{signal.description}</p>
-              <MiniBars values={signal.values} label={`${signal.label} by day`} className="mt-3" />
+              <WorkspaceSignalVisual values={signal.values} label={`${signal.label} by day`} />
             </div>
           ))}
         </div>
       </section>
     </Card>
+  )
+}
+
+function WorkspaceSignalVisual({ values, label }: { values: number[]; label: string }) {
+  const hasActivity = values.some((value) => value > 0)
+
+  return (
+    <div className="mt-auto pt-5">
+      <div className="rounded-md bg-surface-200/35 px-3 py-3">
+        {hasActivity ? <MiniBars values={values} label={label} className="h-10" /> : <WorkspaceSignalZeroBars values={values} label={label} />}
+      </div>
+    </div>
+  )
+}
+
+function WorkspaceSignalZeroBars({ values, label }: { values: number[]; label: string }) {
+  return (
+    <div role="img" aria-label={`${label}: No activity in this period`} className="flex h-10 items-end gap-0.5">
+      {values.map((_, index) => <span key={`${label}-${index}`} className="min-w-0 flex-1 rounded-xs bg-foreground-muted/20 h-0.5" />)}
+      <span className="sr-only">{label}: No activity in this period</span>
+    </div>
   )
 }
 
@@ -163,7 +184,7 @@ function LastActivityCard({ items }: { items: DashboardOverviewActivity[] }) {
           id="last-activity"
           icon={<Clock3 className="size-3.5" aria-hidden="true" />}
           title="Last activity"
-          description="Your most recent share activity across repositories."
+          description="Most recent share activity."
           action={<ViewAllLink />}
         />
         {items.length === 0 ? <CompactEmptyState icon={<Activity className="size-4" aria-hidden="true" />} title="No activity yet" description="Activity will appear here once someone opens a private share." /> : <ActivityList items={items} limit={5} compact />}
@@ -180,7 +201,7 @@ function RecentActivityCard({ items, hasActiveShare }: { items: DashboardOvervie
           id="recent-activity"
           icon={<Activity className="size-3.5" aria-hidden="true" />}
           title="Recent activity"
-          description="Meaningful actions from confirmed private-share sessions."
+          description="Private share activity."
           action={<ViewAllLink />}
         />
         {items.length === 0 ? <EmptyActivity hasActiveShare={hasActiveShare} /> : <ActivityList items={items} limit={6} compact />}

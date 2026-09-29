@@ -1,21 +1,15 @@
 'use client'
 
-import { BarChart3, Link2, MoreHorizontal, Plus, Search } from 'lucide-react'
+import { Link2, Plus, Search } from 'lucide-react'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 
 import { RevokeShareButton } from '@/components/admin/revoke-share-button'
 import { RotateShareButton } from '@/components/admin/rotate-share-button'
-import { UpdateShareExpiryButton } from '@/components/admin/update-share-expiry-button'
 import {
   Badge,
   Button,
   Card,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   PageContainer,
   Select,
   Table,
@@ -124,17 +118,17 @@ export function SharesView({ items }: { items: ShareListItem[] }) {
           <ActiveFilterSummary filters={[...(repositoryFilter !== 'all' ? [{ label: 'Repository', value: repositoryFilter, onClear: () => setRepositoryFilter('all') }] : []), ...(statusFilter !== 'all' ? [{ label: 'Status', value: statusLabel(statusFilter), onClear: () => setStatusFilter('all') }] : []), ...(expiryFilter !== 'all' ? [{ label: 'Expiry', value: expiryLabel(expiryFilter), onClear: () => setExpiryFilter('all') }] : []), ...(activityFilter !== 'all' ? [{ label: 'Activity', value: activityLabel(activityFilter), onClear: () => setActivityFilter('all') }] : []), ...(sort !== 'recent' ? [{ label: 'Sort', value: sortLabel(sort), onClear: () => selectSort('recent') }] : [])]} onClear={clearFilterValues} />
         </div>
 
-        <Card className="mt-4 overflow-hidden">
-          <Table className="min-w-[760px] table-fixed">
+        <Card className="mt-4 overflow-visible">
+          <Table wrapperClassName="overflow-visible" className="shares-table min-w-0 table-fixed">
             <caption className="sr-only">Repository shares and their engagement status</caption>
-            <colgroup><col /><col className="w-[9rem]" /><col className="w-[10rem]" /><col className="w-[9rem]" /><col className="w-1" /></colgroup>
+            <colgroup><col /><col className="w-[9rem]" /><col className="w-[10rem]" /><col className="w-[7.5rem]" /><col className="w-28" /></colgroup>
             <TableHeader>
               <TableRow>
                 <TableHead aria-sort={tableSort.column === 'share' ? tableSort.ariaSort : 'none'}><TableHeadSort column="share" currentSort={tableSort.value} onSortChange={handleTableSortChange}>Share</TableHeadSort></TableHead>
                 <TableHead aria-sort={tableSort.column === 'status' ? tableSort.ariaSort : 'none'}><TableHeadSort column="status" currentSort={tableSort.value} onSortChange={handleTableSortChange}>Status</TableHeadSort></TableHead>
                 <TableHead className="text-right" aria-sort={tableSort.column === 'engagement' ? tableSort.ariaSort : 'none'}><TableHeadSort column="engagement" currentSort={tableSort.value} onSortChange={handleTableSortChange} className="w-full justify-end">Engagement</TableHeadSort></TableHead>
                 <TableHead aria-sort={tableSort.column === 'expires' ? tableSort.ariaSort : 'none'}><TableHeadSort column="expires" currentSort={tableSort.value} onSortChange={handleTableSortChange}>Expires</TableHeadSort></TableHead>
-                <TableHead className="w-1"><span className="sr-only">Actions</span></TableHead>
+                <TableHead className="w-32 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -169,13 +163,24 @@ function ShareRow({ item }: { item: ShareListItem }) {
         <span className="mt-1 block truncate text-xs text-foreground-muted" title={item.lastViewedAt ? formatExactDate(item.lastViewedAt) : undefined}>{item.lastViewedAt ? `Viewed ${formatRelative(item.lastViewedAt)}` : 'No activity'}</span>
       </TableCell>
       <TableCell><span className="whitespace-nowrap text-xs text-foreground-muted" title={item.share.expires_at ? formatExactDate(item.share.expires_at) : undefined}>{formatExpiry(item.share.expires_at)}</span></TableCell>
-      <TableCell className="w-1 text-right"><ShareRowActions item={item} /></TableCell>
+      <TableCell className="w-32 whitespace-nowrap text-right"><ShareRowActions item={item} /></TableCell>
     </TableRow>
   )
 }
 
 function ShareRowActions({ item }: { item: ShareListItem }) {
-  return <DropdownMenu><DropdownMenuTrigger aria-label={`Actions for ${getShareLabel(item)}`} className="size-9 border-transparent bg-transparent px-0 text-foreground-muted hover:bg-surface-200 hover:text-foreground"><MoreHorizontal className="size-4" aria-hidden="true" /></DropdownMenuTrigger><DropdownMenuContent className="w-56 p-1.5"><DropdownMenuLabel className="px-2 py-1.5 text-xs font-medium text-foreground-muted">Share actions</DropdownMenuLabel><Link href={`/dashboard/shares/${item.share.id}`} role="menuitem" className="flex min-h-9 items-center gap-2 rounded-md px-2 text-sm text-foreground-light hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent"><BarChart3 className="size-4" aria-hidden="true" /> View details / analytics</Link><DropdownMenuSeparator /><div className="[&>button]:h-9 [&>button]:w-full [&>button]:justify-start [&>button]:gap-2 [&>button]:px-2 [&>button]:text-sm"><RotateShareButton shareId={item.share.id} revoked={item.status === 'revoked'} compact /></div><div className="[&>button]:h-9 [&>button]:w-full [&>button]:justify-start [&>button]:gap-2 [&>button]:px-2 [&>button]:text-sm"><UpdateShareExpiryButton shareId={item.share.id} currentExpiresAt={item.share.expires_at} compact /></div><DropdownMenuSeparator /><div className="[&>div>button]:h-9 [&>div>button]:w-full [&>div>button]:justify-start [&>div>button]:gap-2 [&>div>button]:text-sm [&>div>button]:text-destructive [&>div>button]:hover:bg-destructive/10 [&>div>button]:hover:text-destructive"><RevokeShareButton shareId={item.share.id} disabled={item.status === 'revoked'} compact /></div></DropdownMenuContent></DropdownMenu>
+  const canGenerateLink = item.status !== 'expired'
+
+  return (
+    <div className="flex items-center justify-end gap-1">
+      <span className="flex size-8 items-center justify-center">
+        {canGenerateLink ? <RotateShareButton shareId={item.share.id} revoked={item.status === 'revoked'} iconOnly /> : null}
+      </span>
+      <span className="flex size-8 items-center justify-center">
+        {item.status === 'revoked' ? null : <RevokeShareButton shareId={item.share.id} iconOnly />}
+      </span>
+    </div>
+  )
 }
 
 export function ShareStatusBadge({ status, className = '' }: { status: ShareStatus; className?: string }) {

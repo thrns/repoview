@@ -103,8 +103,8 @@ export function ActivityView({ items, filter }: { items: DashboardActivityItem[]
   }
 
   return (
-    <PageContainer size="default" className="pb-10 lg:pb-14">
-      <div className="sticky top-0 z-30 -mx-5 bg-background/95 px-5 pb-4 pt-7 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 lg:pb-5 lg:pt-10">
+    <PageContainer size="default" className="space-y-5 pb-10 lg:pb-14">
+      <div className="space-y-3">
         <ActivityToolbar
           query={query}
           repository={repository}
@@ -133,7 +133,7 @@ export function ActivityView({ items, filter }: { items: DashboardActivityItem[]
         ]} onClear={clearFilters} />
       </div>
 
-      <OwnerListSurface className="mt-3" aria-label="Activity sessions">
+      <OwnerListSurface aria-label="Activity sessions">
         <OwnerListHeader icon={<Clock3 className="size-4" aria-hidden="true" />} title="Session timeline" description="Sessions are grouped by share open so the audit trail stays readable." meta={<><span className="font-mono">{sessions.length}</span> {sessions.length === 1 ? 'session' : 'sessions'} · <span className="font-mono">{totalEventCount}</span> {totalEventCount === 1 ? 'event' : 'events'}</>} />
         {visibleSessions.length === 0 ? (
           <EmptyActivity hasFilters={Boolean(activeFilterCount || query)} onClear={clearFilters} />
@@ -198,7 +198,7 @@ function ActivityToolbar({
   setDateFilter: (value: DateFilter) => void
 }) {
   return (
-    <div className="mt-5 flex items-center gap-2 rounded-lg border border-border/70 bg-card/75 p-2">
+    <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-card/75 p-2">
       <OwnerSearchField value={query} onChange={setQuery} label="Search activity" placeholder="Search activity" className="lg:max-w-sm" />
       <OwnerFilterDialog
         title="Activity filters"

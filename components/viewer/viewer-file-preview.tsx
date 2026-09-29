@@ -6,6 +6,7 @@ import { FileToolbar } from './file-toolbar'
 import { MarkdownRenderer } from './markdown-renderer'
 import { SourceCodeRenderer } from './source-code-renderer'
 import { UnavailableFilePreview } from './file-unavailable-preview'
+import { ViewerFileLayout } from './viewer-file-layout'
 
 export type ViewerFilePreviewState = GitHubFileContent | {
   kind: 'unavailable'
@@ -27,8 +28,10 @@ export async function ViewerFilePreview({ file, shareId, tree, allowDownload = f
   const language = detectViewerLanguage(file.path)
 
   return (
-    <section className="viewer-file-content min-h-[calc(100vh-2.75rem)] bg-background">
-      <FileToolbar path={file.path} size={file.size} language={language} content={file.content} shareId={shareId} allowDownload={allowDownload} />
+    <ViewerFileLayout
+      path={file.path}
+      toolbar={<FileToolbar path={file.path} size={file.size} language={language} content={file.content} shareId={shareId} allowDownload={allowDownload} />}
+    >
       {language === 'markdown' ? (
         <div className="repository-markdown-page">
           <MarkdownRenderer source={file.content} shareId={shareId} documentPath={file.path} tree={tree} />
@@ -36,6 +39,6 @@ export async function ViewerFilePreview({ file, shareId, tree, allowDownload = f
       ) : (
         <SourceCodeRenderer code={file.content} filename={file.path} />
       )}
-    </section>
+    </ViewerFileLayout>
   )
 }

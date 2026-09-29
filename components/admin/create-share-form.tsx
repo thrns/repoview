@@ -125,7 +125,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
   }
 
   return (
-    <form className="space-y-9 pb-6 sm:pb-28" onSubmit={submit}>
+    <form className="space-y-9 pb-6" onSubmit={submit}>
       {error ? <Alert className="border-destructive/40" role="alert"><AlertTitle>Check these details</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
 
       <FormSection title="Repository" description="Choose the source and exact ref this link should expose.">
@@ -221,7 +221,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
         </details>
       </section>
 
-      <div className="rounded-md border border-border bg-surface-200 px-4 py-3 sm:sticky sm:bottom-4 sm:z-10">
+      <div className="rounded-md border border-border bg-surface-200 px-4 py-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 text-xs leading-5">
             <p className="font-medium text-foreground">Ready to create</p>

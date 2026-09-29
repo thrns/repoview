@@ -3,16 +3,15 @@
 import {
   ChevronDown,
   ChevronRight,
-  FolderTree,
+  Files,
   ListCollapse,
   ListTree,
-  MoreHorizontal,
   Search,
   TriangleAlert,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, Input, ScrollArea } from '@/components/ui'
+import { Button, Input, ScrollArea, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui'
 import type { ViewerTreeNode, ViewerTreeState } from '@/lib/viewer/tree-model'
 
 import { cn } from '@/components/ui/utils'
@@ -168,33 +167,55 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
 
   return (
     <div className={cn('viewer-tree-panel flex min-h-0 flex-1 flex-col', className)}>
-      <div className="viewer-tree-header space-y-1.5 border-b border-border px-3 py-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 items-start gap-2">
-            <FolderTree className="mt-0.5 size-3.5 shrink-0 text-foreground-light" aria-hidden="true" />
+      <div className="viewer-tree-header flex flex-col gap-3 border-b border-border-secondary px-4 py-3.5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <Files className="size-4 shrink-0 text-foreground-muted" aria-hidden="true" />
             <div className="min-w-0">
-              <p className="font-mono text-xs font-semibold uppercase tracking-widest text-foreground-muted">Explorer</p>
-              <p className="mt-0.5 text-xs text-foreground-muted" aria-live="polite">
+              <p className="font-mono text-xs font-semibold uppercase tracking-wider text-foreground-muted">Explorer</p>
+              <p className="mt-0.5 text-xs leading-4 text-foreground-muted/75" aria-live="polite">
                 {tree.status === 'ready' ? `${fileCount} ${fileCount === 1 ? 'file' : 'files'}` : 'Unavailable'}
               </p>
             </div>
           </div>
           {tree.status === 'ready' ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger className="h-8 w-8 border-transparent bg-transparent px-0 text-foreground-muted hover:bg-accent hover:text-foreground" aria-label="More explorer actions">
-                <MoreHorizontal className="size-4" aria-hidden="true" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="right-0 mt-1 w-48 p-1.5">
-                <DropdownMenuLabel className="px-2 py-1.5 text-xs font-medium text-foreground-muted">Explorer view</DropdownMenuLabel>
-                <DropdownMenuItem onClick={expandAll}><ListTree className="mr-2 size-4" aria-hidden="true" />Expand all folders</DropdownMenuItem>
-                <DropdownMenuItem onClick={collapseAll}><ListCollapse className="mr-2 size-4" aria-hidden="true" />Collapse all folders</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex shrink-0 items-center gap-0.5">
+              <Tooltip>
+                <TooltipTrigger>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={expandAll}
+                    aria-label="Expand all folders"
+                    className="size-8 rounded-md border border-border-secondary bg-surface-100/40 text-foreground-muted hover:border-border hover:bg-surface-100 hover:text-foreground"
+                  >
+                    <ListTree className="size-3.5" aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent placement="bottom" align="end">Expand all</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={collapseAll}
+                    aria-label="Collapse all folders"
+                    className="size-8 rounded-md border border-border-secondary bg-surface-100/40 text-foreground-muted hover:border-border hover:bg-surface-100 hover:text-foreground"
+                  >
+                    <ListCollapse className="size-3.5" aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent placement="bottom" align="end">Collapse all</TooltipContent>
+              </Tooltip>
+            </div>
           ) : null}
         </div>
         {tree.status === 'ready' ? (
           <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-foreground-muted" aria-hidden="true" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-foreground-muted" aria-hidden="true" />
             <Input
               ref={searchRef}
               value={query}
@@ -202,9 +223,9 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
               placeholder="Search files…"
               aria-label="Search files"
               aria-keyshortcuts="/"
-              className="viewer-tree-search h-9 rounded-lg border-border bg-muted/50 pl-8 pr-9 text-xs !shadow-none"
+              className="viewer-tree-search h-9 rounded-md border-border-secondary pl-9 pr-9 text-xs !shadow-none"
             />
-            <kbd aria-hidden="true" className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border/80 bg-background px-1.5 py-0.5 font-mono text-xs leading-none text-foreground-muted">/</kbd>
+            <kbd aria-hidden="true" className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border-secondary bg-background px-1.5 py-0.5 font-mono text-xs leading-none text-foreground-muted">/</kbd>
           </div>
         ) : null}
       </div>
@@ -246,7 +267,7 @@ export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPat
                   onKeyDown={(event) => handleTreeKeyDown(event, node, index)}
                   className={cn(
                     'viewer-tree-row relative flex min-h-8 w-full items-center gap-1.5 rounded px-2 text-left text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
-                    isSelected ? 'bg-surface-200 text-foreground-light before:absolute before:inset-y-0.5 before:left-0 before:w-0.5 before:bg-brand-default' : 'text-foreground-muted hover:bg-accent/60 hover:text-foreground',
+                    isSelected ? 'bg-surface-200 text-foreground-light' : 'text-foreground-muted hover:bg-accent/60 hover:text-foreground',
                   )}
                   style={{ paddingLeft: `${Math.min(8 + (depth - 1) * 12, 152)}px` }}
                 >

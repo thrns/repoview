@@ -1,13 +1,14 @@
 'use client'
 
-import { GitBranch, Menu, MoreHorizontal, X } from 'lucide-react'
+import { FileText, GitBranch, Menu, X } from 'lucide-react'
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { ThemeSwitcher } from '@/components/shared/theme-switcher'
 import { BrandLogo } from '@/components/shared/brand-logo'
-import { Badge, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, Skeleton, SkipToContent } from '@/components/ui'
+import { Badge, Button, Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, Skeleton, SkipToContent, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui'
 import type { ViewerRootState } from '@/lib/viewer/root-model'
 import type { ViewerTreeState } from '@/lib/viewer/tree-model'
 import { ViewerAuthorizationFailure, isViewerAuthorizationFailure, revalidateViewerAuthorization } from '@/lib/viewer/client-authorization'
@@ -205,7 +206,7 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
   return (
     <ViewerAnalyticsProvider shareId={shareId} initialPath={activePath} analyticsMode={analyticsMode} gpcApplied={gpcApplied}>
       <ViewerWorkspaceProvider value={{ tree, root, selectedPath, openPath, prefetchPath }}>
-      <div className="viewer-shell flex h-dvh min-h-0 flex-col overflow-hidden bg-background text-foreground">
+      <div data-viewer-shell className="viewer-shell flex h-dvh min-h-0 flex-col overflow-hidden bg-background text-foreground">
         <SkipToContent />
         <header className="viewer-header sticky top-0 z-40 shrink-0 border-b border-border bg-surface-100">
           <div className="viewer-header-inner flex h-11 items-center gap-2.5 px-3 sm:gap-3 sm:px-5">
@@ -242,7 +243,16 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
                 <span className="truncate" title={refName}>{refName}</span>
               </Badge>
               <ThemeSwitcher className="text-foreground-muted hover:text-foreground" />
-              <ViewerUtilityMenu />
+              <Tooltip>
+                <TooltipTrigger>
+                  <Button asChild variant="ghost" size="icon" aria-label="Terms" className="text-foreground-muted hover:text-foreground">
+                    <Link href="/terms">
+                      <FileText className="size-4" aria-hidden="true" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent placement="bottom">Terms</TooltipContent>
+              </Tooltip>
             </div>
           </div>
         </header>
@@ -250,7 +260,7 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
           <aside className="viewer-sidebar fixed bottom-0 left-0 top-11 z-30 hidden w-64 overflow-hidden overscroll-none border-r border-border bg-card md:flex md:flex-col">
             <ViewerFileTree tree={tree} selectedPath={activePath} onSelectPath={openPath} onPrefetchPath={prefetchPath} />
           </aside>
-          <main id="main" className="viewer-main min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain md:ml-64">
+          <main id="main" className="viewer-main flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:ml-64">
             {authorizationFailed ? <ViewerAccessUnavailable /> : activeFile ? <ViewerFileContent file={activeFile.file} shareId={shareId} tree={tree} onOpenPath={openPath} allowDownload={allowDownload} /> : loadingPath ? <ViewerFileLoading path={loadingPath} /> : children}
           </main>
         </div>
@@ -282,20 +292,6 @@ function ViewerFileLoading({ path }: { path: string }) {
         {Array.from({ length: 10 }, (_, index) => <Skeleton key={index} className="h-4 rounded bg-muted/50" style={{ width: `${55 + (index % 4) * 10}%` }} />)}
       </div>
     </section>
-  )
-}
-
-function ViewerUtilityMenu() {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className="h-9 w-9 border-transparent bg-transparent px-0 text-foreground-muted hover:bg-accent hover:text-foreground" aria-label="More viewer options">
-        <MoreHorizontal className="size-4" aria-hidden="true" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="right-0 mt-1 w-44 p-1.5">
-        <DropdownMenuLabel className="px-2 py-1.5 text-xs font-medium text-foreground-muted">Viewer</DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => window.location.assign('/terms')}>Terms</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   )
 }
 

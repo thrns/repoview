@@ -22,7 +22,7 @@ import {
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 
-import { Badge, Card, DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, PageContainer } from '@/components/ui'
+import { Badge, Card, DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, PageContainer, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui'
 import type { ShareActivitySummary, ShareDetailData, ShareNotificationSummary, ShareSessionSummary } from '@/lib/shares/detail'
 
 import { RevokeShareButton } from './revoke-share-button'
@@ -60,8 +60,9 @@ export function ShareDetailView({ data }: { data: ShareDetailData }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:self-start">
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:self-start">
             <RotateShareButton shareId={item.share.id} revoked={item.status === 'revoked'} />
+            {item.status === 'revoked' ? null : <RevokeShareButton shareId={item.share.id} iconOnly />}
             <ShareOverflowMenu shareId={item.share.id} currentExpiresAt={item.share.expires_at} disabled={item.status === 'revoked'} />
           </div>
         </header>
@@ -89,9 +90,16 @@ export function ShareDetailView({ data }: { data: ShareDetailData }) {
 function ShareOverflowMenu({ shareId, currentExpiresAt, disabled }: { shareId: string; currentExpiresAt: string | null; disabled: boolean }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="h-9 w-9 border-transparent bg-transparent px-0 text-foreground-muted hover:bg-accent hover:text-foreground" aria-label="More share options">
-        <MoreHorizontal className="size-4" aria-hidden="true" />
-      </DropdownMenuTrigger>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger>
+            <DropdownMenuTrigger className="h-9 w-9 border-transparent bg-transparent px-0 text-foreground-muted hover:bg-accent hover:text-foreground" aria-label="More share options">
+              <MoreHorizontal className="size-4" aria-hidden="true" />
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent placement="bottom">More options</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       <DropdownMenuContent className="right-0 mt-1 w-64 p-2">
         <DropdownMenuLabel className="px-2 py-1 text-xs font-medium uppercase tracking-wider">Share options</DropdownMenuLabel>
         <div className="flex gap-2 rounded-md bg-muted/30 px-2 py-2.5 text-xs text-foreground-muted">
@@ -104,10 +112,6 @@ function ShareOverflowMenu({ shareId, currentExpiresAt, disabled }: { shareId: s
         <DropdownMenuSeparator />
         <div className="[&>button]:h-8 [&>button]:w-full [&>button]:justify-start [&>button]:px-2 [&>button]:text-xs">
           <UpdateShareExpiryButton shareId={shareId} currentExpiresAt={currentExpiresAt} disabled={disabled} compact />
-        </div>
-        <DropdownMenuSeparator />
-        <div className="[&>div>button]:h-8 [&>div>button]:w-full [&>div>button]:justify-start [&>div>button]:px-2 [&>div>button]:text-xs [&>div>button]:text-destructive [&>div>button]:hover:bg-destructive/10 [&>div>button]:hover:text-destructive">
-          <RevokeShareButton shareId={shareId} disabled={disabled} compact />
         </div>
       </DropdownMenuContent>
     </DropdownMenu>

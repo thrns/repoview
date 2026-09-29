@@ -8,6 +8,7 @@ import { FileToolbar } from './file-toolbar'
 import { MarkdownRendererClient } from './markdown-renderer-client'
 import type { ViewerFilePreviewState } from './viewer-file-preview'
 import { UnavailableFilePreview } from './file-unavailable-preview'
+import { ViewerFileLayout } from './viewer-file-layout'
 
 export function ViewerFileContent({ file, shareId, tree, onOpenPath, allowDownload = false }: { file: ViewerFilePreviewState; shareId: string; tree?: ViewerTreeState; onOpenPath?: (path: string) => void; allowDownload?: boolean }) {
   if (file.kind === 'image') {
@@ -21,8 +22,10 @@ export function ViewerFileContent({ file, shareId, tree, onOpenPath, allowDownlo
   const language = detectViewerLanguage(file.path)
 
   return (
-    <section className="viewer-file-content min-h-[calc(100vh-2.75rem)] bg-background">
-      <FileToolbar path={file.path} size={file.size} language={language} content={file.content} shareId={shareId} allowDownload={allowDownload} />
+    <ViewerFileLayout
+      path={file.path}
+      toolbar={<FileToolbar path={file.path} size={file.size} language={language} content={file.content} shareId={shareId} allowDownload={allowDownload} />}
+    >
       {language === 'markdown' ? (
         <div className="repository-markdown-page">
           <MarkdownRendererClient key={file.path} source={file.content} shareId={shareId} documentPath={file.path} tree={tree} onOpenPath={onOpenPath} />
@@ -30,6 +33,6 @@ export function ViewerFileContent({ file, shareId, tree, onOpenPath, allowDownlo
       ) : (
         <ClientSourceCodeRenderer key={file.path} code={file.content} filename={file.path} />
       )}
-    </section>
+    </ViewerFileLayout>
   )
 }
