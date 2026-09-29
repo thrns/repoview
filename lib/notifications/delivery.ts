@@ -42,7 +42,19 @@ export async function queueNotificationDelivery(
       admin,
     )
   } catch (error) {
-    if (error instanceof QuotaExceededError) return { status: 'quota-exceeded', message: error.message }
+    if (error instanceof QuotaExceededError) {
+      logViewerDiagnostic('viewer-notification-quota-exceeded', {
+        shareId: input.shareId,
+        sessionId: input.sessionId,
+        reason: 'workspace-daily-email-quota',
+      })
+      return { status: 'quota-exceeded', message: error.message }
+    }
+    logViewerDiagnostic('viewer-notification-queue-failed', {
+      shareId: input.shareId,
+      sessionId: input.sessionId,
+      reason: 'quota-reservation-failed',
+    })
     throw error
   }
 
@@ -71,10 +83,20 @@ export async function queueNotificationDelivery(
 
   if (error) {
     await releaseQuota(reservation, admin)
+    logViewerDiagnostic('viewer-notification-queue-failed', {
+      shareId: input.shareId,
+      sessionId: input.sessionId,
+      reason: 'delivery-ledger-insert-failed',
+    })
     throw error
   }
   if (!data) {
     await releaseQuota(reservation, admin)
+    logViewerDiagnostic('viewer-notification-already-queued', {
+      shareId: input.shareId,
+      sessionId: input.sessionId,
+      reason: 'delivery-idempotency-conflict',
+    })
     return { status: 'already-queued' }
   }
   return { status: 'queued', deliveryId: data.id }
@@ -96,15 +118,21 @@ export async function dispatchNotificationDelivery(
     target_delivery_id: deliveryId,
     target_now: now.toISOString(),
   })
-  if (claimError) throw claimError
+  if (claimError) {
+    logViewerDiagnostic('viewer-notification-claim-failed', {
+      deliveryId,
+      reason: 'claim-rpc-failed',
+    })
+    throw claimError
+  }
   const delivery = firstRow(claimedData)
   if (!delivery) return { status: 'not-due', deliveryId }
   if (delivery.status === 'cancelled') {
-    logViewerDiagnostic('viewer-notification-failed', { deliveryId, shareId: delivery.share_id, sessionId: delivery.session_id, status: 'cancelled' })
+    logViewerDiagnostic('viewer-notification-cancelled-at-claim', { deliveryId, shareId: delivery.share_id, sessionId: delivery.session_id, status: 'cancelled' })
     return { status: 'cancelled', deliveryId }
   }
   if (delivery.status === 'provider_result_unknown') {
-    logViewerDiagnostic('viewer-notification-failed', { deliveryId, shareId: delivery.share_id, sessionId: delivery.session_id, status: 'provider_result_unknown' })
+    logViewerDiagnostic('viewer-notification-provider-result-unknown', { deliveryId, shareId: delivery.share_id, sessionId: delivery.session_id, status: 'provider_result_unknown' })
     return { status: 'provider_result_unknown', deliveryId }
   }
   if (delivery.status !== 'processing') return { status: 'not-due', deliveryId }
@@ -135,7 +163,7 @@ export async function dispatchNotificationDelivery(
   } catch (error) {
     if (error instanceof TransactionalEmailProviderError && error.outcomeUnknown) {
       await markProviderResultUnknown(admin, deliveryId, error)
-      logViewerDiagnostic('viewer-notification-failed', { deliveryId, shareId: delivery.share_id, sessionId: delivery.session_id, status: 'provider_result_unknown' })
+      logViewerDiagnostic('viewer-notification-provider-result-unknown', { deliveryId, shareId: delivery.share_id, sessionId: delivery.session_id, status: 'provider_result_unknown', reason: 'provider-call-ambiguous' })
       return { status: 'provider_result_unknown', deliveryId }
     }
     const retryable = error instanceof TransactionalEmailProviderError ? error.retryable : true
@@ -153,7 +181,7 @@ export async function dispatchNotificationDelivery(
       logViewerDiagnostic('viewer-notification-failed', { deliveryId, shareId: delivery.share_id, sessionId: delivery.session_id, status: 'provider_result_unknown', reason: 'retry-state-update-failed' })
       return { status: 'provider_result_unknown', deliveryId }
     }
-    logViewerDiagnostic('viewer-notification-failed', { deliveryId, shareId: delivery.share_id, sessionId: delivery.session_id, status, retryable: shouldRetry })
+    logViewerDiagnostic('viewer-notification-provider-failed', { deliveryId, shareId: delivery.share_id, sessionId: delivery.session_id, status, retryable: shouldRetry })
     return shouldRetry
       ? { status: 'retryable', deliveryId, nextRetryAt: nextRetryAt! }
       : { status: 'permanent', deliveryId }

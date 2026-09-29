@@ -25,12 +25,21 @@ export class SmtpTransportError extends Error {
 
 function classifySmtpError(error: unknown) {
   if (!error || typeof error !== 'object') return { retryable: true, outcomeUnknown: true }
-  const candidate = error as { responseCode?: unknown; code?: unknown }
+  const candidate = error as { responseCode?: unknown; code?: unknown; command?: unknown }
   if (typeof candidate.responseCode === 'number') {
     return {
       retryable: candidate.responseCode === 408 || candidate.responseCode === 421 || candidate.responseCode >= 500,
       outcomeUnknown: false,
     }
+  }
+  // Connection failures before SMTP accepts a message are safe to retry. A
+  // reset or write failure may happen after acceptance, so it remains
+  // fail-closed as an unknown provider result.
+  if (
+    (candidate.code === 'ECONNECTION' || candidate.code === 'ECONNREFUSED' || candidate.code === 'ENOTFOUND' || candidate.code === 'EHOSTUNREACH' || candidate.code === 'EAI_AGAIN' || candidate.code === 'ETIMEDOUT')
+    && (candidate.command === undefined || candidate.command === 'CONN' || candidate.command === 'EHLO')
+  ) {
+    return { retryable: true, outcomeUnknown: false }
   }
   return {
     retryable: true,

@@ -57,4 +57,12 @@ describe('SMTP transport', () => {
     await expect(sendSmtpEmail({ to: 'owner@example.com', subject: 'Test', text: 'Body' }))
       .rejects.not.toThrow('secret app password leaked')
   })
+
+  it('classifies connection failures before SMTP acceptance as retryable', async () => {
+    const sendMail = vi.fn().mockRejectedValue(Object.assign(new Error('connection refused'), { code: 'ECONNREFUSED', command: 'CONN' }))
+    Object.assign(getSmtpTransport(), { sendMail })
+
+    const error = await sendSmtpEmail({ to: 'owner@example.com', subject: 'Test', text: 'Body' }).catch((value) => value)
+    expect(error).toMatchObject({ retryable: true, outcomeUnknown: false })
+  })
 })

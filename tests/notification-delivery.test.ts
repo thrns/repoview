@@ -21,7 +21,7 @@ vi.mock('../lib/notifications/email-provider', async () => {
 })
 
 import { createSupabaseAdminClient } from '../lib/supabase/admin'
-import { dispatchNotificationDelivery, queueNotificationDelivery } from '../lib/notifications/delivery'
+import { dispatchNotificationDelivery, dispatchPendingNotificationDeliveries, queueNotificationDelivery } from '../lib/notifications/delivery'
 import { sendTransactionalEmail, TransactionalEmailProviderError } from '../lib/notifications/email-provider'
 
 const getAdmin = vi.mocked(createSupabaseAdminClient)
@@ -119,6 +119,20 @@ describe('notification delivery ledger', () => {
 
     await expect(dispatchNotificationDelivery('delivery-1', admin, new Date('2026-09-24T10:00:00.000Z')))
       .resolves.toEqual({ status: 'retryable', deliveryId: 'delivery-1', nextRetryAt: '2026-09-24T10:01:00.000Z' })
+  })
+
+  it('dispatcher selects due retryable deliveries and sends them through the same claim path', async () => {
+    const pending = chain({ data: [{ id: 'delivery-1' }], error: null })
+    const update = chain({ data: { id: 'delivery-1' }, error: null })
+    const delivery = { id: 'delivery-1', status: 'processing', attempt_count: 2, outbound_attempt_key: 'outbound-1', payload: { email } }
+    const admin = {
+      from: vi.fn(() => ({ select: vi.fn(() => pending), update: vi.fn(() => update) })),
+      rpc: vi.fn().mockResolvedValue({ data: [delivery], error: null }),
+    } as never
+
+    await expect(dispatchPendingNotificationDeliveries(25, admin, new Date('2026-09-24T10:02:00.000Z')))
+      .resolves.toEqual([{ status: 'sent', deliveryId: 'delivery-1' }])
+    expect(sendEmail).toHaveBeenCalledWith(email, { idempotencyKey: 'outbound-1' })
   })
 
   it('marks permanent provider failures without retrying them', async () => {

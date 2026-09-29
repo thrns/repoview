@@ -4,6 +4,7 @@ import { requireWorkspace } from './workspace'
 import { createSupabaseServerClient } from '../supabase/server'
 import type { Json, Tables } from '../supabase/database.types'
 import { getWorkspaceQuotaUsage, type WorkspaceQuotaUsage } from '../security/quotas'
+import { ensureNotificationDestination } from '../notifications/settings'
 
 export type SettingsInstallation = {
   id: string
@@ -63,7 +64,17 @@ export async function getSettingsPageData(): Promise<SettingsPageData> {
     throw new Error('RepoView could not load account settings.')
   }
 
-  const notificationSettings = notificationResult.data ?? createDefaultNotificationSettings(context.workspace.id)
+  const notificationSettings = notificationResult.data
+    ? await ensureNotificationDestination(supabase, {
+      workspaceId: context.workspace.id,
+      accountEmail: context.user.email,
+      accountEmailConfirmed: Boolean(context.user.email_confirmed_at),
+    }) ?? notificationResult.data
+    : await ensureNotificationDestination(supabase, {
+      workspaceId: context.workspace.id,
+      accountEmail: context.user.email,
+      accountEmailConfirmed: Boolean(context.user.email_confirmed_at),
+    }) ?? createDefaultNotificationSettings(context.workspace.id, context.user.email, Boolean(context.user.email_confirmed_at))
   const repositoryRows = repositoriesResult.data ?? []
   const installations = (installationsResult.data ?? []).map((installation) => {
     const repositories = repositoryRows.filter((repository) => repository.github_installation_id === installation.id)
@@ -107,13 +118,13 @@ export async function getSettingsPageData(): Promise<SettingsPageData> {
   }
 }
 
-function createDefaultNotificationSettings(workspaceId: string): Tables<'notification_settings'> {
+function createDefaultNotificationSettings(workspaceId: string, accountEmail: string | null | undefined, accountEmailConfirmed: boolean): Tables<'notification_settings'> {
   const now = new Date(0).toISOString()
   return {
     id: '',
     workspace_id: workspaceId,
-    destination_email: null,
-    email_verified: false,
+    destination_email: accountEmail?.trim().toLowerCase() || null,
+    email_verified: Boolean(accountEmail?.trim() && accountEmailConfirmed),
     view_opened: true,
     returning_view: true,
     download: false,

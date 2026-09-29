@@ -8,6 +8,7 @@ const settingsPages = ['account', 'security', 'github', 'notifications', 'privac
 const migration = readFileSync('supabase/migrations/20260924150000_settings_preferences.sql', 'utf8')
 const destinationMigration = readFileSync('supabase/migrations/20260924160000_workspace_notification_destinations.sql', 'utf8')
 const everyVisitMigration = readFileSync('supabase/migrations/20260929100000_every_view_notifications.sql', 'utf8')
+const ownerDefaultMigration = readFileSync('supabase/migrations/20260929110000_notification_owner_defaults.sql', 'utf8')
 const envSchema = readFileSync('lib/env/schema.ts', 'utf8')
 const deletionMigration = readFileSync('supabase/migrations/20260924200000_account_lifecycle.sql', 'utf8')
 const deletionRoute = readFileSync('app/api/account/delete/route.ts', 'utf8')
@@ -45,6 +46,13 @@ describe('public settings surface', () => {
     expect(everyVisitMigration).toContain('Deprecated compatibility field')
     expect(everyVisitMigration).toContain('after update of destination_email, email_verified, view_opened, session_summary')
     expect(everyVisitMigration).not.toContain('after update of destination_email, email_verified, view_opened, returning_view, session_summary')
+  })
+
+  it('repairs only missing notification destinations from the authenticated owner', () => {
+    expect(ownerDefaultMigration).toContain('nullif(trim(settings.destination_email), \'\') is null')
+    expect(ownerDefaultMigration).toContain('users.email_confirmed_at is not null')
+    expect(ownerDefaultMigration).toContain('on conflict (workspace_id) do nothing')
+    expect(ownerDefaultMigration).toContain('view_opened')
   })
 
   it('exposes account export and a destructive confirmation flow instead of a mailto request', () => {

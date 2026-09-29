@@ -5,6 +5,7 @@ import { createSupabaseAdminClient } from '../supabase/admin'
 import { logViewerDiagnostic } from '../viewer/diagnostics'
 import { buildSessionSummaryEmail, buildViewNotificationEmail } from './view-email'
 import { queueNotificationDelivery } from './delivery'
+import { ensureNotificationDestination } from './settings'
 
 type NotifyConfirmedViewerInput = {
   shareId: string
@@ -65,7 +66,7 @@ export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): 
   }
 
   const admin = createSupabaseAdminClient()
-  const notificationSettings = await getNotificationSettings(admin, input.share.workspace_id)
+  const notificationSettings = await getNotificationSettings(admin, input.share.workspace_id, input.shareId, input.sessionId)
   if (notificationSettings && !notificationSettings.view_opened) {
     logViewerDiagnostic('viewer-notification-disabled', {
       shareId: input.shareId,
@@ -78,7 +79,7 @@ export async function notifyConfirmedViewer(input: NotifyConfirmedViewerInput): 
     logViewerDiagnostic('viewer-notification-unconfigured', {
       shareId: input.shareId,
       sessionId: input.sessionId,
-      reason: 'missing-or-unverified-destination',
+      reason: !notificationSettings ? 'settings-row-missing' : !notificationSettings.destination_email ? 'destination-missing' : 'destination-unverified',
     })
     return { status: 'unconfigured' }
   }
@@ -212,14 +213,66 @@ export async function notifySessionSummary({ shareId, sessionId, share, reposito
   return { status: 'already-attempted' as const }
 }
 
-async function getNotificationSettings(admin: ReturnType<typeof createSupabaseAdminClient>, workspaceId: string) {
+async function getNotificationSettings(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  workspaceId: string,
+  shareId?: string,
+  sessionId?: string,
+) {
   const { data, error } = await admin
     .from('notification_settings')
     .select('destination_email, email_verified, view_opened, session_summary')
     .eq('workspace_id', workspaceId)
     .maybeSingle()
   if (error) throw error
-  return data
+  if (data?.destination_email?.trim()) return data
+
+  const { data: workspace, error: workspaceError } = await admin
+    .from('workspaces')
+    .select('owner_id')
+    .eq('id', workspaceId)
+    .maybeSingle()
+  if (workspaceError || !workspace) {
+    logViewerDiagnostic('viewer-notification-settings-initialization-failed', {
+      shareId,
+      sessionId,
+      reason: workspaceError ? 'workspace-owner-lookup-failed' : 'workspace-owner-missing',
+    })
+    return data
+  }
+
+  const { data: ownerResult, error: ownerError } = await admin.auth.admin.getUserById(workspace.owner_id)
+  if (ownerError || !ownerResult.user) {
+    logViewerDiagnostic('viewer-notification-settings-initialization-failed', {
+      shareId,
+      sessionId,
+      reason: ownerError ? 'auth-owner-lookup-failed' : 'auth-owner-missing',
+    })
+    return data
+  }
+
+  try {
+    const initialized = await ensureNotificationDestination(admin, {
+      workspaceId,
+      accountEmail: ownerResult.user.email,
+      accountEmailConfirmed: Boolean(ownerResult.user.email_confirmed_at),
+    })
+    if (initialized && initialized.destination_email) {
+      logViewerDiagnostic('viewer-notification-settings-initialized', {
+        shareId,
+        sessionId,
+        reason: 'authenticated-owner-email-default',
+      })
+    }
+    return initialized
+  } catch {
+    logViewerDiagnostic('viewer-notification-settings-initialization-failed', {
+      shareId,
+      sessionId,
+      reason: 'destination-default-write-failed',
+    })
+    return data
+  }
 }
 
 async function getVisitContext(admin: ReturnType<typeof createSupabaseAdminClient>, shareId: string, sessionId: string, viewerId: string | null | undefined, workspaceId: string) {

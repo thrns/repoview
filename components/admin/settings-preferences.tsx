@@ -32,7 +32,7 @@ export function SettingsNotifications({ settings, canManage }: { settings: Setti
     <div className="space-y-4">
       <Card>
         <CardContent className="pt-6">
-          <FormItemLayout layout="flex-row" label="Notification email" description={<span className="whitespace-nowrap">Alerts follow verification. Email is automatically verified.</span>}>
+          <FormItemLayout layout="flex-row" label="Notification email" description={<span className="whitespace-nowrap">Your confirmed sign-in email is used by default. Custom destinations require verification.</span>}>
             <div className="relative w-full max-w-md">
               <Input id="notification-email" type="email" autoComplete="email" placeholder="you@company.com" value={values.destination_email ?? ''} onChange={(event) => setValues((current) => ({ ...current, destination_email: event.target.value, email_verified: false }))} disabled={!canManage} aria-describedby={values.destination_email ? 'notification-email-status' : undefined} className="pr-10" />
               {values.destination_email ? <>

@@ -37,13 +37,22 @@ export interface ShareActivitySummary {
 
 export interface ShareNotificationSummary {
   id: string
+  sessionId: string
+  notificationKind: string
   channel: string
   status: string
   errorText: string | null
   attemptCount: number
+  nextRetryAt: string | null
   providerMessageId: string | null
   createdAt: string
   sentAt: string | null
+}
+
+export interface ShareNotificationSettingsSummary {
+  destinationEmail: string | null
+  emailVerified: boolean
+  viewOpened: boolean
 }
 
 export interface ShareDetailData {
@@ -51,6 +60,7 @@ export interface ShareDetailData {
   sessions: ShareSessionSummary[]
   activity: ShareActivitySummary[]
   notifications: ShareNotificationSummary[]
+  notificationSettings: ShareNotificationSettingsSummary | null
 }
 
 export async function getShareDetail(id: string, now = new Date()): Promise<ShareDetailData> {
@@ -68,14 +78,15 @@ export async function getShareDetail(id: string, now = new Date()): Promise<Shar
   const supabase = await createSupabaseServerClient()
   const { share, workspace } = access
 
-  const [{ data: repository, error: repositoryError }, { data: sessions, error: sessionsError }, { data: events, error: eventsError }, { data: notifications, error: notificationsError }] = await Promise.all([
+  const [{ data: repository, error: repositoryError }, { data: sessions, error: sessionsError }, { data: events, error: eventsError }, { data: notifications, error: notificationsError }, { data: notificationSettings, error: notificationSettingsError }] = await Promise.all([
     supabase.from('repositories').select('*').eq('id', share.repository_id).eq('workspace_id', workspace.id).maybeSingle(),
     supabase.from('viewer_sessions').select('*').eq('share_id', id).eq('workspace_id', workspace.id).order('last_seen_at', { ascending: false }),
     supabase.from('view_events').select('*').eq('share_id', id).eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(100),
     supabase.from('notification_deliveries').select('*').eq('share_id', id).eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(50),
+    supabase.from('notification_settings').select('destination_email, email_verified, view_opened').eq('workspace_id', workspace.id).maybeSingle(),
   ])
 
-  if (repositoryError || sessionsError || eventsError || notificationsError) {
+  if (repositoryError || sessionsError || eventsError || notificationsError || notificationSettingsError) {
     throw new Error('RepoView share detail could not be loaded.')
   }
 
@@ -126,14 +137,24 @@ export async function getShareDetail(id: string, now = new Date()): Promise<Shar
     })),
     notifications: (notifications ?? []).map((notification) => ({
       id: notification.id,
+      sessionId: notification.session_id,
+      notificationKind: notification.notification_kind,
       channel: notification.channel,
       status: notification.status,
       errorText: notification.last_error,
       attemptCount: notification.attempt_count,
+      nextRetryAt: notification.next_retry_at,
       providerMessageId: notification.provider_message_id,
       createdAt: notification.created_at,
       sentAt: notification.sent_at,
     })),
+    notificationSettings: notificationSettings
+      ? {
+        destinationEmail: notificationSettings.destination_email,
+        emailVerified: notificationSettings.email_verified,
+        viewOpened: notificationSettings.view_opened,
+      }
+      : null,
   }
 }
 

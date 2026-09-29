@@ -21,7 +21,7 @@ describe('transactional email delivery migration', () => {
     for (const trigger of ['shares_cancel_notification_deliveries', 'notification_settings_cancel_deliveries', 'workspaces_cancel_notification_deliveries']) {
       expect(hardeningMigration).toContain(trigger)
     }
-    for (const check of ['status = \'active\'', 'email_verified', 'destination_email', 'revoked_at', 'is_probable_bot', 'ended_at', 'installations.status = \'active\'']) {
+    for (const check of ['status = \'active\'', 'email_verified', 'destination_email', 'revoked_at', 'expires_at', 'shares.notify_on_view', 'confirmed_at', 'is_probable_bot', 'ended_at', 'notification_kind', 'installations.status = \'active\'']) {
       expect(hardeningMigration).toContain(check)
     }
     expect(hardeningMigration).toContain('claim_notification_delivery')

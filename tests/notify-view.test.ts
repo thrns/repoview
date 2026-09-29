@@ -22,25 +22,35 @@ const input = {
   session: { browser: 'Chrome', os: 'macOS', device_type: 'desktop', country: 'CA', is_probable_bot: false },
 }
 
-function createAdminMock(claim: object | null, settings = { destination_email: 'alice@example.com', email_verified: true, view_opened: true, returning_view: true, session_summary: true }) {
+function createAdminMock(claim: object | null, settings: object | null = { destination_email: 'alice@example.com', email_verified: true, view_opened: true, returning_view: true, session_summary: true }, ownerEmail = 'alice@example.com') {
   const update = vi.fn().mockReturnThis()
   const eq = vi.fn().mockReturnThis()
   const is = vi.fn().mockReturnThis()
   const select = vi.fn().mockReturnThis()
   const maybeSingle = vi.fn().mockResolvedValue({ data: claim, error: null })
   const deliveryInsert = vi.fn().mockResolvedValue({ error: null })
+  const settingsLookup = vi.fn().mockResolvedValue({ data: settings, error: null })
+  const ownerLookup = vi.fn().mockResolvedValue({ data: { owner_id: 'owner-1' }, error: null })
+  const settingsInsert = vi.fn().mockReturnValue({
+    select: vi.fn().mockReturnValue({
+      maybeSingle: vi.fn().mockResolvedValue({ data: { destination_email: ownerEmail || null, email_verified: Boolean(ownerEmail), view_opened: true, session_summary: true }, error: null }),
+    }),
+  })
   const admin = {
     from(table: string) {
       if (table === 'viewer_sessions') return { update, eq, is, select, maybeSingle }
       if (table === 'notification_settings') return {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn().mockResolvedValue({ data: settings, error: null }),
+        maybeSingle: settingsLookup,
+        insert: settingsInsert,
       }
+      if (table === 'workspaces') return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), maybeSingle: ownerLookup }
       return { insert: deliveryInsert }
     },
+    auth: { admin: { getUserById: vi.fn().mockResolvedValue({ data: { user: { email: ownerEmail, email_confirmed_at: '2026-09-01T00:00:00.000Z' } }, error: null }) } },
   }
-  return { admin, update, eq, is, select, deliveryInsert }
+  return { admin, update, eq, is, select, deliveryInsert, settingsLookup, ownerLookup, settingsInsert }
 }
 
 beforeEach(() => {
@@ -114,12 +124,20 @@ describe('confirmed-view notification', () => {
   })
 
   it('does not send when the workspace destination is missing or unverified', async () => {
-    const { admin, deliveryInsert } = createAdminMock({ id: input.sessionId }, { destination_email: 'bob@example.com', email_verified: false, view_opened: true, returning_view: true, session_summary: true })
+    const { admin, deliveryInsert } = createAdminMock({ id: input.sessionId }, { destination_email: null, email_verified: false, view_opened: true, returning_view: true, session_summary: true }, '')
     getAdmin.mockReturnValue(admin as never)
 
     await expect(notifyConfirmedViewer(input)).resolves.toEqual({ status: 'unconfigured' })
     expect(queueDelivery).not.toHaveBeenCalled()
     expect(deliveryInsert).not.toHaveBeenCalled()
+  })
+
+  it('defaults an unconfigured workspace to the confirmed authenticated owner email', async () => {
+    const { admin } = createAdminMock({ id: input.sessionId }, null, 'owner@example.com')
+    getAdmin.mockReturnValue(admin as never)
+
+    await expect(notifyConfirmedViewer(input)).resolves.toEqual({ status: 'queued', deliveryId: 'delivery-1' })
+    expect(queueDelivery).toHaveBeenCalledWith(admin, expect.objectContaining({ recipient: 'owner@example.com' }))
   })
 
   it('skips disabled shares and probable scanners before claiming or sending', async () => {

@@ -32,7 +32,7 @@ import { UpdateShareExpiryButton } from './update-share-expiry-button'
 import { UpdateShareNoteButton } from './update-share-note-button'
 
 export function ShareDetailView({ data }: { data: ShareDetailData }) {
-  const { item, sessions, activity, notifications } = data
+  const { item, sessions, activity, notifications, notificationSettings } = data
   const repositoryName = item.repository
     ? `${item.repository.github_owner}/${item.repository.github_repo}`
     : 'Repository unavailable'
@@ -81,7 +81,7 @@ export function ShareDetailView({ data }: { data: ShareDetailData }) {
       <div className="mt-8 space-y-8">
         <SessionsSection sessions={sessions} activity={activity} />
         {activity.length > 0 ? <ActivitySection activity={activity} sessions={sessions} /> : null}
-        <ShareSettingsSection shareId={item.share.id} item={item} notifications={notifications} />
+        <ShareSettingsSection shareId={item.share.id} item={item} sessions={sessions} notifications={notifications} notificationSettings={notificationSettings} />
       </div>
     </PageContainer>
   )
@@ -283,9 +283,15 @@ function groupActivity(activity: ShareActivitySummary[], sessions: ShareSessionS
   return [...groups.values()].sort((a, b) => new Date(b.events[0].createdAt).getTime() - new Date(a.events[0].createdAt).getTime())
 }
 
-function ShareSettingsSection({ shareId, item, notifications }: { shareId: string; item: ShareDetailData['item']; notifications: ShareNotificationSummary[] }) {
+function ShareSettingsSection({ shareId, item, sessions, notifications, notificationSettings }: { shareId: string; item: ShareDetailData['item']; sessions: ShareSessionSummary[]; notifications: ShareNotificationSummary[]; notificationSettings: ShareDetailData['notificationSettings'] }) {
   const repositoryName = item.repository ? `${item.repository.github_owner}/${item.repository.github_repo}` : 'Repository unavailable'
-  const hasNotificationIssue = notifications.some((notification) => notification.status !== 'sent' || notification.errorText)
+  const genuineConfirmedSessions = sessions.filter((session) => session.confirmedAt && !session.isProbableBot)
+  const viewNotifications = notifications.filter((notification) => notification.notificationKind === 'view_opened')
+  const queuedSessionIds = new Set(viewNotifications.map((notification) => notification.sessionId))
+  const notificationsExpected = item.share.notify_on_view && notificationSettings?.viewOpened !== false
+  const missingDestination = notificationsExpected && genuineConfirmedSessions.length > 0 && (!notificationSettings?.destinationEmail || !notificationSettings.emailVerified)
+  const confirmedViewWithoutDelivery = notificationsExpected && genuineConfirmedSessions.some((session) => !queuedSessionIds.has(session.id))
+  const hasNotificationIssue = notifications.some((notification) => notification.status !== 'sent' || notification.errorText) || missingDestination || confirmedViewWithoutDelivery
 
   return (
     <Card className="overflow-hidden rounded-md">
@@ -318,8 +324,11 @@ function ShareSettingsSection({ shareId, item, notifications }: { shareId: strin
             <SettingsPanel icon={<Bell className="size-3.5" />} title="Notifications" badge={hasNotificationIssue ? <Badge variant="destructive" className="text-xs">Needs attention</Badge> : undefined}>
               <dl className="grid gap-3 sm:grid-cols-2">
                 <DetailField label="On meaningful view" value={item.share.notify_on_view ? 'Enabled' : 'Disabled'} />
+                {notificationSettings?.destinationEmail ? <DetailField label="Destination" value={notificationSettings.destinationEmail} /> : null}
                 {notifications.length > 0 ? <DetailField label="Delivery attempts" value={String(notifications.length)} /> : null}
               </dl>
+              {missingDestination ? <p className="mt-4 rounded-md border border-warning/30 bg-warning/8 px-3 py-2.5 text-xs leading-5 text-foreground-muted">A confirmed viewer exists, but no email was queued because the notification destination is missing or not verified.</p> : null}
+              {confirmedViewWithoutDelivery && !missingDestination ? <p className="mt-4 rounded-md border border-warning/30 bg-warning/8 px-3 py-2.5 text-xs leading-5 text-foreground-muted">A confirmed viewer exists without a delivery record. Check the delivery history and server diagnostics.</p> : null}
               {notifications.length > 0 ? <NotificationHistory notifications={notifications} /> : null}
             </SettingsPanel>
 
@@ -385,16 +394,31 @@ function NotificationHistory({ notifications }: { notifications: ShareNotificati
 }
 
 function NotificationRow({ notification }: { notification: ShareNotificationSummary }) {
-  const sent = notification.status === 'sent'
+  const status = getNotificationStatus(notification.status)
+  const sent = status.label === 'Sent'
+  const retryScheduled = status.label === 'Retry scheduled'
   return (
     <div className="flex items-start gap-3 text-xs">
-      {sent ? <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-success" aria-hidden="true" /> : <XCircle className="mt-0.5 size-3.5 shrink-0 text-destructive" aria-hidden="true" />}
+      {sent ? <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-success" aria-hidden="true" /> : retryScheduled ? <Clock3 className="mt-0.5 size-3.5 shrink-0 text-warning" aria-hidden="true" /> : status.label === 'Pending' || status.label === 'Sending' ? <Clock3 className="mt-0.5 size-3.5 shrink-0 text-foreground-muted" aria-hidden="true" /> : status.label === 'Provider result unknown' ? <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" aria-hidden="true" /> : <XCircle className="mt-0.5 size-3.5 shrink-0 text-destructive" aria-hidden="true" />}
       <div className="min-w-0 flex-1">
-        <p className="font-medium text-foreground">{notification.channel} · {sent ? 'Delivered' : formatEventType(notification.status)}</p>
-        <p className={`mt-0.5 text-xs ${sent ? 'text-foreground-muted' : 'text-destructive'}`}>{notification.errorText || (notification.sentAt ? `Sent ${formatRelativeTimestamp(notification.sentAt)}` : `Attempted ${formatRelativeTimestamp(notification.createdAt)}`)}</p>
+        <p className="font-medium text-foreground">{notification.channel} · {status.label}</p>
+        <p className={`mt-0.5 text-xs ${sent ? 'text-foreground-muted' : retryScheduled || status.label === 'Provider result unknown' ? 'text-warning' : status.label === 'Pending' || status.label === 'Sending' ? 'text-foreground-muted' : 'text-destructive'}`}>{notification.errorText || (notification.nextRetryAt ? `Next attempt ${formatRelativeTimestamp(notification.nextRetryAt)}` : notification.sentAt ? `Sent ${formatRelativeTimestamp(notification.sentAt)}` : `Created ${formatRelativeTimestamp(notification.createdAt)}`)}</p>
       </div>
     </div>
   )
+}
+
+function getNotificationStatus(status: string) {
+  switch (status) {
+    case 'sent': return { label: 'Sent' }
+    case 'pending': return { label: 'Pending' }
+    case 'processing': return { label: 'Sending' }
+    case 'retryable': return { label: 'Retry scheduled' }
+    case 'permanent': return { label: 'Failed' }
+    case 'cancelled': return { label: 'Cancelled' }
+    case 'provider_result_unknown': return { label: 'Provider result unknown' }
+    default: return { label: formatEventType(status) }
+  }
 }
 
 function EmptyDetailState({ icon, text }: { icon: ReactNode; text: string }) {

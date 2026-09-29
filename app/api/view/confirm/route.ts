@@ -15,6 +15,9 @@ import { logViewerDiagnostic } from '../../../../lib/viewer/diagnostics'
 
 const MAX_CONFIRM_BODY_BYTES = 32 * 1024
 
+export const runtime = 'nodejs'
+export const maxDuration = 30
+
 const clientContextSchema = z.object({
   deviceType: z.enum(['desktop', 'mobile', 'tablet']).nullable().optional(),
   browser: z.string().max(255).nullable().optional(),
@@ -125,7 +128,27 @@ export async function POST(request: Request) {
       session: confirmedSession,
     })
     if (notification.status === 'queued') {
-      after(() => dispatchNotificationDelivery(notification.deliveryId).catch(() => undefined))
+      try {
+        after(async () => {
+          try {
+            await dispatchNotificationDelivery(notification.deliveryId)
+          } catch {
+            logViewerDiagnostic('viewer-notification-dispatch-failed', {
+              shareId: internalShareId,
+              sessionId: confirmedSession.id,
+              deliveryId: notification.deliveryId,
+              reason: 'after-callback-failed',
+            })
+          }
+        })
+      } catch {
+        logViewerDiagnostic('viewer-notification-after-scheduling-failed', {
+          shareId: internalShareId,
+          sessionId: confirmedSession.id,
+          deliveryId: notification.deliveryId,
+          reason: 'after-unavailable',
+        })
+      }
     }
   } catch {
     logViewerDiagnostic('viewer-notification-failed', {
