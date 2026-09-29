@@ -4,6 +4,7 @@ import { Link2, Plus, Search } from 'lucide-react'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 
+import { CopyExistingShareLinkButton } from '@/components/admin/copy-existing-share-link-button'
 import { RevokeShareButton } from '@/components/admin/revoke-share-button'
 import { RotateShareButton } from '@/components/admin/rotate-share-button'
 import {
@@ -170,11 +171,12 @@ function ShareRow({ item }: { item: ShareListItem }) {
 
 function ShareRowActions({ item }: { item: ShareListItem }) {
   const canGenerateLink = item.status !== 'expired'
+  const canCopyExistingLink = item.status === 'active' || item.status === 'expiring-soon'
 
   return (
     <div className="flex items-center justify-end gap-1">
       <span className="flex size-8 items-center justify-center">
-        {canGenerateLink ? <RotateShareButton shareId={item.share.id} revoked={item.status === 'revoked'} iconOnly /> : null}
+        {canCopyExistingLink ? <CopyExistingShareLinkButton shareCode={item.share.share_code} /> : canGenerateLink ? <RotateShareButton shareId={item.share.id} revoked={item.status === 'revoked'} iconOnly /> : null}
       </span>
       <span className="flex size-8 items-center justify-center">
         {item.status === 'revoked' ? null : <RevokeShareButton shareId={item.share.id} iconOnly />}

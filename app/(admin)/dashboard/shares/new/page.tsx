@@ -1,6 +1,16 @@
+import {
+  Admonition,
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+  Button,
+  PageBreadcrumbs,
+  PageContainer,
+} from '@/components/ui'
 import Link from 'next/link'
-
-import { Admonition, PageContainer } from '@/components/ui'
 import { CreateShareForm, type ShareFormRepository } from '@/components/admin/create-share-form'
 import { listRepositoryBranches } from '@/lib/github/repositories'
 import { listRegisteredRepositories } from '@/lib/repositories/registry'
@@ -38,31 +48,44 @@ export default async function NewSharePage({ searchParams }: { searchParams?: Pr
     }))
 
     return (
-      <PageContainer size="small">
-        <div className="mb-6">
-          <Link href="/dashboard/shares" className="text-xs font-medium text-foreground-muted transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            Shares <span className="px-1 text-foreground-muted/60">/</span> New
-          </Link>
-        </div>
+      <>
+        <ShareBreadcrumbs />
+        <PageContainer size="medium" className="!pt-6">
         <CreateShareForm repositories={repositories} onboarding={onboarding} />
-      </PageContainer>
+        </PageContainer>
+      </>
     )
   } catch (error) {
     return (
-      <PageContainer size="small" className="space-y-6">
-        <div>
-          <Link href="/dashboard/shares" className="text-xs font-medium text-foreground-muted transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            Shares <span className="px-1 text-foreground-muted/60">/</span> New
-          </Link>
-        </div>
-        <Admonition type="destructive" title="Share form unavailable" description={error instanceof Error ? error.message : 'Try again after checking the repository configuration.'} />
-        <Link
-          href="/dashboard/repositories"
-          className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          Back to repositories
-        </Link>
-      </PageContainer>
+      <>
+        <ShareBreadcrumbs />
+        <PageContainer size="medium" className="space-y-6 !pt-6">
+          <Admonition type="destructive" title="Share form unavailable" description={error instanceof Error ? error.message : 'Try again after checking the repository configuration.'} />
+          <Button asChild variant="outline">
+            <Link href="/dashboard/repositories">Back to repositories</Link>
+          </Button>
+        </PageContainer>
+      </>
     )
   }
+}
+
+function ShareBreadcrumbs() {
+  return (
+    <PageBreadcrumbs className="px-6 py-3 xl:px-10">
+      <PageContainer size="medium" className="!px-0 !py-0">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/dashboard/shares">Shares</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>New</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </PageContainer>
+    </PageBreadcrumbs>
+  )
 }

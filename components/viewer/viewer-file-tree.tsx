@@ -29,7 +29,7 @@ interface ViewerFileTreeProps {
 
 export function ViewerFileTree({ tree, selectedPath, onSelectPath, onPrefetchPath, className }: ViewerFileTreeProps) {
   const [query, setQuery] = useState('')
-  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => getInitialExpandedPaths(tree))
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set())
   const [focusedPath, setFocusedPath] = useState<string | null>(null)
   const searchRef = useRef<HTMLInputElement | null>(null)
   const rowRefs = useRef<Record<string, HTMLButtonElement | null>>({})
@@ -313,14 +313,6 @@ function TreeError({ reason }: { reason: 'truncated' | 'ref-unavailable' | 'rate
       <p className="mt-2">{message}</p>
     </div>
   )
-}
-
-function getInitialExpandedPaths(tree: ViewerTreeState) {
-  if (tree.status !== 'ready') {
-    return new Set<string>()
-  }
-
-  return new Set(tree.nodes.filter((node) => node.kind === 'directory' && node.parentPath === null).map((node) => node.path))
 }
 
 function getVisibleNodes(nodes: ViewerTreeNode[], nodeByPath: Map<string, ViewerTreeNode>, expandedPaths: Set<string>, query: string) {

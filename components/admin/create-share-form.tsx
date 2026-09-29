@@ -1,11 +1,29 @@
 'use client'
 
-import { cloneElement, isValidElement, useEffect, useId, useRef, useState, useTransition, type FormEvent, type ReactElement, type ReactNode } from 'react'
-import { ArrowLeft, Check, ChevronDown, CircleCheck, Copy, LockKeyhole, TriangleAlert } from 'lucide-react'
+import { useEffect, useRef, useState, useTransition, type FormEvent } from 'react'
+import { ArrowLeft, Check, ChevronDown, Copy, LockKeyhole, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 
 import { createShare } from '@/app/(admin)/dashboard/shares/new/actions'
-import { Alert, AlertDescription, AlertTitle, Button, Input, Label, Select, Switch, Textarea } from '@/components/ui'
+import {
+  Admonition,
+  Button,
+  Card,
+  CardContent,
+  CardFooter,
+  FormItemLayout,
+  Input,
+  Label,
+  PageSection,
+  PageSectionContent,
+  PageSectionDescription,
+  PageSectionMeta,
+  PageSectionSummary,
+  PageSectionTitle,
+  Select,
+  Switch,
+  Textarea,
+} from '@/components/ui'
 
 export interface ShareFormRepository {
   id: string
@@ -21,7 +39,7 @@ interface CreateShareFormProps {
 
 export function CreateShareForm({ repositories, onboarding = false }: CreateShareFormProps) {
   const [repositoryId, setRepositoryId] = useState(repositories[0]?.id ?? '')
-  const [shareType, setShareType] = useState<'generic' | 'recipient'>('recipient')
+  const [shareType, setShareType] = useState<'generic' | 'recipient'>('generic')
   const [recipientLabel, setRecipientLabel] = useState('')
   const [recipientName, setRecipientName] = useState('')
   const [company, setCompany] = useState('')
@@ -103,7 +121,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
     setCreatedShare(null)
     setError(null)
     setRecipientLabel('')
-    setShareType('recipient')
+    setShareType('generic')
     setRecipientName('')
     setCompany('')
     setEmail('')
@@ -118,7 +136,7 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
   }
 
   if (repositories.length === 0) {
-    return <Alert><AlertTitle>No enabled repositories</AlertTitle><AlertDescription>Enable a repository before creating a share. Return to the repositories dashboard to choose one.</AlertDescription></Alert>
+    return <Admonition type="warning" title="No enabled repositories" description="Enable a repository before creating a share. Return to the repositories dashboard to choose one." />
   }
 
   if (createdShare) {
@@ -126,139 +144,260 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
   }
 
   return (
-    <form className="space-y-9 pb-6" onSubmit={submit}>
-      {error ? <Alert className="border-destructive/40" role="alert"><AlertTitle>Check these details</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
+    <form className="space-y-0 pb-8" onSubmit={submit}>
+      {error ? <Admonition type="destructive" title="Check these details" description={error} className="mb-6" /> : null}
 
-      <FormSection title="Repository" description="Choose the source and exact ref this link should expose.">
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,1.45fr)_minmax(0,0.9fr)]">
-          <Field label="Repository" htmlFor="share-repository">
-            <Select id="share-repository" value={repositoryId} onChange={(event) => changeRepository(event.target.value)}>
-              {repositories.map((repository) => <option key={repository.id} value={repository.id}>{repository.fullName}</option>)}
-            </Select>
-          </Field>
-          <Field label="Branch or ref" htmlFor="share-ref">
-            <Select id="share-ref" value={ref} onChange={(event) => setRef(event.target.value)}>
-              {(selectedRepository?.branches ?? []).map((branch) => <option key={branch} value={branch}>{branch}</option>)}
-            </Select>
-          </Field>
-        </div>
-      </FormSection>
+      <PageSection className="gap-3 pb-0 pt-0">
+        <PageSectionMeta>
+          <PageSectionSummary>
+            <PageSectionTitle>Repository</PageSectionTitle>
+            <PageSectionDescription>Choose the source and exact ref this link should expose.</PageSectionDescription>
+          </PageSectionSummary>
+        </PageSectionMeta>
+        <PageSectionContent>
+          <Card>
+            <CardContent className="pt-5">
+              <FormItemLayout
+                layout="flex-row-reverse"
+                label={<Label htmlFor="share-repository">Repository</Label>}
+                description={<span id="share-repository-description">The private GitHub repository exposed by this share.</span>}
+              >
+                <div className="w-full max-w-sm">
+                  <Select id="share-repository" value={repositoryId} aria-describedby="share-repository-description" onChange={(event) => changeRepository(event.target.value)}>
+                    {repositories.map((repository) => <option key={repository.id} value={repository.id}>{repository.fullName}</option>)}
+                  </Select>
+                </div>
+              </FormItemLayout>
+            </CardContent>
+            <CardContent>
+              <FormItemLayout
+                layout="flex-row-reverse"
+                label={<Label htmlFor="share-ref">Branch or ref</Label>}
+                description={<span id="share-ref-description">Choose the branch/ref used by this share.</span>}
+              >
+                <div className="w-full max-w-sm">
+                  <Select id="share-ref" value={ref} aria-describedby="share-ref-description" onChange={(event) => setRef(event.target.value)}>
+                    {(selectedRepository?.branches ?? []).map((branch) => <option key={branch} value={branch}>{branch}</option>)}
+                  </Select>
+                </div>
+              </FormItemLayout>
+            </CardContent>
+          </Card>
+        </PageSectionContent>
+      </PageSection>
 
-      <FormSection title="Recipient or share identity" description="Choose whether this link is meant for a named recipient or is a generic anonymous share.">
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,1.45fr)_minmax(0,0.9fr)]">
-          <Field label="Share type" htmlFor="share-type" help={shareType === 'recipient' ? 'A recipient share is labelled for your records; it does not verify who opens the link.' : 'A generic share has no recipient identity attached.'}>
-            <Select id="share-type" value={shareType} onChange={(event) => changeShareType(event.target.value as 'generic' | 'recipient')}>
-              <option value="recipient">Recipient share</option>
-              <option value="generic">Generic share</option>
-            </Select>
-          </Field>
-          {shareType === 'recipient' ? <Field label={<><span>Recipient name</span> <span className="font-normal text-foreground-muted">(optional)</span></>} htmlFor="share-recipient-name" help="Saved as recipient metadata and used as the main label in your owner workspace.">
-            <Input id="share-recipient-name" value={recipientName} onChange={(event) => setRecipientName(event.target.value)} placeholder="Jane Smith" aria-describedby="share-recipient-name-help" />
-          </Field> : <Field label={<><span>Share label</span> <span className="font-normal text-foreground-muted">(optional)</span></>} htmlFor="share-generic-label" help="A private owner-facing label for finding this generic share later.">
-            <Input id="share-generic-label" value={recipientLabel} onChange={(event) => setRecipientLabel(event.target.value)} placeholder="Public demo link" aria-describedby="share-generic-label-help" />
-          </Field>}
-        </div>
+      <PageSection className="gap-3 pb-0 pt-6">
+        <PageSectionMeta>
+          <PageSectionSummary>
+            <PageSectionTitle>Recipient or share identity</PageSectionTitle>
+            <PageSectionDescription>Choose whether this link is meant for a named recipient or is a generic anonymous share.</PageSectionDescription>
+          </PageSectionSummary>
+        </PageSectionMeta>
+        <PageSectionContent>
+          <Card>
+            <CardContent className="pt-5">
+              <FormItemLayout
+                layout="flex-row-reverse"
+                label={<Label htmlFor="share-type">Share type</Label>}
+                description={<span id="share-type-description">{shareType === 'recipient' ? 'A recipient share is labelled for your records; it does not verify who opens the link.' : 'A generic share has no recipient identity attached.'}</span>}
+              >
+                <div className="w-full max-w-sm">
+                  <Select id="share-type" value={shareType} aria-describedby="share-type-description" onChange={(event) => changeShareType(event.target.value as 'generic' | 'recipient')}>
+                    <option value="generic">Generic share</option>
+                    <option value="recipient">Recipient share</option>
+                  </Select>
+                </div>
+              </FormItemLayout>
+            </CardContent>
+            <CardContent>
+              {shareType === 'recipient' ? (
+                <FormItemLayout
+                  layout="flex-row-reverse"
+                  label={<Label htmlFor="share-recipient-name"><span>Recipient name</span> <span className="font-normal text-foreground-muted">(optional)</span></Label>}
+                  description={<span id="share-recipient-name-description">Saved as recipient metadata and used as the main label in your owner workspace.</span>}
+                >
+                  <div className="w-full max-w-sm">
+                    <Input id="share-recipient-name" value={recipientName} onChange={(event) => setRecipientName(event.target.value)} placeholder="Jane Smith" aria-describedby="share-recipient-name-description" />
+                  </div>
+                </FormItemLayout>
+              ) : (
+                <FormItemLayout
+                  layout="flex-row-reverse"
+                  label={<Label htmlFor="share-generic-label"><span>Share label</span> <span className="font-normal text-foreground-muted">(optional)</span></Label>}
+                  description={<span id="share-generic-label-description">Private owner-facing label for finding this share later.</span>}
+                >
+                  <div className="w-full max-w-sm">
+                    <Input id="share-generic-label" value={recipientLabel} onChange={(event) => setRecipientLabel(event.target.value)} placeholder="Public demo link" aria-describedby="share-generic-label-description" />
+                  </div>
+                </FormItemLayout>
+              )}
+            </CardContent>
+            <CardContent className="py-3.5">
+              <details className="group">
+                <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-3 rounded-sm text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                  <span>{shareType === 'recipient' ? 'Add recipient details' : 'Add a note'} <span className="font-normal text-foreground-muted">(optional)</span></span>
+                  <ChevronDown className="size-4 shrink-0 text-foreground-muted transition-transform group-open:rotate-180" aria-hidden="true" />
+                </summary>
+                <div className="mt-4 space-y-4 border-t border-border-secondary pt-4">
+                  {shareType === 'recipient' ? <>
+                    <FormItemLayout
+                      layout="flex-row-reverse"
+                      label={<Label htmlFor="share-company">Company</Label>}
+                      description={<span id="share-company-description">Optional organization context for your records.</span>}
+                    >
+                      <div className="w-full max-w-sm">
+                        <Input id="share-company" value={company} onChange={(event) => setCompany(event.target.value)} placeholder="Stripe" aria-describedby="share-company-description" />
+                      </div>
+                    </FormItemLayout>
+                    <FormItemLayout
+                      layout="flex-row-reverse"
+                      label={<Label htmlFor="share-email">Email</Label>}
+                      description={<span id="share-email-description">Optional contact detail; RepoView does not verify it or send the share automatically.</span>}
+                    >
+                      <div className="w-full max-w-sm">
+                        <Input id="share-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="jane@stripe.com" aria-describedby="share-email-description" />
+                      </div>
+                    </FormItemLayout>
+                    <FormItemLayout
+                      layout="flex-row-reverse"
+                      label={<Label htmlFor="share-label">Internal share label</Label>}
+                      description={<span id="share-label-description">Optional fallback label for your owner workspace when no recipient name is provided. It is not a verified identity.</span>}
+                    >
+                      <div className="w-full max-w-sm">
+                        <Input id="share-label" value={recipientLabel} onChange={(event) => setRecipientLabel(event.target.value)} placeholder="Staff engineer interview" aria-describedby="share-label-description" />
+                      </div>
+                    </FormItemLayout>
+                    <FormItemLayout
+                      layout="flex-row-reverse"
+                      label={<Label htmlFor="share-role-notes">Role or application context</Label>}
+                      description={<span id="share-role-notes-description">Optional context such as a team, role, or application stage.</span>}
+                    >
+                      <div className="w-full max-w-sm">
+                        <Input id="share-role-notes" value={roleNotes} onChange={(event) => setRoleNotes(event.target.value)} placeholder="Platform team" aria-describedby="share-role-notes-description" />
+                      </div>
+                    </FormItemLayout>
+                  </> : null}
+                  <FormItemLayout
+                    layout="flex-row-reverse"
+                    label={<Label htmlFor="share-note"><span>General note</span> <span className="font-normal text-foreground-muted">(optional)</span></Label>}
+                    description={<span id="share-note-description">A private owner note about why this share exists.</span>}
+                  >
+                    <div className="w-full max-w-sm">
+                      <Textarea id="share-note" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Context for this share" rows={3} aria-describedby="share-note-description" />
+                    </div>
+                  </FormItemLayout>
+                </div>
+              </details>
+            </CardContent>
+          </Card>
+        </PageSectionContent>
+      </PageSection>
 
-        <details className="group mt-5 border-t border-border/70 pt-4">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-            <span>{shareType === 'recipient' ? 'Add recipient details' : 'Add a note'} <span className="font-normal text-foreground-muted">(optional)</span></span>
-            <ChevronDown className="size-4 text-foreground-muted transition-transform group-open:rotate-180" aria-hidden="true" />
-          </summary>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            {shareType === 'recipient' ? <>
-              <Field label="Company" htmlFor="share-company" help="Optional organization context for your records.">
-                <Input id="share-company" value={company} onChange={(event) => setCompany(event.target.value)} placeholder="Stripe" />
-              </Field>
-              <Field label="Email" htmlFor="share-email" help="Optional contact detail; RepoView does not verify it or send the share automatically.">
-                <Input id="share-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="jane@stripe.com" />
-              </Field>
-              <Field label="Internal share label" htmlFor="share-label" help="Optional fallback label for your owner workspace when no recipient name is provided. It is not a verified identity.">
-                <Input id="share-label" value={recipientLabel} onChange={(event) => setRecipientLabel(event.target.value)} placeholder="Staff engineer interview" aria-describedby="share-label-help" />
-              </Field>
-              <Field label="Role or application context" htmlFor="share-role-notes" help="Optional context such as a team, role, or application stage.">
-                <Input id="share-role-notes" value={roleNotes} onChange={(event) => setRoleNotes(event.target.value)} placeholder="Platform team" />
-              </Field>
-            </> : null}
-            <Field className="sm:col-span-2" label={<><span>General note</span> <span className="font-normal text-foreground-muted">(optional)</span></>} htmlFor="share-note" help="A private owner note about why this share exists.">
-              <Textarea id="share-note" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Context for this share" rows={3} />
-            </Field>
-          </div>
-        </details>
-      </FormSection>
+      <PageSection className="gap-3 pb-0 pt-6">
+        <PageSectionMeta>
+          <PageSectionSummary>
+            <PageSectionTitle>Access</PageSectionTitle>
+            <PageSectionDescription>Set when access to this share ends, then choose the optional download and notification preferences.</PageSectionDescription>
+          </PageSectionSummary>
+        </PageSectionMeta>
+        <PageSectionContent>
+          <Card>
+            <CardContent className="pt-5">
+              <FormItemLayout
+                layout="flex-row-reverse"
+                label={<Label htmlFor="share-expiry">Expiry</Label>}
+                description={<span id="share-expiry-description">Set when access to this share ends.</span>}
+              >
+                <div className="w-full max-w-sm">
+                  <Select id="share-expiry" value={expiry} aria-describedby="share-expiry-description" onChange={(event) => setExpiry(event.target.value)}>
+                    <option value="never">Never</option>
+                    <option value="7">7 days</option>
+                    <option value="30">30 days</option>
+                    <option value="90">90 days</option>
+                  </Select>
+                </div>
+              </FormItemLayout>
+            </CardContent>
+            <CardContent>
+              <FormItemLayout
+                layout="flex-row-reverse"
+                label={<Label htmlFor="share-notify-on-view">Notify on every meaningful view</Label>}
+                description={<span id="share-notify-on-view-description">Send one owner notification for each real browser session that is confirmed.</span>}
+              >
+                <Switch id="share-notify-on-view" checked={notifyOnView} onChange={(event) => setNotifyOnView(event.target.checked)} aria-describedby="share-notify-on-view-description" />
+              </FormItemLayout>
+            </CardContent>
+            <CardContent>
+              <FormItemLayout
+                layout="flex-row-reverse"
+                label={<Label htmlFor="share-allow-download">Allow downloads</Label>}
+                description={<span id="share-allow-download-description">Allow the viewer to download files exposed by this share.</span>}
+              >
+                <Switch id="share-allow-download" checked={allowDownload} onChange={(event) => setAllowDownload(event.target.checked)} aria-describedby="share-allow-download-description" />
+              </FormItemLayout>
+            </CardContent>
+          </Card>
+        </PageSectionContent>
+      </PageSection>
 
-      <FormSection title="Access" description="Set when access ends, then choose the optional download and notification preferences.">
-        <div className="mb-4 max-w-[18rem]">
-          <Field label="Expiry" htmlFor="share-expiry">
-            <Select id="share-expiry" value={expiry} onChange={(event) => setExpiry(event.target.value)}>
-              <option value="never">Never</option>
-              <option value="7">7 days</option>
-              <option value="30">30 days</option>
-              <option value="90">90 days</option>
-            </Select>
-          </Field>
-        </div>
-        <div className="divide-y divide-border/70 border-y border-border/70">
-          <ToggleRow checked={notifyOnView} onChange={setNotifyOnView} title="Notify on every meaningful view" description="Send one owner notification for each real browser session that is confirmed." />
-          <ToggleRow checked={allowDownload} onChange={setAllowDownload} title="Allow downloads" description="Let this recipient download files from the shared repository." />
-        </div>
-      </FormSection>
+      <PageSection className="gap-3 pb-0 pt-6">
+        <PageSectionMeta>
+          <PageSectionSummary>
+            <PageSectionTitle>Advanced visibility rules</PageSectionTitle>
+            <PageSectionDescription>Further narrow which paths can appear in this share.</PageSectionDescription>
+          </PageSectionSummary>
+        </PageSectionMeta>
+        <PageSectionContent>
+          <Card>
+            <CardContent className="py-3.5">
+              <details className="group">
+                <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-3 rounded-sm text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                  <span>Configure path rules <span className="font-normal text-foreground-muted">(optional)</span></span>
+                  <ChevronDown className="size-4 shrink-0 text-foreground-muted transition-transform group-open:rotate-180" aria-hidden="true" />
+                </summary>
+                <div className="mt-4 space-y-4 border-t border-border-secondary pt-4">
+                  <FormItemLayout
+                    layout="flex-row-reverse"
+                    label={<Label htmlFor="share-hidden">Hidden paths</Label>}
+                    description={<span id="share-hidden-description">Paths that must never be fetched for a viewer. Example: **/private/**</span>}
+                  >
+                    <div className="w-full max-w-sm">
+                      <Textarea id="share-hidden" value={hidden} onChange={(event) => setHidden(event.target.value)} placeholder="**/private/**" rows={4} aria-describedby="share-hidden-description" />
+                    </div>
+                  </FormItemLayout>
+                  <FormItemLayout
+                    layout="flex-row-reverse"
+                    label={<Label htmlFor="share-allow-only">Only allow paths</Label>}
+                    description={<span id="share-allow-only-description">When configured, paths must match at least one allowed pattern. Example: src/** or docs/**</span>}
+                  >
+                    <div className="w-full max-w-sm">
+                      <Textarea id="share-allow-only" value={allowOnly} onChange={(event) => setAllowOnly(event.target.value)} placeholder="src/**\ndocs/**" rows={4} aria-describedby="share-allow-only-description" />
+                    </div>
+                  </FormItemLayout>
+                  {visibilityFeedback.warning ? <Admonition type="warning" icon={<TriangleAlert className="size-3.5" />} description={visibilityFeedback.warning} className="p-3 text-xs" /> : null}
+                  {visibilityFeedback.error ? <Admonition type="destructive" title="Visibility rules need attention" description={visibilityFeedback.error} className="p-3 text-xs" /> : null}
+                </div>
+              </details>
+            </CardContent>
+          </Card>
+        </PageSectionContent>
+      </PageSection>
 
-      <section className="rounded-md border border-border bg-surface-100 p-5 sm:p-6">
-        <details className="group">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-            <span><span className="block">Advanced visibility rules</span><span className="mt-1 block text-xs font-normal text-foreground-muted">Further narrow which paths can appear in this share.</span></span>
-            <ChevronDown className="size-4 text-foreground-muted transition-transform group-open:rotate-180" aria-hidden="true" />
-          </summary>
-          <div className="mt-5 grid gap-5 border-t border-border/70 pt-5 sm:grid-cols-2">
-            <Field label="Hidden paths" htmlFor="share-hidden" help="Never fetched for a viewer. Example: **/private/** or **/.env*">
-              <Textarea id="share-hidden" value={hidden} onChange={(event) => setHidden(event.target.value)} placeholder="**/private/**" rows={4} aria-describedby="share-hidden-help" />
-            </Field>
-            <Field label="Only allow paths" htmlFor="share-allow-only" help="When set, a path must match at least one pattern. Example: src/** or docs/**">
-              <Textarea id="share-allow-only" value={allowOnly} onChange={(event) => setAllowOnly(event.target.value)} placeholder="src/**\ndocs/**" rows={4} aria-describedby="share-allow-only-help" />
-            </Field>
-          </div>
-          {visibilityFeedback.warning ? <div className="mt-4 flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 px-3 py-2.5 text-xs leading-5 text-warning" role="status"><TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" /><span>{visibilityFeedback.warning}</span></div> : null}
-          {visibilityFeedback.error ? <p className="mt-4 text-xs leading-5 text-destructive" role="alert">{visibilityFeedback.error}</p> : null}
-        </details>
-      </section>
-
-      <div className="rounded-md border border-border bg-surface-200 px-4 py-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0 text-xs leading-5">
-            <p className="font-medium text-foreground">Ready to create</p>
-            <p className="truncate text-foreground-muted" title={`${selectedRepository?.fullName ?? 'No repository'} · ${ref || 'No ref'} · ${expiryLabel(expiry)} · ${allowDownload ? 'Downloads allowed' : 'Downloads off'}`}>
-              {selectedRepository?.fullName ?? 'No repository'} <span className="px-1 text-foreground-muted/60">·</span> {ref || 'No ref'} <span className="px-1 text-foreground-muted/60">·</span> {expiryLabel(expiry)} <span className="px-1 text-foreground-muted/60">·</span> {allowDownload ? 'Downloads allowed' : 'Downloads off'}
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center justify-between gap-2 sm:justify-end">
-            <Link href="/dashboard/shares" className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium text-foreground-muted transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><ArrowLeft className="size-3.5" aria-hidden="true" /> Back</Link>
+      <Card className="mt-6">
+        <CardFooter className="flex-wrap justify-between gap-3 py-3.5">
+          <p className="min-w-0 flex-1 truncate type-meta" title={`${selectedRepository?.fullName ?? 'No repository'} · ${ref || 'No ref'} · ${expiryLabel(expiry)} · ${allowDownload ? 'Downloads allowed' : 'Downloads off'}`}>
+            {selectedRepository?.fullName ?? 'No repository'} <span className="px-1 text-foreground-muted/60">·</span> {ref || 'No ref'} <span className="px-1 text-foreground-muted/60">·</span> {expiryLabel(expiry)} <span className="px-1 text-foreground-muted/60">·</span> {allowDownload ? 'Downloads allowed' : 'Downloads off'}
+          </p>
+          <div className="flex shrink-0 items-center justify-end gap-2">
+            <Button asChild variant="text">
+              <Link href="/dashboard/shares"><ArrowLeft className="size-3.5" aria-hidden="true" /> Back</Link>
+            </Button>
             <Button type="submit" variant="primary" loading={isPending}>Create share</Button>
           </div>
-        </div>
-      </div>
+        </CardFooter>
+      </Card>
     </form>
   )
-}
-
-function FormSection({ title, description, children }: { title: string; description: string; children: ReactNode }) {
-  return <section className="rounded-md border border-border bg-surface-100 p-5 sm:p-6"><div className="mb-4"><h2 className="font-heading text-sm font-semibold tracking-tight">{title}</h2><p className="mt-1 text-xs leading-5 text-foreground-muted">{description}</p></div>{children}</section>
-}
-
-function Field({ label, htmlFor, help, className, children }: { label: ReactNode; htmlFor: string; help?: string; className?: string; children: ReactNode }) {
-  const helpId = `${htmlFor}-help`
-  const describedChildren = help && isValidElement(children)
-    ? cloneElement(children as ReactElement<{ 'aria-describedby'?: string }>, { 'aria-describedby': helpId })
-    : children
-  return <div className={`space-y-1.5 ${className ?? ''}`}><Label htmlFor={htmlFor}>{label}</Label>{describedChildren}{help ? <p id={helpId} className="text-xs leading-5 text-foreground-muted">{help}</p> : null}</div>
-}
-
-function ToggleRow({ checked, onChange, title, description }: { checked: boolean; onChange: (checked: boolean) => void; title: string; description: string }) {
-  const id = useId()
-  const descriptionId = `${id}-description`
-  return <label htmlFor={id} className="flex min-h-[68px] w-full cursor-pointer items-center justify-between gap-5 rounded-md px-2 text-left transition-colors hover:bg-accent/25 focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-inset">
-    <span className="min-w-0"><span className="block text-sm font-medium">{title}</span><span id={descriptionId} className="mt-0.5 block text-xs leading-5 text-foreground-muted">{description}</span></span>
-    <Switch id={id} checked={checked} onChange={(event) => onChange(event.target.checked)} aria-label={title} aria-describedby={descriptionId} />
-  </label>
 }
 
 type CreatedShare = { code: string; url: string; repository: string; ref: string; recipient: string; expiry: string }
@@ -288,39 +427,73 @@ function OneTimeShareResult({ share, onboarding, onCreateAnother }: { share: Cre
   }
 
   return (
-    <section ref={resultRef} tabIndex={-1} aria-labelledby="share-created-title" className="space-y-6 outline-none">
-      <div className="flex items-start gap-3">
-        <CircleCheck className="mt-0.5 size-5 shrink-0 text-success" aria-hidden="true" />
-        <div>
-          <h2 id="share-created-title" className="font-heading text-2xl font-semibold tracking-tight">Share created</h2>
-          <p className="mt-2 text-sm leading-6 text-foreground-muted">Save this exact URL now. Its nine-character code is the public capability used to open this share.</p>
-        </div>
-      </div>
-      <div className="space-y-3 rounded-lg border border-success/35 bg-success/5 px-4 py-5 sm:px-5">
-        <div className="flex items-center gap-2 text-xs font-medium text-success"><LockKeyhole className="size-3.5" aria-hidden="true" />Scoped share URL</div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Input ref={urlInputRef} readOnly value={share.url} aria-label="New share URL" className="min-w-0 bg-background font-mono text-xs" onFocus={(event) => event.currentTarget.select()} />
-          <Button type="button" variant="primary" onClick={copyUrl} icon={copied ? <Check className="size-4" /> : <Copy className="size-4" />}>{copied ? 'Copied' : 'Copy link'}</Button>
-        </div>
-        <p aria-live="polite" className="min-h-5 text-xs text-success">{copied ? 'Copied to your clipboard.' : copyError ? <span role="alert" className="text-destructive">{copyError}</span> : 'Copy the link before navigating away.'}</p>
-      </div>
-      <dl className="grid gap-3 rounded-lg border border-border/60 bg-muted/18 p-4 sm:grid-cols-2">
-        <ResultField label="Share code" value={share.code} mono />
-        <ResultField label="Repository" value={share.repository} mono />
-        <ResultField label="Ref" value={share.ref} mono />
-        <ResultField label={onboarding ? 'Share identity' : 'Recipient'} value={share.recipient} />
-        <ResultField label="Expiry" value={share.expiry} />
-      </dl>
-      <div className="flex flex-wrap items-center gap-3">
-        <Link href={onboarding ? '/dashboard' : '/dashboard/shares'} className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{onboarding ? 'Continue to dashboard' : 'View shares'}</Link>
-        <Button type="button" variant="text" onClick={onCreateAnother}>Create another share</Button>
-      </div>
+    <section ref={resultRef} tabIndex={-1} aria-labelledby="share-created-title" className="outline-none">
+      <PageSection className="gap-3 pb-0 pt-0">
+        <PageSectionMeta>
+          <PageSectionSummary>
+            <PageSectionTitle id="share-created-title">Share created</PageSectionTitle>
+            <PageSectionDescription>Save this exact URL now. Its nine-character code is the public capability used to open this share.</PageSectionDescription>
+          </PageSectionSummary>
+        </PageSectionMeta>
+        <PageSectionContent>
+          <Card>
+            <CardContent className="pt-5">
+              <Admonition
+                type="success"
+                icon={<LockKeyhole className="size-4" />}
+                title="Save this exact URL now."
+                description="The generated link is the one-time public capability used to open this share."
+              />
+            </CardContent>
+            <CardContent>
+              <FormItemLayout
+                layout="flex-row-reverse"
+                label={<Label htmlFor="created-share-url">Scoped share URL</Label>}
+                description={<span id="created-share-url-description">Copy the link before navigating away.</span>}
+              >
+                <div className="flex w-full max-w-md flex-col gap-2 sm:flex-row">
+                  <Input
+                    ref={urlInputRef}
+                    id="created-share-url"
+                    readOnly
+                    value={share.url}
+                    aria-describedby="created-share-url-description created-share-url-status"
+                    className="min-w-0 bg-background font-mono text-xs"
+                    onFocus={(event) => event.currentTarget.select()}
+                  />
+                  <Button type="button" variant="primary" onClick={copyUrl} icon={copied ? <Check className="size-4" /> : <Copy className="size-4" />}>
+                    {copied ? 'Copied' : 'Copy link'}
+                  </Button>
+                </div>
+                <p id="created-share-url-status" aria-live="polite" className="min-h-5 text-xs text-success">
+                  {copied ? 'Copied to your clipboard.' : copyError ? <span role="alert" className="text-destructive">{copyError}</span> : null}
+                </p>
+              </FormItemLayout>
+            </CardContent>
+            <CardContent>
+              <dl className="grid gap-4 sm:grid-cols-2">
+                <ResultField label="Share code" value={share.code} mono />
+                <ResultField label="Repository" value={share.repository} mono />
+                <ResultField label="Ref" value={share.ref} mono />
+                <ResultField label={onboarding ? 'Share identity' : 'Recipient'} value={share.recipient} />
+                <ResultField label="Expiry" value={share.expiry} />
+              </dl>
+            </CardContent>
+            <CardFooter className="flex-wrap justify-end gap-2 py-3.5">
+              <Button asChild variant="outline">
+                <Link href={onboarding ? '/dashboard' : '/dashboard/shares'}>{onboarding ? 'Continue to dashboard' : 'View shares'}</Link>
+              </Button>
+              <Button type="button" variant="text" onClick={onCreateAnother}>Create another share</Button>
+            </CardFooter>
+          </Card>
+        </PageSectionContent>
+      </PageSection>
     </section>
   )
 }
 
 function ResultField({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
-  return <div className="min-w-0"><dt className="text-xs text-foreground-muted">{label}</dt><dd className={`mt-1 truncate text-sm text-foreground ${mono ? 'font-mono text-xs' : ''}`} title={value}>{value}</dd></div>
+  return <div className="min-w-0"><dt className="type-meta">{label}</dt><dd className={`mt-1 truncate text-sm text-foreground ${mono ? 'type-code' : ''}`} title={value}>{value}</dd></div>
 }
 
 function toPatterns(value: string) {
