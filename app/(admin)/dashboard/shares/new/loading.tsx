@@ -12,9 +12,9 @@ export default function NewShareLoading() {
         <FormSectionSkeleton fields={2} />
 
         <Card className="mt-6">
-          <CardFooter className="flex-wrap justify-between gap-3 py-3.5">
-            <Skeleton className="h-3 w-64 max-w-full" />
-            <div className="flex justify-end gap-2"><Skeleton className="h-9 w-16" /><Skeleton className="h-9 w-28" /></div>
+          <CardFooter className="justify-end gap-2 py-3">
+            <Skeleton className="h-9 w-16" />
+            <Skeleton className="h-9 w-28" />
           </CardFooter>
         </Card>
       </div>

@@ -2,14 +2,7 @@ import Link from 'next/link'
 
 import {
   Admonition,
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
   Button,
-  PageBreadcrumbs,
   PageContainer,
 } from '@/components/ui'
 import { CreateShareForm, type ShareFormRepository } from '@/components/admin/create-share-form'
@@ -50,7 +43,6 @@ export default async function NewSharePage({ searchParams }: { searchParams?: Pr
 
     return (
       <>
-        <ShareBreadcrumbs />
         <PageContainer size="medium" className="!pt-6">
           <CreateShareForm repositories={repositories} onboarding={onboarding} />
         </PageContainer>
@@ -59,7 +51,6 @@ export default async function NewSharePage({ searchParams }: { searchParams?: Pr
   } catch (error) {
     return (
       <>
-        <ShareBreadcrumbs />
         <PageContainer size="medium" className="space-y-6 !pt-6">
           <Admonition type="destructive" title="Share form unavailable" description={error instanceof Error ? error.message : 'Try again after checking the repository configuration.'} />
           <Button asChild variant="outline">
@@ -69,24 +60,4 @@ export default async function NewSharePage({ searchParams }: { searchParams?: Pr
       </>
     )
   }
-}
-
-function ShareBreadcrumbs() {
-  return (
-    <PageBreadcrumbs className="px-6 py-3 xl:px-10">
-      <PageContainer size="medium" className="!px-0 !py-0">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/dashboard/shares">Shares</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>New</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </PageContainer>
-    </PageBreadcrumbs>
-  )
 }

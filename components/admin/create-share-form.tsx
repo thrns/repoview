@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition, type FormEvent } from 'react'
-import { ArrowLeft, Check, ChevronDown, Copy, LockKeyhole, TriangleAlert } from 'lucide-react'
+import { useEffect, useRef, useState, useTransition, type ClipboardEvent, type FormEvent } from 'react'
+import { Check, ChevronDown, Copy, LockKeyhole, TriangleAlert, X } from 'lucide-react'
 import Link from 'next/link'
 
 import { createShare } from '@/app/(admin)/dashboard/shares/new/actions'
@@ -359,20 +359,28 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
                   <FormItemLayout
                     layout="flex-row"
                     label={<Label htmlFor="share-hidden">Hidden paths</Label>}
-                    description={<span id="share-hidden-description">Paths that must never be fetched for a viewer. Example: **/private/**</span>}
+                    description={<span id="share-hidden-description">These paths are never available to viewers.</span>}
                   >
-                    <div className="w-full max-w-sm">
-                      <Textarea id="share-hidden" value={hidden} onChange={(event) => setHidden(event.target.value)} placeholder="**/private/**" rows={4} aria-describedby="share-hidden-description" />
-                    </div>
+                    <PathPatternEditor
+                      inputId="share-hidden"
+                      descriptionId="share-hidden-description"
+                      value={hidden}
+                      onChange={setHidden}
+                      placeholder="**/private/**"
+                    />
                   </FormItemLayout>
                   <FormItemLayout
                     layout="flex-row"
                     label={<Label htmlFor="share-allow-only">Only allow paths</Label>}
-                    description={<span id="share-allow-only-description">When configured, paths must match at least one allowed pattern. Example: src/** or docs/**</span>}
+                    description={<span id="share-allow-only-description">Viewers can only access paths matching these patterns.</span>}
                   >
-                    <div className="w-full max-w-sm">
-                      <Textarea id="share-allow-only" value={allowOnly} onChange={(event) => setAllowOnly(event.target.value)} placeholder="src/**\ndocs/**" rows={4} aria-describedby="share-allow-only-description" />
-                    </div>
+                    <PathPatternEditor
+                      inputId="share-allow-only"
+                      descriptionId="share-allow-only-description"
+                      value={allowOnly}
+                      onChange={setAllowOnly}
+                      placeholder="src/**"
+                    />
                   </FormItemLayout>
                   {visibilityFeedback.warning ? <Admonition type="warning" icon={<TriangleAlert className="size-3.5" />} description={visibilityFeedback.warning} className="p-3 text-xs" /> : null}
                   {visibilityFeedback.error ? <Admonition type="destructive" title="Visibility rules need attention" description={visibilityFeedback.error} className="p-3 text-xs" /> : null}
@@ -384,19 +392,113 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
       </PageSection>
 
       <Card className="mt-6">
-        <CardFooter className="flex-wrap justify-between gap-3 py-3.5">
-          <p className="min-w-0 flex-1 truncate type-meta" title={`${selectedRepository?.fullName ?? 'No repository'} · ${ref || 'No ref'} · ${expiryLabel(expiry)} · ${allowDownload ? 'Downloads allowed' : 'Downloads off'}`}>
-            {selectedRepository?.fullName ?? 'No repository'} <span className="px-1 text-foreground-muted/60">·</span> {ref || 'No ref'} <span className="px-1 text-foreground-muted/60">·</span> {expiryLabel(expiry)} <span className="px-1 text-foreground-muted/60">·</span> {allowDownload ? 'Downloads allowed' : 'Downloads off'}
-          </p>
-          <div className="flex shrink-0 items-center justify-end gap-2">
-            <Button asChild variant="text">
-              <Link href="/dashboard/shares"><ArrowLeft className="size-3.5" aria-hidden="true" /> Back</Link>
-            </Button>
-            <Button type="submit" variant="primary" loading={isPending}>Create share</Button>
-          </div>
+        <CardFooter className="justify-end gap-2 py-3">
+          <Button asChild variant="outline" size="small">
+            <Link href="/dashboard/shares">Back</Link>
+          </Button>
+          <Button type="submit" variant="primary" size="small" loading={isPending}>Create share</Button>
         </CardFooter>
       </Card>
     </form>
+  )
+}
+
+interface PathPatternEditorProps {
+  inputId: string
+  descriptionId: string
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+}
+
+function PathPatternEditor({ inputId, descriptionId, value, onChange, placeholder }: PathPatternEditorProps) {
+  const [draft, setDraft] = useState('')
+  const [feedback, setFeedback] = useState<{ tone: 'error' | 'muted'; message: string } | null>(null)
+  const patterns = toPatterns(value)
+  const feedbackId = `${inputId}-feedback`
+
+  function addPatterns(rawValue = draft) {
+    const entries = splitPatternInput(rawValue)
+    if (entries.length === 0) return
+
+    const existingPatterns = toPatterns(value)
+    const invalidPattern = entries.find((pattern) => !hasBalancedGlobDelimiters(pattern))
+    const validEntries = entries.filter((pattern) => hasBalancedGlobDelimiters(pattern))
+    const duplicateExists = validEntries.some((pattern, index) => existingPatterns.includes(pattern) || validEntries.indexOf(pattern) !== index)
+    const nextPatterns = validEntries.filter((pattern, index) => !existingPatterns.includes(pattern) && validEntries.indexOf(pattern) === index)
+
+    if (nextPatterns.length > 0) onChange([...existingPatterns, ...nextPatterns].join('\n'))
+
+    if (invalidPattern) {
+      setDraft(invalidPattern)
+      setFeedback({ tone: 'error', message: 'Pattern has unbalanced glob delimiters.' })
+      return
+    }
+
+    setDraft('')
+    setFeedback(duplicateExists ? { tone: 'muted', message: 'That pattern is already listed.' } : null)
+  }
+
+  function removePattern(patternToRemove: string) {
+    onChange(patterns.filter((pattern) => pattern !== patternToRemove).join('\n'))
+    setFeedback(null)
+  }
+
+  function handlePaste(event: ClipboardEvent<HTMLInputElement>) {
+    const pastedValue = event.clipboardData.getData('text')
+    const pastedEntries = splitPatternInput(pastedValue)
+    if (pastedEntries.length > 1 || /[\r\n]/.test(pastedValue)) {
+      event.preventDefault()
+      addPatterns(pastedValue)
+    }
+  }
+
+  return (
+    <div className="w-full max-w-sm space-y-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <Input
+          id={inputId}
+          value={draft}
+          placeholder={placeholder}
+          className="min-w-0 flex-1 font-mono text-xs"
+          aria-describedby={`${descriptionId}${feedback ? ` ${feedbackId}` : ''}`}
+          onChange={(event) => {
+            setDraft(event.target.value)
+            if (feedback) setFeedback(null)
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+              event.preventDefault()
+              addPatterns()
+            }
+          }}
+          onPaste={handlePaste}
+        />
+        <Button type="button" variant="outline" size="large" className="px-3 text-xs" onClick={() => addPatterns()}>Add</Button>
+      </div>
+
+      {feedback ? <p id={feedbackId} aria-live="polite" role={feedback.tone === 'error' ? 'alert' : undefined} className={feedback.tone === 'error' ? 'text-xs text-destructive' : 'type-meta'}>{feedback.message}</p> : null}
+
+      {patterns.length > 0 ? (
+        <div role="list" className="overflow-hidden rounded-md border border-border-secondary bg-surface-100">
+          {patterns.map((pattern) => (
+            <div key={pattern} role="listitem" className="flex min-w-0 items-center gap-2 border-b border-border-secondary px-2.5 py-1.5 last:border-b-0">
+              <code className="min-w-0 flex-1 break-all type-code text-foreground">{pattern}</code>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 text-foreground-muted"
+                aria-label={`Remove ${pattern}`}
+                title={`Remove ${pattern}`}
+                onClick={() => removePattern(pattern)}
+                icon={<X className="size-3.5" aria-hidden="true" />}
+              />
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -498,6 +600,43 @@ function ResultField({ label, value, mono = false }: { label: string; value: str
 
 function toPatterns(value: string) {
   return value.split('\n').map((pattern) => pattern.trim()).filter(Boolean)
+}
+
+function splitPatternInput(value: string) {
+  const patterns: string[] = []
+  let current = ''
+  let braceDepth = 0
+  let escaped = false
+
+  for (const character of value) {
+    if (escaped) {
+      current += character
+      escaped = false
+      continue
+    }
+
+    if (character === '\\') {
+      current += character
+      escaped = true
+      continue
+    }
+
+    if (character === '{') braceDepth += 1
+    if (character === '}' && braceDepth > 0) braceDepth -= 1
+
+    if (character === '\n' || character === '\r' || (character === ',' && braceDepth === 0)) {
+      const pattern = current.trim()
+      if (pattern) patterns.push(pattern)
+      current = ''
+      continue
+    }
+
+    current += character
+  }
+
+  const finalPattern = current.trim()
+  if (finalPattern) patterns.push(finalPattern)
+  return patterns
 }
 
 function getVisibilityFeedback(hiddenValue: string, allowOnlyValue: string) {
