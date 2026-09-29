@@ -44,7 +44,7 @@ export async function updateProfile(input: { fullName: string }) {
     resourceId: context.user.id,
     metadata: { setting: 'profile', fields: ['full_name'] },
   })
-  revalidatePath('/dashboard/settings')
+  revalidatePath('/dashboard/settings/account')
   return { saved: true as const }
 }
 
@@ -110,7 +110,8 @@ export async function updateNotificationSettings(input: {
       ? { configured: Boolean(destinationEmail), verified: emailVerified }
       : { setting: 'notification_preferences' },
   })
-  revalidatePath('/dashboard/settings')
+  revalidatePath('/dashboard/settings/notifications')
+  revalidatePath('/dashboard/settings/privacy')
   return { saved: true as const }
 }
 
@@ -181,7 +182,7 @@ export async function disconnectGitHubInstallation(installationId: string) {
     metadata: { repository_count: repositories.length },
   })
 
-  revalidatePath('/dashboard/settings')
+  revalidatePath('/dashboard/settings/github')
   revalidatePath('/dashboard/repositories')
   revalidatePath('/dashboard/shares')
   return { disconnected: true as const }

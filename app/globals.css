@@ -219,17 +219,21 @@ body:has([data-admin-shell]) {
 
 @layer components {
   /* Compatibility typography from the supplied design-system scale. */
-  .type-page-title { @apply font-heading text-3xl font-semibold tracking-[-0.035em] sm:text-4xl; text-wrap: balance; }
-  .type-section-title { @apply font-heading text-lg font-semibold tracking-[-0.02em]; text-wrap: balance; }
+  .heading-title,
+  .type-page-title { @apply scroll-m-20 font-heading text-2xl font-semibold tracking-tight; text-wrap: balance; }
+  .heading-section,
+  .type-section-title { @apply scroll-m-20 font-heading text-xl font-semibold tracking-tight; text-wrap: balance; }
+  .heading-subSection { @apply scroll-m-20 text-base leading-6; }
   .type-body { @apply text-base leading-6 text-foreground; }
-  .type-small { @apply text-sm leading-5 text-foreground-muted; }
+  .type-small { @apply text-sm leading-5 text-foreground-light; }
   .type-label { @apply text-sm font-medium leading-5 text-foreground; }
   .type-meta { @apply text-xs leading-5 text-foreground-muted; }
   .type-code { @apply font-mono text-xs leading-5; }
   .type-table-header { @apply text-xs font-semibold tracking-wide text-foreground-lighter; }
-  .page-container { @apply mx-auto w-full px-5 py-7 sm:px-6 lg:px-8 lg:py-9; }
+  .page-container { @apply mx-auto w-full px-6 py-7 lg:py-9 xl:px-10; }
   .page-container-small { @apply max-w-3xl; }
-  .page-container-default { @apply max-w-6xl; }
+  .page-container-medium { @apply max-w-4xl; }
+  .page-container-default { @apply max-w-[1200px]; }
   .page-container-large { @apply max-w-[1600px]; }
   .page-container-full { @apply max-w-none; }
   .focus-ring { @apply outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background; }

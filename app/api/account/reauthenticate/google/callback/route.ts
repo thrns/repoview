@@ -56,7 +56,7 @@ export async function GET(request: Request) {
 }
 
 function redirectToSettings(status: string, operation?: string) {
-  const url = new URL('/dashboard/settings', getPublicEnv().NEXT_PUBLIC_APP_URL)
+  const url = new URL('/dashboard/settings/account', getPublicEnv().NEXT_PUBLIC_APP_URL)
   url.searchParams.set('reauth', status)
   if (operation) url.searchParams.set('operation', operation)
   const response = NextResponse.redirect(url, 303)

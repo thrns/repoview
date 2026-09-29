@@ -115,7 +115,7 @@ describe('GitHub App connection flow', () => {
       return jsonResponse({ installations: [{ id: 888, app_id: 1234, account: { id: 42, login: 'octocat', type: 'User' } }] })
     })
 
-    await expect(completeGitHubConnection('s'.repeat(43), 'oauth-code')).resolves.toEqual({ status: 'pending', returnPath: '/dashboard/settings' })
+    await expect(completeGitHubConnection('s'.repeat(43), 'oauth-code')).resolves.toEqual({ status: 'pending', returnPath: '/dashboard/settings/github' })
     expect(getAppInstallation).not.toHaveBeenCalled()
     expect(registerInstallation).not.toHaveBeenCalled()
   })
@@ -146,7 +146,7 @@ describe('GitHub App connection flow', () => {
     await expect(completeGitHubConnection('s'.repeat(43), 'oauth-code')).resolves.toEqual({
       status: 'success',
       repositoryCount: 1,
-      returnPath: '/dashboard/settings',
+      returnPath: '/dashboard/settings/github',
     })
     expect(registerInstallation).toHaveBeenCalledWith('workspace-1', expect.objectContaining({ id: 777, app_id: 1234 }))
     expect(listRepositories).toHaveBeenCalledWith('installation-record-1', 'workspace-1', 'member')

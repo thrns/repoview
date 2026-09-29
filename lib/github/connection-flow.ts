@@ -29,7 +29,7 @@ export class GitHubConnectionError extends Error {
   }
 }
 
-export async function createGitHubInstallationUrl(returnPath = '/dashboard/settings') {
+export async function createGitHubInstallationUrl(returnPath = '/dashboard/settings/github') {
   const { workspace, user } = await requireWorkspaceAdmin()
   await enforceAuthenticatedRateLimit('authenticated-github-connect', workspace.id, user.id)
   const env = getServerEnv()
@@ -293,8 +293,8 @@ function getCallbackUrl(appUrl: string) {
 }
 
 export function normalizeReturnPath(value: string) {
-  if (value === '/onboarding' || value === '/dashboard/settings') return value
-  return '/dashboard/settings'
+  if (value === '/onboarding' || value === '/dashboard/settings/github') return value
+  return '/dashboard/settings/github'
 }
 
 function assertState(state: string) {

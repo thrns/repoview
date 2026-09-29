@@ -2,53 +2,97 @@ import type { HTMLAttributes, ReactNode } from 'react'
 
 import { cn } from './utils'
 
-type PageContainerSize = 'small' | 'default' | 'large' | 'full'
+type PageContainerSize = 'small' | 'medium' | 'default' | 'large' | 'full'
+type PageHeaderSize = PageContainerSize
+type PageSectionOrientation = 'horizontal' | 'vertical'
 
 const pageContainerSizes: Record<PageContainerSize, string> = {
   small: 'page-container-small',
+  medium: 'page-container-medium',
   default: 'page-container-default',
   large: 'page-container-large',
   full: 'page-container-full',
 }
 
 export function PageContainer({ size = 'default', className, ...props }: HTMLAttributes<HTMLDivElement> & { size?: PageContainerSize }) {
-  return <div className={cn('page-container', pageContainerSizes[size], className)} {...props} />
+  return <div className={cn('page-container @container', pageContainerSizes[size], className)} {...props} />
 }
 
-export function PageHeader({ className, children, ...props }: HTMLAttributes<HTMLElement>) {
-  return <header className={cn('flex flex-col gap-4 border-b border-border-secondary pb-6 sm:flex-row sm:items-end sm:justify-between', className)} {...props}>{children}</header>
+export function PageHeader({ className, children, size = 'default', ...props }: HTMLAttributes<HTMLElement> & { size?: PageHeaderSize }) {
+  return (
+    <header className={cn('flex w-full flex-col gap-4', size === 'full' ? 'pt-6' : 'pt-12', className)} {...props}>
+      {children}
+    </header>
+  )
 }
 
 export function PageHeaderSummary({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('min-w-0', className)} {...props} />
+  return <div className={cn('flex min-w-0 flex-col gap-1', className)} {...props} />
 }
 
 export function PageHeaderTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h1 className={cn('type-page-title', className)} {...props} />
+  return <h1 className={cn('heading-title', className)} {...props} />
 }
 
 export function PageHeaderDescription({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn('mt-2 max-w-2xl type-small text-pretty', className)} {...props} />
+  return <p className={cn('heading-subSection max-w-2xl text-pretty text-foreground-light', className)} {...props} />
 }
 
 export function PageHeaderAside({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex shrink-0 items-center gap-3 sm:pb-0.5', className)} {...props} />
+  return <div className={cn('flex shrink-0 items-center gap-2', className)} {...props} />
 }
 
-export function PageSection({ className, children, ...props }: HTMLAttributes<HTMLElement>) {
-  return <section className={cn('space-y-4', className)} {...props}>{children}</section>
+export function PageHeaderMeta({ className, children, size = 'default', ...props }: HTMLAttributes<HTMLDivElement> & { size?: PageHeaderSize }) {
+  return (
+    <PageContainer size={size} className="!py-0">
+      <div className={cn('flex flex-col gap-4 @xl:flex-row @xl:items-center @xl:justify-between', className)} {...props}>
+        {children}
+      </div>
+    </PageContainer>
+  )
+}
+
+export function PageHeaderIcon({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('shrink-0 text-foreground-light', className)} {...props} />
+}
+
+export function PageSection({ className, children, orientation = 'vertical', ...props }: HTMLAttributes<HTMLElement> & { orientation?: PageSectionOrientation }) {
+  return (
+    <section
+      className={cn(
+        'flex gap-6 pt-12 last:pb-12',
+        orientation === 'horizontal' ? 'flex-col @3xl:grid @3xl:grid-cols-[1fr_2fr] @3xl:gap-12' : 'flex-col',
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </section>
+  )
 }
 
 export function PageSectionMeta({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between', className)} {...props} />
+  return (
+    <div className="@container">
+      <div className={cn('flex flex-col gap-4 @xl:flex-row @xl:items-center @xl:justify-between', className)} {...props} />
+    </div>
+  )
+}
+
+export function PageSectionSummary({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('flex flex-1 flex-col gap-1', className)} {...props} />
 }
 
 export function PageSectionTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h2 className={cn('type-section-title', className)} {...props} />
+  return <h2 className={cn('heading-section', className)} {...props} />
 }
 
 export function PageSectionDescription({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn('type-small', className)} {...props} />
+  return <p className={cn('text-sm leading-5 text-foreground-light', className)} {...props} />
+}
+
+export function PageSectionAside({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('flex shrink-0 items-center gap-2 @xl:self-end', className)} {...props} />
 }
 
 export function PageSectionContent({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
@@ -59,12 +103,29 @@ export function PageBreadcrumbs({ className, children, ...props }: HTMLAttribute
   return <nav aria-label="Breadcrumb" className={cn('border-b border-border-secondary', className)} {...props}>{children}</nav>
 }
 
-export function FormItemLayout({ label, description, error, children, className }: { label: ReactNode; description?: ReactNode; error?: ReactNode; children: ReactNode; className?: string }) {
+export function FormItemLayout({ label, description, error, children, className, layout = 'vertical' }: { label: ReactNode; description?: ReactNode; error?: ReactNode; children: ReactNode; className?: string; layout?: 'horizontal' | 'vertical' | 'flex' | 'flex-row' | 'flex-row-reverse' }) {
+  if (layout === 'flex-row' || layout === 'flex-row-reverse') {
+    const reversed = layout === 'flex-row-reverse'
+
+    return (
+      <div className={cn('relative flex gap-2 md:items-start md:justify-between md:gap-6', reversed ? 'flex-col-reverse md:flex-row-reverse' : 'flex-col md:flex-row', className)}>
+        <div className="flex min-w-0 grow flex-col">
+          <div className="type-label text-pretty">{label}</div>
+          {description ? <div className="mt-1 type-meta text-pretty">{description}</div> : null}
+        </div>
+        <div className={cn('flex shrink-0 flex-col items-start justify-center', reversed ? 'md:w-1/2 md:items-end xl:w-2/5 [&>div]:md:w-full' : 'md:items-end')}>
+          {children}
+          {error ? <p className="mt-1.5 text-sm text-destructive" role="alert">{error}</p> : null}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className={cn('grid gap-2.5 sm:grid-cols-[minmax(10rem,0.75fr)_minmax(0,1.5fr)] sm:items-start sm:gap-6', className)}>
+    <div className={cn(layout === 'flex' ? 'flex gap-3' : layout === 'horizontal' ? 'grid gap-2.5 md:grid-cols-12 md:gap-6' : 'flex flex-col gap-2', className)}>
       <div className="min-w-0">
         <div className="type-label">{label}</div>
-        {description ? <p className="mt-1 type-meta text-pretty">{description}</p> : null}
+        {description ? <div className="mt-1 type-meta text-pretty">{description}</div> : null}
       </div>
       <div className="min-w-0">
         {children}

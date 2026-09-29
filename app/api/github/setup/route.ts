@@ -47,7 +47,7 @@ function parseInstallationId(value: string | null) {
   return Number.isSafeInteger(installationId) && installationId > 0 ? installationId : null
 }
 
-function redirectToStatus(request: Request, status: string, returnPath = '/dashboard/settings') {
+function redirectToStatus(request: Request, status: string, returnPath = '/dashboard/settings/github') {
   const url = new URL(returnPath, request.url)
   url.searchParams.set('github', status)
   return redirectTo(url.toString())

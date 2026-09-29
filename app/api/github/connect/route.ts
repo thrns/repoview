@@ -25,7 +25,7 @@ function redirectTo(url: string) {
 }
 
 function redirectToStatus(request: Request, status: string) {
-  const url = new URL('/dashboard/settings', request.url)
+  const url = new URL('/dashboard/settings/github', request.url)
   url.searchParams.set('github', status)
   return redirectTo(url.toString())
 }

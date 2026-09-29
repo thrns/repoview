@@ -2,7 +2,7 @@
 
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 
 import { settingsNavigationItems } from '@/components/admin/settings-navigation-data'
 import { SidebarGroup, SidebarLabel, SidebarNavItem, cn } from '@/components/ui'
@@ -28,56 +28,22 @@ export function SettingsSidebarHeader({ onNavigate }: { onNavigate?: () => void 
 }
 
 export function SettingsNavigation({ onNavigate }: { onNavigate?: () => void }) {
-  const [activeId, setActiveId] = useState(settingsNavigationItems[0]?.id ?? '')
-
-  useEffect(() => {
-    const root = document.getElementById('main')
-    const sections = settingsNavigationItems
-      .map(({ id }) => document.getElementById(id))
-      .filter((element): element is HTMLElement => Boolean(element))
-
-    if (sections.length === 0) return
-
-    const setActiveFromHash = () => {
-      const hash = window.location.hash.slice(1)
-      if (hash && sections.some((section) => section.id === hash)) setActiveId(hash)
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((left, right) => left.boundingClientRect.top - right.boundingClientRect.top)
-
-        if (visible[0]?.target instanceof HTMLElement) setActiveId(visible[0].target.id)
-      },
-      { root, rootMargin: '-8% 0px -68% 0px', threshold: [0, 0.2, 0.5] },
-    )
-
-    sections.forEach((section) => observer.observe(section))
-    setActiveFromHash()
-    window.addEventListener('hashchange', setActiveFromHash)
-
-    return () => {
-      observer.disconnect()
-      window.removeEventListener('hashchange', setActiveFromHash)
-    }
-  }, [])
+  const pathname = usePathname()
 
   return (
     <SidebarGroup>
       <SidebarLabel>Manage</SidebarLabel>
       <div className="space-y-1">
         {settingsNavigationItems.map(({ id, label, icon: Icon }) => {
-          const active = activeId === id
+          const href = `/dashboard/settings/${id}`
+          const active = pathname === href || (pathname === '/dashboard/settings' && id === 'account')
           return (
             <SidebarNavItem
               key={id}
-              href={`#${id}`}
+              href={href}
               active={active}
               ariaCurrent="location"
               onClick={() => {
-                setActiveId(id)
                 onNavigate?.()
               }}
               icon={<Icon className={cn('size-4', active ? 'text-foreground' : 'text-foreground-muted')} aria-hidden="true" />}

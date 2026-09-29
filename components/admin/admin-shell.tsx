@@ -63,7 +63,7 @@ function AccountFooter({ email, avatarLabel, pathname, onLogout, className, work
           </DropdownMenuLabel>
           {hasMultipleWorkspaces ? <Link href="/workspace/select" role="menuitem" className="flex min-h-9 items-center rounded-sm px-2 text-sm text-foreground-muted hover:bg-accent hover:text-accent-foreground">Switch workspace</Link> : null}
           <DropdownMenuSeparator />
-          <Link href="/dashboard/settings" role="menuitem" aria-current={settingsActive ? 'page' : undefined} className={cn('flex min-h-9 items-center gap-2 rounded-sm px-2 text-sm text-foreground-muted hover:bg-accent hover:text-accent-foreground', settingsActive && 'bg-accent text-accent-foreground')}>
+          <Link href="/dashboard/settings/account" role="menuitem" aria-current={settingsActive ? 'page' : undefined} className={cn('flex min-h-9 items-center gap-2 rounded-sm px-2 text-sm text-foreground-muted hover:bg-accent hover:text-accent-foreground', settingsActive && 'bg-accent text-accent-foreground')}>
             <Settings className="size-4" aria-hidden="true" />
             Settings
           </Link>

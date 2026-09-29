@@ -42,7 +42,7 @@ export async function GET(request: Request) {
   }
 }
 
-function redirectToStatus(request: Request, status: string, returnPath = '/dashboard/settings') {
+function redirectToStatus(request: Request, status: string, returnPath = '/dashboard/settings/github') {
   const url = new URL(returnPath, request.url)
   url.searchParams.set('github', status)
   return redirectTo(url)

@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react'
 import { CheckCircle2, KeyRound } from 'lucide-react'
 
-import { SettingsRow, SettingsSubsection } from '@/components/admin/settings-section'
-import { Button } from '@/components/ui'
+import { Button, Card, CardContent, FormItemLayout } from '@/components/ui'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import type { SettingsActivity } from '@/lib/auth/settings'
 
@@ -42,32 +41,41 @@ export function SettingsSecurity({ activity }: { activity: SettingsActivity[] })
   }
 
   return (
-    <div className="space-y-7">
-      <SettingsSubsection title="Account protection" description="Review the safeguards and sessions connected to your account.">
-        <div className="divide-y divide-border/60 border-y border-border/60">
-          <SettingsRow label="Multi-factor authentication" description="Add a second step to protect your account.">
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="pt-6">
+          <FormItemLayout layout="flex-row-reverse" label="Multi-factor authentication" description="Add a second step to protect your account.">
             <span className={mfaStatus === 'enabled' ? 'inline-flex items-center gap-1.5 text-sm text-success' : 'text-sm text-foreground-muted'}>
               {mfaStatus === 'enabled' ? <CheckCircle2 className="size-3.5" aria-hidden="true" /> : null}
               {mfaStatusLabel(mfaStatus)}
             </span>
-          </SettingsRow>
-          <SettingsRow label="Active sessions" description="Supabase reports the current browser session here.">
+          </FormItemLayout>
+        </CardContent>
+        <CardContent>
+          <FormItemLayout layout="flex-row-reverse" label="Active sessions" description="Supabase reports the current browser session here.">
             <span className="inline-flex items-center gap-1.5 text-sm text-foreground-muted"><KeyRound className="size-3.5" aria-hidden="true" />Current browser</span>
-          </SettingsRow>
-          <SettingsRow label="Sign out other sessions" description="Keep this browser signed in and revoke other active sessions.">
-            <div className="flex flex-wrap items-center gap-3"><Button type="button" variant="outline" size="small" loading={signingOut} onClick={signOutOtherSessions}>Sign out others</Button>{signOutMessage ? <span className="text-xs text-foreground-muted" role="status">{signOutMessage}</span> : null}</div>
-          </SettingsRow>
-        </div>
-      </SettingsSubsection>
+          </FormItemLayout>
+        </CardContent>
+        <CardContent>
+          <FormItemLayout layout="flex-row-reverse" label="Sign out other sessions" description="Keep this browser signed in and revoke other active sessions.">
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="button" variant="outline" size="small" loading={signingOut} onClick={signOutOtherSessions}>Sign out others</Button>
+              {signOutMessage ? <span className="text-xs text-foreground-muted" role="status">{signOutMessage}</span> : null}
+            </div>
+          </FormItemLayout>
+        </CardContent>
+      </Card>
 
-      <div className="border-t border-border/60 pt-7">
-        <SettingsSubsection title="Recent workspace activity" description="Owner and admin actions recorded for this workspace.">
-          <div className="divide-y divide-border/60 border-y border-border/60">
-            {activity.map((item) => <div key={`${item.label}-${item.occurredAt}`} className="grid gap-1 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-8"><div><p className="text-sm">{item.label}</p><p className="mt-0.5 text-xs text-foreground-muted">{item.detail}</p></div><time className="shrink-0 text-xs tabular-nums text-foreground-muted sm:text-right" dateTime={item.occurredAt}>{formatDate(item.occurredAt)}</time></div>)}
-            {activity.length === 0 ? <p className="py-4 text-sm text-foreground-muted">No recent workspace activity has been recorded.</p> : null}
-          </div>
-        </SettingsSubsection>
-      </div>
+      <Card>
+        {activity.map((item, index) => (
+          <CardContent key={`${item.label}-${item.occurredAt}`} className={index === 0 ? 'pt-6' : undefined}>
+            <FormItemLayout layout="flex-row-reverse" label={item.label} description={item.detail}>
+              <time className="text-sm tabular-nums text-foreground-muted md:text-right" dateTime={item.occurredAt}>{formatDate(item.occurredAt)}</time>
+            </FormItemLayout>
+          </CardContent>
+        ))}
+        {activity.length === 0 ? <CardContent><p className="text-sm text-foreground-muted">No recent workspace activity has been recorded.</p></CardContent> : null}
+      </Card>
     </div>
   )
 }
