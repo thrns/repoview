@@ -392,11 +392,17 @@ export function CreateShareForm({ repositories, onboarding = false }: CreateShar
       </PageSection>
 
       <Card className="mt-6">
-        <CardFooter className="justify-end gap-2 py-3">
-          <Button asChild variant="outline" size="small">
-            <Link href="/dashboard/shares">Back</Link>
-          </Button>
-          <Button type="submit" variant="primary" size="small" loading={isPending}>Create share</Button>
+        <CardFooter className="flex-col items-start gap-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">Ready to create</p>
+            <p className="mt-0.5 text-xs leading-4 text-foreground-muted">Review your settings above before creating this share.</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+            <Button asChild variant="outline" size="small">
+              <Link href="/dashboard/shares">Back</Link>
+            </Button>
+            <Button type="submit" variant="primary" size="small" loading={isPending}>Create share</Button>
+          </div>
         </CardFooter>
       </Card>
     </form>
