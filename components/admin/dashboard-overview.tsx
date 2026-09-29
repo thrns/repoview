@@ -2,8 +2,7 @@ import { Activity, ArrowRight, BarChart3, Clipboard, Download, Eye, FileCode2, F
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 
-import { Button, Card, PageContainer } from '@/components/ui'
-import { OwnerPageToolbar } from './owner-workspace-controls'
+import { Card, PageContainer } from '@/components/ui'
 import type { DashboardOverview, DashboardOverviewActivity, DashboardOverviewTimePoint } from '@/lib/dashboard/overview'
 
 export function DashboardOverviewView({ data }: { data: DashboardOverview }) {
@@ -11,15 +10,8 @@ export function DashboardOverviewView({ data }: { data: DashboardOverview }) {
 
   return (
     <PageContainer size="default" className="space-y-6">
-      <OwnerPageToolbar
-        actions={<Button asChild variant="primary"><Link href="/dashboard/shares/new"><Link2 className="size-4" aria-hidden="true" /> New share</Link></Button>}
-      />
-
       <section aria-labelledby="workspace-summary" className="space-y-3">
-        <div className="flex items-baseline justify-between gap-4">
-          <h2 id="workspace-summary" className="font-mono text-xs font-semibold uppercase tracking-wider text-foreground-muted">Workspace snapshot</h2>
-          <span className="text-xs tabular-nums text-foreground-muted">Last 30 days</span>
-        </div>
+        <h2 id="workspace-summary" className="sr-only">Workspace metrics</h2>
         <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <SummaryMetric label="Active shares" value={data.activeShares} detail={data.activeShares === 0 ? 'No active shares yet' : 'Ready for viewers'} icon={<Link2 className="size-4" aria-hidden="true" />} />
           <SummaryMetric label="Anonymous viewers" value={data.uniqueAnonymousViewers} detail={data.uniqueAnonymousViewers === 0 ? 'Waiting for sessions' : formatReturningViewers(data.returningViewers)} icon={<Users className="size-4" aria-hidden="true" />} />

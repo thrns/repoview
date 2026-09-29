@@ -115,7 +115,7 @@ export function FormItemLayout({ label, description, error, children, className,
           <div className="type-label text-pretty">{label}</div>
           {description ? <div className="mt-1 type-meta text-pretty">{description}</div> : null}
         </div>
-        <div className={cn('flex shrink-0 flex-col items-start justify-center', reversed ? 'md:w-1/2 md:items-end xl:w-2/5 [&>div]:md:w-full' : 'md:items-end')}>
+        <div className="flex w-full min-w-0 shrink-0 flex-col items-start justify-center md:w-1/2 md:items-end xl:w-2/5 [&>div]:md:w-full">
           {children}
           {error ? <p className="mt-1.5 text-sm text-destructive" role="alert">{error}</p> : null}
         </div>

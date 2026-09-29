@@ -13,7 +13,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
 })
 
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(function Select({ className, ...props }, ref) {
-  return <select ref={ref} className={cn(controlClasses, className)} {...props} />
+  return <select ref={ref} className={cn(controlClasses, 'pr-10', className)} {...props} />
 })
 
 export function Label({ className, ...props }: LabelHTMLAttributes<HTMLLabelElement>) {

@@ -1,12 +1,12 @@
 'use client'
 
-import { ArrowRight, ChevronDown, Clock3, Eye, MapPin, Search, ShieldCheck, Users } from 'lucide-react'
+import { ArrowRight, ChevronDown, Clock3, Eye, MapPin, Search, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 
 import { Button, PageContainer, Select } from '@/components/ui'
 import type { ViewerDashboardItem } from '@/lib/dashboard/viewers'
-import { ActiveFilterSummary, OwnerEmptyState, OwnerFilterDialog, OwnerFilterField, OwnerListHeader, OwnerListSurface, OwnerListToolbar, OwnerPageToolbar, OwnerSearchField } from './owner-workspace-controls'
+import { ActiveFilterSummary, OwnerEmptyState, OwnerFilterDialog, OwnerFilterField, OwnerListHeader, OwnerListSurface, OwnerListToolbar, OwnerSearchField } from './owner-workspace-controls'
 
 type ViewerFilter = 'all' | 'returning' | 'single'
 type ViewerSort = 'recent' | 'sessions' | 'engagement'
@@ -45,10 +45,6 @@ export function ViewersView({ items }: { items: ViewerDashboardItem[] }) {
 
   return (
     <PageContainer size="default" className="space-y-7">
-      <OwnerPageToolbar meta={<>{items.length} anonymous {items.length === 1 ? 'viewer' : 'viewers'}</>} />
-
-      <div className="flex max-w-3xl items-start gap-2.5 rounded-lg border border-border/70 bg-card/70 px-3 py-2.5 text-xs leading-5 text-foreground-muted"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" /><p><span className="font-medium text-foreground">Privacy boundary.</span> Viewer IDs are anonymous and unverified; location and device data are approximate context.</p></div>
-
       <section aria-labelledby="viewer-list">
         <h2 id="viewer-list" className="sr-only">Viewer list</h2>
         <OwnerListSurface>

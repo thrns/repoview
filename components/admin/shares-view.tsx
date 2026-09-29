@@ -28,7 +28,7 @@ import {
 } from '@/components/ui'
 import type { Tables } from '@/lib/supabase/database.types'
 import type { ShareStatus } from '@/lib/shares/dashboard'
-import { ActiveFilterSummary, OwnerEmptyState, OwnerFilterDialog, OwnerFilterField, OwnerPageToolbar, OwnerSearchField } from './owner-workspace-controls'
+import { ActiveFilterSummary, OwnerEmptyState, OwnerFilterDialog, OwnerFilterField, OwnerSearchField } from './owner-workspace-controls'
 
 export interface ShareListItem {
   share: Pick<Tables<'shares'>, 'id' | 'share_code' | 'share_type' | 'recipient_label' | 'ref' | 'expires_at' | 'note' | 'created_at'>
@@ -107,8 +107,6 @@ export function SharesView({ items }: { items: ShareListItem[] }) {
 
   return (
     <PageContainer size="large" className="space-y-6">
-      <OwnerPageToolbar meta={<>{items.length} {items.length === 1 ? 'share' : 'shares'}</>} />
-
       <section aria-label="Shares inventory">
         <div className="space-y-3">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
@@ -121,7 +119,6 @@ export function SharesView({ items }: { items: ShareListItem[] }) {
                 <OwnerFilterField label="Activity"><Select value={activityFilter} onChange={(event) => setActivityFilter(event.target.value as ActivityFilter)} aria-label="Filter shares by activity"><option value="all">All activity</option><option value="active">Has activity</option><option value="quiet">No activity</option></Select></OwnerFilterField>
                 <OwnerFilterField label="Sort"><Select value={sort} onChange={(event) => selectSort(event.target.value as SortKey)} aria-label="Sort shares"><option value="recent">Newest first</option><option value="oldest">Oldest first</option><option value="activity">Recent activity</option><option value="expiry">Expiry</option><option value="recipient">Recipient</option><option value="repository">Repository</option><option value="status">Status</option></Select></OwnerFilterField>
               </OwnerFilterDialog>
-              <Button asChild variant="primary"><Link href="/dashboard/shares/new"><Plus className="size-4" aria-hidden="true" /> New share</Link></Button>
             </div>
           </div>
           <ActiveFilterSummary filters={[...(repositoryFilter !== 'all' ? [{ label: 'Repository', value: repositoryFilter, onClear: () => setRepositoryFilter('all') }] : []), ...(statusFilter !== 'all' ? [{ label: 'Status', value: statusLabel(statusFilter), onClear: () => setStatusFilter('all') }] : []), ...(expiryFilter !== 'all' ? [{ label: 'Expiry', value: expiryLabel(expiryFilter), onClear: () => setExpiryFilter('all') }] : []), ...(activityFilter !== 'all' ? [{ label: 'Activity', value: activityLabel(activityFilter), onClear: () => setActivityFilter('all') }] : []), ...(sort !== 'recent' ? [{ label: 'Sort', value: sortLabel(sort), onClear: () => selectSort('recent') }] : [])]} onClear={clearFilterValues} />

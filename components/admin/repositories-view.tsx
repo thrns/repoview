@@ -44,7 +44,7 @@ import {
   TableRow,
   Textarea,
 } from '@/components/ui'
-import { ActiveFilterSummary, OwnerEmptyState, OwnerFilterDialog, OwnerFilterField, OwnerPageToolbar, OwnerSearchField } from './owner-workspace-controls'
+import { ActiveFilterSummary, OwnerEmptyState, OwnerFilterDialog, OwnerFilterField, OwnerSearchField } from './owner-workspace-controls'
 import { RepositoryRulesEditor } from './repository-rules-editor'
 
 export interface RepositoryDashboardItem {
@@ -194,8 +194,6 @@ export function RepositoriesView({ items }: { items: RepositoryDashboardItem[] }
 
   return (
     <PageContainer size="large" className="space-y-5">
-      <OwnerPageToolbar meta={<>{items.length} available</>} />
-
       {error ? <Alert className="shrink-0 border-destructive/40 bg-destructive/5 py-3"><AlertTitle>Could not update repositories</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
 
       <div className="space-y-3">

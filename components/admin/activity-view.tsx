@@ -105,11 +105,6 @@ export function ActivityView({ items, filter }: { items: DashboardActivityItem[]
   return (
     <PageContainer size="default" className="pb-10 lg:pb-14">
       <div className="sticky top-0 z-30 -mx-5 bg-background/95 px-5 pb-4 pt-7 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 lg:pb-5 lg:pt-10">
-        <header className="flex items-center justify-between gap-3">
-          <span className="font-mono text-xs tabular-nums text-foreground-muted">{sessions.length} {sessions.length === 1 ? 'session' : 'sessions'}</span>
-          <span className="hidden items-center gap-1.5 text-xs text-foreground-muted sm:inline-flex"><Clock3 className="size-3.5" aria-hidden="true" /> Latest activity first</span>
-        </header>
-
         <ActivityToolbar
           query={query}
           repository={repository}

@@ -24,6 +24,11 @@ const notificationSettingsSchema = z.object({
   analyticsRetentionDays: z.union([z.literal(30), z.literal(90), z.literal(180)]),
 })
 
+const privacySettingSchema = z.discriminatedUnion('setting', [
+  z.object({ setting: z.literal('analyticsEnabled'), value: z.boolean() }),
+  z.object({ setting: z.literal('analyticsRetentionDays'), value: z.union([z.literal(30), z.literal(90), z.literal(180)]) }),
+])
+
 const uuidSchema = z.string().uuid()
 
 export async function updateProfile(input: { fullName: string }) {
@@ -111,6 +116,37 @@ export async function updateNotificationSettings(input: {
       : { setting: 'notification_preferences' },
   })
   revalidatePath('/dashboard/settings/notifications')
+  revalidatePath('/dashboard/settings/privacy')
+  return { saved: true as const }
+}
+
+export async function updatePrivacySetting(input: {
+  setting: 'analyticsEnabled'
+  value: boolean
+} | {
+  setting: 'analyticsRetentionDays'
+  value: 30 | 90 | 180
+}) {
+  const parsed = privacySettingSchema.parse(input)
+  const context = await requireWorkspaceAdmin()
+  const supabase = await createSupabaseServerClient()
+  const update = parsed.setting === 'analyticsEnabled'
+    ? { analytics_enabled: parsed.value }
+    : { analytics_retention_days: parsed.value }
+  const { error } = await supabase
+    .from('notification_settings')
+    .update(update)
+    .eq('workspace_id', context.workspace.id)
+
+  if (error) return { saved: false as const, error: 'Privacy settings could not be saved.' }
+  await recordAuditLogBestEffort({
+    workspaceId: context.workspace.id,
+    actorUserId: context.user.id,
+    action: AUDIT_ACTIONS.notificationSettingsChanged,
+    resourceType: 'notification_settings',
+    resourceId: context.workspace.id,
+    metadata: { setting: parsed.setting },
+  })
   revalidatePath('/dashboard/settings/privacy')
   return { saved: true as const }
 }

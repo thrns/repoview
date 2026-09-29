@@ -8,7 +8,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { BrandLogo } from '@/components/shared/brand-logo'
 import { settingsNavigationItems } from '@/components/admin/settings-navigation-data'
 import { ThemeSwitcher } from '@/components/shared/theme-switcher'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, Sheet, SheetContent, SheetTrigger, Sidebar, SidebarContent, SidebarGroup, SidebarNavItem, SkipToContent, cn } from '@/components/ui'
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, Sheet, SheetContent, SheetTrigger, Sidebar, SidebarContent, SidebarGroup, SidebarNavItem, SkipToContent, cn } from '@/components/ui'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 const navigation = [
@@ -53,11 +53,8 @@ function AccountMenu({ email, avatarLabel, pathname, onLogout, workspaceName, ha
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger aria-label={`Open workspace and account menu for ${workspaceName}`} className="group size-9 !rounded-full border-border bg-surface-200 p-0 hover:border-border-strong hover:bg-surface-300">
-        <span className="relative flex size-7 items-center justify-center rounded-full border border-border-control bg-surface-100 font-mono text-xs font-semibold text-foreground" aria-hidden="true">
-          {avatarLabel}
-          <span className="absolute -right-0.5 -bottom-0.5 size-2 rounded-full border-2 border-background bg-success" />
-        </span>
+      <DropdownMenuTrigger aria-label={`Open workspace and account menu for ${workspaceName}`} className="size-9 !rounded-full border !border-border !bg-white !p-0 font-mono text-xs font-semibold leading-none !text-black transition-[border-color] hover:!border-border-strong hover:!bg-white aria-expanded:!border-border-strong">
+        {avatarLabel}
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64 p-1.5">
         <DropdownMenuLabel className="px-2 py-2">
@@ -160,7 +157,15 @@ export function AdminShell({ email, children, displayName, onboardingIncomplete 
           <span className="min-w-0 max-w-[12rem] truncate text-sm text-foreground-muted">{pageTitle}</span>
         </div>
 
-        <AccountMenu email={email} avatarLabel={avatarLabel} pathname={pathname} onLogout={handleLogout} workspaceName={workspaceName} hasMultipleWorkspaces={workspaces.length > 1} />
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button asChild variant="outline" size="small" className="h-9 w-9 px-0 active:bg-surface-300 sm:w-auto sm:px-3" aria-label="Create a new share">
+            <Link href="/dashboard/shares/new">
+              <Link2 className="size-4" aria-hidden="true" />
+              <span className="sr-only sm:not-sr-only">New share</span>
+            </Link>
+          </Button>
+          <AccountMenu email={email} avatarLabel={avatarLabel} pathname={pathname} onLogout={handleLogout} workspaceName={workspaceName} hasMultipleWorkspaces={workspaces.length > 1} />
+        </div>
       </header>
 
       <div className="flex min-h-0 min-w-0 flex-1">

@@ -14,6 +14,7 @@ export function SettingsAccount({ fullName, email, emailVerified, reauthStatus, 
   const [message, setMessage] = useState<string | null>(null)
   const [saved, setSaved] = useState<boolean | null>(null)
   const [pending, setPending] = useState(false)
+  const [passwordOpen, setPasswordOpen] = useState(false)
 
   useEffect(() => {
     if (reauthStatus === 'success' && reauthOperation === 'account-export') {
@@ -44,18 +45,18 @@ export function SettingsAccount({ fullName, email, emailVerified, reauthStatus, 
       <form onSubmit={saveProfile}>
         <Card>
           <CardContent className="pt-6">
-            <FormItemLayout layout="flex-row-reverse" label="Full name" description="Update the name shown across your RepoView workspace.">
+            <FormItemLayout layout="flex-row" label="Full name" description="Update the name shown across your RepoView workspace.">
               <Input id="settings-full-name" className="w-full max-w-md" autoComplete="name" maxLength={100} value={name} onChange={(event) => setName(event.target.value)} />
             </FormItemLayout>
           </CardContent>
           <CardContent>
-            <FormItemLayout layout="flex-row-reverse" label="Email" description="This address is used for sign-in and account recovery.">
-              <div className="w-full max-w-md space-y-2">
-                <Input id="settings-email" value={email} readOnly aria-describedby="settings-email-status" className="bg-muted/35" />
-                <div id="settings-email-status" className="flex items-center gap-1.5 text-xs text-foreground-muted">
-                  {emailVerified ? <CheckCircle2 className="size-3.5 text-success" aria-hidden="true" /> : <CircleAlert className="size-3.5 text-warning" aria-hidden="true" />}
-                  <span>{emailVerified ? 'Verified email address' : 'Email verification required'}</span>
-                </div>
+            <FormItemLayout layout="flex-row" label="Email" description="This address is used for sign-in and account recovery.">
+              <div className="relative w-full max-w-md">
+                <Input id="settings-email" value={email} readOnly aria-describedby="settings-email-status" className="bg-muted/35 pr-10" />
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center" aria-hidden="true">
+                  {emailVerified ? <CheckCircle2 className="size-4 text-success" /> : <CircleAlert className="size-4 text-warning" />}
+                </span>
+                <span id="settings-email-status" className="sr-only">{emailVerified ? 'Verified email address' : 'Email verification required'}</span>
               </div>
             </FormItemLayout>
           </CardContent>
@@ -69,19 +70,42 @@ export function SettingsAccount({ fullName, email, emailVerified, reauthStatus, 
 
       <Card>
         <CardContent className="pt-6">
-          <details className="group">
-            <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+          <details className="group" open={passwordOpen}>
+            <summary
+              className="cursor-pointer list-none [&::-webkit-details-marker]:hidden"
+              onClick={(event) => {
+                if ((event.target as HTMLElement).closest('button')) return
+                event.preventDefault()
+                setPasswordOpen((open) => !open)
+              }}
+            >
               <FormItemLayout layout="flex-row" label="Change password" description="Update the password for this RepoView account.">
-                <span className="text-sm text-foreground-muted group-open:text-foreground">Open</span>
+                <div className="flex w-full justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="default"
+                    className="min-w-20"
+                    aria-expanded={passwordOpen}
+                    aria-controls="change-password-content"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      setPasswordOpen((open) => !open)
+                    }}
+                  >
+                    <span className="group-open:hidden">Open</span>
+                    <span className="hidden group-open:inline">Close</span>
+                  </Button>
+                </div>
               </FormItemLayout>
             </summary>
-            <div className="mt-4">
+            <div id="change-password-content" className="mt-4">
               <ChangePasswordForm />
             </div>
           </details>
         </CardContent>
         <CardContent>
-          <FormItemLayout layout="flex-row-reverse" label="Export account data" description="Download your profile, workspaces, repositories, shares, settings, and relevant analytics.">
+          <FormItemLayout layout="flex-row" label="Export account data" description={<span className="whitespace-nowrap">Download your profile, workspaces, repositories, shares, settings, and relevant analytics.</span>}>
             <AccountReauthenticationDialog
               operation="account-export"
               variant="outline"
@@ -98,7 +122,7 @@ export function SettingsAccount({ fullName, email, emailVerified, reauthStatus, 
         {reauthStatus === 'mfa' && reauthOperation ? <PendingMfaReauthentication operation={reauthOperation} /> : null}
         <Card className="border-destructive/30">
           <CardContent className="pt-6">
-            <FormItemLayout layout="flex-row-reverse" label="Delete account" description="Immediately disables your workspace, revokes its shares, disconnects GitHub, and permanently deletes your account data.">
+            <FormItemLayout layout="flex-row" label="Delete account" description={<span className="whitespace-nowrap">Disables your workspace, revokes shares, disconnects GitHub, and deletes data.</span>}>
               <DeleteAccountControl email={email} />
             </FormItemLayout>
           </CardContent>

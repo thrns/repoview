@@ -44,7 +44,7 @@ export function SettingsSecurity({ activity }: { activity: SettingsActivity[] })
     <div className="space-y-4">
       <Card>
         <CardContent className="pt-6">
-          <FormItemLayout layout="flex-row-reverse" label="Multi-factor authentication" description="Add a second step to protect your account.">
+          <FormItemLayout layout="flex-row" label="Multi-factor authentication" description="Add a second step to protect your account.">
             <span className={mfaStatus === 'enabled' ? 'inline-flex items-center gap-1.5 text-sm text-success' : 'text-sm text-foreground-muted'}>
               {mfaStatus === 'enabled' ? <CheckCircle2 className="size-3.5" aria-hidden="true" /> : null}
               {mfaStatusLabel(mfaStatus)}
@@ -52,13 +52,13 @@ export function SettingsSecurity({ activity }: { activity: SettingsActivity[] })
           </FormItemLayout>
         </CardContent>
         <CardContent>
-          <FormItemLayout layout="flex-row-reverse" label="Active sessions" description="Supabase reports the current browser session here.">
+          <FormItemLayout layout="flex-row" label="Active sessions" description="Supabase reports the current browser session here.">
             <span className="inline-flex items-center gap-1.5 text-sm text-foreground-muted"><KeyRound className="size-3.5" aria-hidden="true" />Current browser</span>
           </FormItemLayout>
         </CardContent>
         <CardContent>
-          <FormItemLayout layout="flex-row-reverse" label="Sign out other sessions" description="Keep this browser signed in and revoke other active sessions.">
-            <div className="flex flex-wrap items-center gap-3">
+          <FormItemLayout layout="flex-row" label="Sign out other sessions" description="Keep this browser signed in and revoke other active sessions.">
+            <div className="flex flex-wrap items-center justify-end gap-3">
               <Button type="button" variant="outline" size="small" loading={signingOut} onClick={signOutOtherSessions}>Sign out others</Button>
               {signOutMessage ? <span className="text-xs text-foreground-muted" role="status">{signOutMessage}</span> : null}
             </div>
@@ -69,7 +69,7 @@ export function SettingsSecurity({ activity }: { activity: SettingsActivity[] })
       <Card>
         {activity.map((item, index) => (
           <CardContent key={`${item.label}-${item.occurredAt}`} className={index === 0 ? 'pt-6' : undefined}>
-            <FormItemLayout layout="flex-row-reverse" label={item.label} description={item.detail}>
+            <FormItemLayout layout="flex-row" label={item.label} description={item.detail}>
               <time className="text-sm tabular-nums text-foreground-muted md:text-right" dateTime={item.occurredAt}>{formatDate(item.occurredAt)}</time>
             </FormItemLayout>
           </CardContent>

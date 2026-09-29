@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Database } from 'lucide-react'
+import Link from 'next/link'
+import { CheckCircle2, CircleAlert, Database, LoaderCircle } from 'lucide-react'
 
-import { updateNotificationSettings } from '@/app/(admin)/dashboard/settings/actions'
+import { updateNotificationSettings, updatePrivacySetting } from '@/app/(admin)/dashboard/settings/actions'
 import { AccountReauthenticationDialog } from '@/components/admin/account-reauthentication-dialog'
 import { Admonition, Button, Card, CardContent, CardFooter, FormItemLayout, Input, Select, Switch } from '@/components/ui'
 import type { Tables } from '@/lib/supabase/database.types'
@@ -31,15 +32,20 @@ export function SettingsNotifications({ settings, canManage }: { settings: Setti
     <div className="space-y-4">
       <Card>
         <CardContent className="pt-6">
-          <FormItemLayout layout="flex-row-reverse" label="Notification email" description="Alerts are sent only after this destination is verified. Your confirmed account email is verified automatically.">
-            <div className="w-full max-w-md space-y-2">
-              <Input id="notification-email" type="email" autoComplete="email" placeholder="you@company.com" value={values.destination_email ?? ''} onChange={(event) => setValues((current) => ({ ...current, destination_email: event.target.value, email_verified: false }))} disabled={!canManage} />
-              {values.destination_email ? <p className={`text-xs ${values.email_verified ? 'text-success' : 'text-warning'}`}>{values.email_verified ? 'Verified destination' : 'Verification required before alerts are sent'}</p> : null}
+          <FormItemLayout layout="flex-row" label="Notification email" description={<span className="whitespace-nowrap">Alerts follow verification. Email is automatically verified.</span>}>
+            <div className="relative w-full max-w-md">
+              <Input id="notification-email" type="email" autoComplete="email" placeholder="you@company.com" value={values.destination_email ?? ''} onChange={(event) => setValues((current) => ({ ...current, destination_email: event.target.value, email_verified: false }))} disabled={!canManage} aria-describedby={values.destination_email ? 'notification-email-status' : undefined} className="pr-10" />
+              {values.destination_email ? <>
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center" aria-hidden="true">
+                  {values.email_verified ? <CheckCircle2 className="size-4 text-success" /> : <CircleAlert className="size-4 text-warning" />}
+                </span>
+                <span id="notification-email-status" className="sr-only">{values.email_verified ? 'Verified destination' : 'Verification required before alerts are sent'}</span>
+              </> : null}
             </div>
           </FormItemLayout>
         </CardContent>
         <CardContent>
-          <FormItemLayout layout="flex-row-reverse" label="Digest frequency" description="Choose how often to receive a summary of workspace activity.">
+          <FormItemLayout layout="flex-row" label="Digest frequency" description="Choose how often to receive a summary of workspace activity.">
             <Select id="digest-frequency" className="w-full max-w-48" value={values.digest_frequency} onChange={(event) => setValues((current) => ({ ...current, digest_frequency: event.target.value as Settings['digest_frequency'] }))} disabled={!canManage}>
               <option value="off">No digest</option>
               <option value="daily">Daily</option>
@@ -65,17 +71,46 @@ export function SettingsNotifications({ settings, canManage }: { settings: Setti
 
 export function SettingsPrivacy({ settings, canManage }: { settings: Settings; canManage: boolean }) {
   const [values, setValues] = useState(settings)
-  const [pending, startTransition] = useTransition()
-  const [message, setMessage] = useState<string | null>(null)
+  const [analyticsPending, startAnalyticsTransition] = useTransition()
+  const [retentionPending, startRetentionTransition] = useTransition()
+  const [message, setMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
 
-  function save() {
+  function handleAnalyticsChange(analyticsEnabled: boolean) {
+    const previousValue = values.analytics_enabled
+    setValues((current) => ({ ...current, analytics_enabled: analyticsEnabled }))
     setMessage(null)
-    startTransition(async () => {
+    startAnalyticsTransition(async () => {
       try {
-        const result = await updateNotificationSettings(toInput(values))
-        setMessage(result.saved ? 'Privacy defaults saved.' : result.error)
+        const result = await updatePrivacySetting({ setting: 'analyticsEnabled', value: analyticsEnabled })
+        if (!result.saved) {
+          setValues((current) => ({ ...current, analytics_enabled: previousValue }))
+          setMessage({ tone: 'error', text: result.error })
+          return
+        }
+        setMessage({ tone: 'success', text: 'Analytics preference saved.' })
       } catch {
-        setMessage('Privacy defaults could not be saved.')
+        setValues((current) => ({ ...current, analytics_enabled: previousValue }))
+        setMessage({ tone: 'error', text: 'Analytics preference could not be saved.' })
+      }
+    })
+  }
+
+  function handleRetentionChange(analyticsRetentionDays: Settings['analytics_retention_days']) {
+    const previousValue = values.analytics_retention_days
+    setValues((current) => ({ ...current, analytics_retention_days: analyticsRetentionDays }))
+    setMessage(null)
+    startRetentionTransition(async () => {
+      try {
+        const result = await updatePrivacySetting({ setting: 'analyticsRetentionDays', value: analyticsRetentionDays })
+        if (!result.saved) {
+          setValues((current) => ({ ...current, analytics_retention_days: previousValue }))
+          setMessage({ tone: 'error', text: result.error })
+          return
+        }
+        setMessage({ tone: 'success', text: 'Retention preference saved.' })
+      } catch {
+        setValues((current) => ({ ...current, analytics_retention_days: previousValue }))
+        setMessage({ tone: 'error', text: 'Retention preference could not be saved.' })
       }
     })
   }
@@ -86,30 +121,38 @@ export function SettingsPrivacy({ settings, canManage }: { settings: Settings; c
 
       <Card>
         <CardContent className="pt-6">
-          <FormItemLayout layout="flex-row-reverse" label="Optional viewer analytics" description="Enable analytics for this workspace.">
-            <Switch aria-label="Enable optional viewer analytics" checked={values.analytics_enabled} onChange={(event) => setValues((current) => ({ ...current, analytics_enabled: event.target.checked }))} disabled={!canManage} />
+          <FormItemLayout layout="flex-row" label="Optional viewer analytics" description="Enable analytics for this workspace.">
+            <div className="flex items-center justify-end gap-2">
+              <Switch aria-label="Enable optional viewer analytics" checked={values.analytics_enabled} onChange={(event) => handleAnalyticsChange(event.target.checked)} disabled={!canManage || analyticsPending} aria-busy={analyticsPending} />
+              {analyticsPending ? <LoaderCircle className="size-3.5 animate-spin text-foreground-muted" aria-hidden="true" /> : null}
+            </div>
           </FormItemLayout>
         </CardContent>
         <CardContent>
-          <FormItemLayout layout="flex-row-reverse" label="Analytics retention" description="Security and legal records may need to remain longer.">
-            <Select id="analytics-retention" className="w-full max-w-48" value={String(values.analytics_retention_days)} onChange={(event) => setValues((current) => ({ ...current, analytics_retention_days: Number(event.target.value) as Settings['analytics_retention_days'] }))} disabled={!canManage}>
-              <option value="30">30 days</option>
-              <option value="90">90 days</option>
-              <option value="180">180 days</option>
-            </Select>
+          <FormItemLayout layout="flex-row" label="Analytics retention" description="Security and legal records may need to remain longer.">
+            <div className="flex items-center justify-end gap-2">
+              <Select id="analytics-retention" className="w-full max-w-48" value={String(values.analytics_retention_days)} onChange={(event) => handleRetentionChange(Number(event.target.value) as Settings['analytics_retention_days'])} disabled={!canManage || retentionPending} aria-busy={retentionPending}>
+                <option value="30">30 days</option>
+                <option value="90">90 days</option>
+                <option value="180">180 days</option>
+              </Select>
+              {retentionPending ? <LoaderCircle className="size-3.5 shrink-0 animate-spin text-foreground-muted" aria-hidden="true" /> : null}
+            </div>
           </FormItemLayout>
         </CardContent>
-        <CardFooter className="flex-wrap justify-end gap-3">
-          {canManage ? <><span className="mr-auto text-xs text-foreground-muted" role="status">{message}</span><Button type="button" variant="outline" size="small" loading={pending} onClick={save}>Save privacy defaults</Button></> : <p className="ml-auto text-xs text-foreground-muted">Only workspace owners and admins can change workspace privacy defaults.</p>}
+        <CardFooter className="flex-wrap justify-between gap-3">
+          <div className="type-label shrink-0 text-foreground" role="heading" aria-level={2}>Actions</div>
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button asChild variant="outline" size="small"><Link href="/privacy">Privacy Policy</Link></Button>
+              <Button asChild variant="outline" size="small"><Link href="/terms">Terms</Link></Button>
+              <AccountReauthenticationDialog operation="account-export" variant="outline" size="small" trigger="Export data" onAuthorized={() => { window.location.assign('/api/account/export') }} />
+              <Button asChild variant="destructive-outline" size="small"><a href="mailto:tharunpranav.ubc@gmail.com?subject=RepoView%20data%20deletion%20request">Delete analytics data</a></Button>
+            </div>
+            {message ? <span className={message.tone === 'error' ? 'text-xs text-destructive' : 'text-xs text-success'} role={message.tone === 'error' ? 'alert' : 'status'}>{message.text}</span> : null}
+          </div>
         </CardFooter>
       </Card>
-
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-xs text-foreground-muted">
-        <a href="/privacy" className="font-medium text-foreground-light underline-offset-4 hover:text-foreground hover:underline">Privacy Policy</a>
-        <a href="/terms" className="font-medium text-foreground-light underline-offset-4 hover:text-foreground hover:underline">Terms</a>
-        <AccountReauthenticationDialog className="h-auto min-h-0 p-0 text-xs" operation="account-export" variant="text" size="small" trigger={<span className="text-foreground-muted underline-offset-4 hover:text-foreground hover:underline">Export data</span>} onAuthorized={() => { window.location.assign('/api/account/export') }} />
-        <span className="text-destructive"><a href="mailto:tharunpranav.ubc@gmail.com?subject=RepoView%20data%20deletion%20request" className="underline-offset-4 hover:underline">Delete analytics data</a></span>
-      </div>
     </div>
   )
 }
@@ -117,7 +160,7 @@ export function SettingsPrivacy({ settings, canManage }: { settings: Settings; c
 function PreferenceRow({ first = false, label, detail, checked, disabled, onChange }: { first?: boolean; label: string; detail: string; checked: boolean; disabled: boolean; onChange: (checked: boolean) => void }) {
   return (
     <CardContent className={first ? 'pt-6' : undefined}>
-      <FormItemLayout layout="flex-row-reverse" label={label} description={detail}>
+      <FormItemLayout layout="flex-row" label={label} description={detail}>
         <Switch checked={checked} onChange={(event) => onChange(event.target.checked)} disabled={disabled} aria-label={label} />
       </FormItemLayout>
     </CardContent>

@@ -3,7 +3,7 @@ import { Children, cloneElement, forwardRef, isValidElement, type ButtonHTMLAttr
 
 import { cn } from './utils'
 
-type ButtonVariant = 'default' | 'primary' | 'secondary' | 'outline' | 'ghost' | 'text' | 'warning' | 'destructive'
+type ButtonVariant = 'default' | 'primary' | 'secondary' | 'outline' | 'ghost' | 'text' | 'warning' | 'destructive' | 'destructive-outline'
 type ButtonSize = 'tiny' | 'small' | 'default' | 'large' | 'icon'
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -24,6 +24,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   text: 'text-foreground-light hover:bg-surface-200 hover:text-foreground',
   warning: 'bg-warning text-warning-foreground hover:bg-warning/90',
   destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+  'destructive-outline': 'border border-destructive/45 bg-surface-100 text-destructive hover:border-destructive/70 hover:bg-destructive/5',
 }
 
 const sizeClasses: Record<ButtonSize, string> = {
