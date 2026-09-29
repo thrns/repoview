@@ -60,7 +60,7 @@ function Capacity({ icon, label, used, limit }: { icon: ReactNode; label: string
       <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-border-secondary bg-surface-200 text-foreground-muted">{icon}</span>
       <div className="min-w-0">
         <dt className="type-meta font-medium">{label}</dt>
-        <dd className="mt-1 font-heading text-base font-semibold leading-6 tabular-nums">{used.toLocaleString()} <span className="font-normal text-foreground-muted">/ {limit.toLocaleString()}</span></dd>
+        <dd className="mt-1 font-heading text-sm font-semibold leading-6 tabular-nums">{used.toLocaleString()} <span className="font-normal text-foreground-muted">/ {limit.toLocaleString()}</span></dd>
       </div>
     </div>
   )
