@@ -9,6 +9,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <AdminShell
       email={context.user.email ?? 'Workspace member'}
+      displayName={onboarding.profile?.full_name ?? getMetadataName(context.user.user_metadata)}
       onboardingIncomplete={!onboarding.isComplete}
       workspaceName={context.workspace.name}
       workspaces={context.availableWorkspaces.map(({ workspace, membership }) => ({ id: workspace.id, name: workspace.name, role: membership.role }))}
@@ -16,4 +17,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {children}
     </AdminShell>
   )
+}
+
+function getMetadataName(metadata: Record<string, unknown>) {
+  const value = metadata.full_name ?? metadata.name
+  return typeof value === 'string' ? value : undefined
 }

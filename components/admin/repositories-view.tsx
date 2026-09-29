@@ -44,7 +44,7 @@ import {
   TableRow,
   Textarea,
 } from '@/components/ui'
-import { ActiveFilterSummary, OwnerEmptyState, OwnerFilterDialog, OwnerFilterField, OwnerPageHeader, OwnerSearchField } from './owner-workspace-controls'
+import { ActiveFilterSummary, OwnerEmptyState, OwnerFilterDialog, OwnerFilterField, OwnerPageToolbar, OwnerSearchField } from './owner-workspace-controls'
 import { RepositoryRulesEditor } from './repository-rules-editor'
 
 export interface RepositoryDashboardItem {
@@ -193,8 +193,8 @@ export function RepositoriesView({ items }: { items: RepositoryDashboardItem[] }
   const repositorySort = sortMode === 'name-asc' ? 'repository:asc' : sortMode === 'name-desc' ? 'repository:desc' : ''
 
   return (
-    <PageContainer size="large" className="flex min-h-0 min-w-0 flex-1 flex-col gap-5">
-      <OwnerPageHeader title="Repositories" description="Choose which installation-accessible repositories can be used to create RepoView shares." meta={<>{items.length} available</>} />
+    <PageContainer size="large" className="space-y-5">
+      <OwnerPageToolbar meta={<>{items.length} available</>} />
 
       {error ? <Alert className="shrink-0 border-destructive/40 bg-destructive/5 py-3"><AlertTitle>Could not update repositories</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
 

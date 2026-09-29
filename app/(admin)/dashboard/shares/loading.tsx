@@ -3,10 +3,6 @@ import { PageContainer, Skeleton } from '@/components/ui'
 export default function SharesLoading() {
   return (
     <PageContainer size="large" className="space-y-6" aria-busy="true" aria-label="Loading shares">
-      <header className="flex flex-col gap-4 border-b border-border/60 pb-7 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-2"><Skeleton className="h-9 w-36" /><Skeleton className="h-4 w-72 max-w-full" /></div>
-        <Skeleton className="h-3 w-20" />
-      </header>
       <div className="space-y-3">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center"><Skeleton className="h-10 w-full flex-1" /><div className="flex gap-2"><Skeleton className="h-10 w-32" /><Skeleton className="h-10 w-28" /></div></div>
         <Skeleton className="h-7 w-64 max-w-full" />

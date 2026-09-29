@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const settingsLayout = readFileSync('app/(admin)/dashboard/settings/layout.tsx', 'utf8')
+const settingsNavigation = readFileSync('components/admin/settings-navigation-data.ts', 'utf8')
 const settingsPages = ['account', 'security', 'github', 'notifications', 'privacy'].map((section) => readFileSync(`app/(admin)/dashboard/settings/${section}/page.tsx`, 'utf8'))
 const migration = readFileSync('supabase/migrations/20260924150000_settings_preferences.sql', 'utf8')
 const destinationMigration = readFileSync('supabase/migrations/20260924160000_workspace_notification_destinations.sql', 'utf8')
@@ -14,8 +15,9 @@ const deletionConfirmation = readFileSync('lib/account/deletion-shared.ts', 'utf
 
 describe('public settings surface', () => {
   it('keeps settings focused on account, access, notifications, and privacy', () => {
-    for (const section of ['Account', 'Security', 'GitHub', 'Notifications', 'Privacy & Data']) expect(settingsPages.some((page) => page.includes(`title="${section}"`))).toBe(true)
-    expect(settingsLayout).toContain('Account, access, and privacy controls for your RepoView workspace.')
+    for (const section of ['Account', 'Security', 'GitHub', 'Notifications', 'Privacy & Data']) expect(settingsNavigation).toContain(`label: '${section}'`)
+    expect(settingsLayout).toContain('SettingsNavigation')
+    expect(settingsLayout).not.toContain('Account, access, and privacy controls for your RepoView workspace.')
     expect(settingsPages.join('\n')).not.toContain('SendTestEmailForm')
     expect(settingsPages.join('\n')).not.toContain('SMTP')
   })

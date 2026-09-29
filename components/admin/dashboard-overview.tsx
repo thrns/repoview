@@ -3,7 +3,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 
 import { Button, Card, PageContainer } from '@/components/ui'
-import { OwnerPageHeader } from './owner-workspace-controls'
+import { OwnerPageToolbar } from './owner-workspace-controls'
 import type { DashboardOverview, DashboardOverviewActivity, DashboardOverviewTimePoint } from '@/lib/dashboard/overview'
 
 export function DashboardOverviewView({ data }: { data: DashboardOverview }) {
@@ -11,9 +11,7 @@ export function DashboardOverviewView({ data }: { data: DashboardOverview }) {
 
   return (
     <PageContainer size="default" className="space-y-6">
-      <OwnerPageHeader
-        title="Dashboard"
-        description="Monitor private-share activity, viewers, and the latest changes in your workspace."
+      <OwnerPageToolbar
         actions={<Button asChild variant="primary"><Link href="/dashboard/shares/new"><Link2 className="size-4" aria-hidden="true" /> New share</Link></Button>}
       />
 

@@ -26,7 +26,6 @@ export default async function SharesPage() {
   } catch (error) {
     return (
       <PageContainer size="large" className="space-y-5">
-        <header className="border-b border-border-secondary pb-6"><h1 className="type-page-title">Shares</h1><p className="mt-2 type-small">Manage recipient-specific repository previews.</p></header>
         <Admonition type="destructive" title="Share list unavailable" description={error instanceof Error ? error.message : 'Try again after checking the database connection.'} />
       </PageContainer>
     )

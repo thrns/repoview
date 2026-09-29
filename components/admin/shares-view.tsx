@@ -28,7 +28,7 @@ import {
 } from '@/components/ui'
 import type { Tables } from '@/lib/supabase/database.types'
 import type { ShareStatus } from '@/lib/shares/dashboard'
-import { ActiveFilterSummary, OwnerEmptyState, OwnerFilterDialog, OwnerFilterField, OwnerPageHeader, OwnerSearchField } from './owner-workspace-controls'
+import { ActiveFilterSummary, OwnerEmptyState, OwnerFilterDialog, OwnerFilterField, OwnerPageToolbar, OwnerSearchField } from './owner-workspace-controls'
 
 export interface ShareListItem {
   share: Pick<Tables<'shares'>, 'id' | 'share_code' | 'share_type' | 'recipient_label' | 'ref' | 'expires_at' | 'note' | 'created_at'>
@@ -107,7 +107,7 @@ export function SharesView({ items }: { items: ShareListItem[] }) {
 
   return (
     <PageContainer size="large" className="space-y-6">
-      <OwnerPageHeader title="Shares" description="Manage recipient-specific repository previews." meta={<>{items.length} {items.length === 1 ? 'share' : 'shares'}</>} />
+      <OwnerPageToolbar meta={<>{items.length} {items.length === 1 ? 'share' : 'shares'}</>} />
 
       <section aria-label="Shares inventory">
         <div className="space-y-3">

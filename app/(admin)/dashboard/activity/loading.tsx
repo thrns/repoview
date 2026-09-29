@@ -4,7 +4,7 @@ export default function ActivityLoading() {
   return (
     <PageContainer size="default" className="pb-10 lg:pb-14" aria-busy="true" aria-label="Loading activity">
       <div className="sticky top-0 z-30 -mx-5 bg-background/95 px-5 pb-4 pt-7 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 lg:pb-5 lg:pt-10">
-        <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div className="space-y-2"><div className="flex items-baseline gap-3"><Skeleton className="h-9 w-32" /><Skeleton className="h-3 w-20" /></div><Skeleton className="h-4 w-full max-w-2xl" /></div><Skeleton className="hidden h-4 w-32 sm:block" /></header>
+        <header className="flex items-center justify-between gap-3"><Skeleton className="h-3 w-20" /><Skeleton className="hidden h-4 w-32 sm:block" /></header>
         <div className="mt-5 flex items-center gap-2 rounded-lg border border-border/70 bg-card/75 p-2"><Skeleton className="h-10 w-full max-w-sm" /><Skeleton className="h-10 w-32" /></div>
       </div>
 

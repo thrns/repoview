@@ -38,7 +38,7 @@ export default async function RepositoriesPage({ searchParams }: { searchParams?
     const hasEnabledRepository = items.some((item) => item.local?.enabled)
 
     return (
-      <div className="flex h-full min-h-0 flex-col">
+      <div className="flex flex-col">
         {typeof params?.github === 'string' ? (
           <PageContainer size="large" className="shrink-0 pb-0">
             <GitHubConnectionStatusAlert status={params.github} />
@@ -62,7 +62,6 @@ export default async function RepositoriesPage({ searchParams }: { searchParams?
 
     return (
       <PageContainer size="large" className="space-y-6">
-        <header className="border-b border-border-secondary pb-6"><h1 className="type-page-title">Repositories</h1><p className="mt-2 type-small">Manage the repositories available to RepoView shares.</p></header>
         <Admonition type="destructive" title="Repository list unavailable" description={message} />
       </PageContainer>
     )

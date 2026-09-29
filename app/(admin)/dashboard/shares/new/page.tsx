@@ -39,12 +39,10 @@ export default async function NewSharePage({ searchParams }: { searchParams?: Pr
 
     return (
       <PageContainer size="small">
-        <div className="mb-8">
+        <div className="mb-6">
           <Link href="/dashboard/shares" className="text-xs font-medium text-foreground-muted transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             Shares <span className="px-1 text-foreground-muted/60">/</span> New
           </Link>
-          <h1 className="mt-3 type-page-title">Create a share</h1>
-          <p className="mt-1.5 max-w-xl type-small">Share one repository ref with a specific recipient without granting repository access.</p>
         </div>
         <CreateShareForm repositories={repositories} onboarding={onboarding} />
       </PageContainer>
@@ -56,8 +54,6 @@ export default async function NewSharePage({ searchParams }: { searchParams?: Pr
           <Link href="/dashboard/shares" className="text-xs font-medium text-foreground-muted transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             Shares <span className="px-1 text-foreground-muted/60">/</span> New
           </Link>
-          <h1 className="mt-3 type-page-title">Create a share</h1>
-          <p className="mt-1.5 type-small">Repository refs could not be loaded.</p>
         </div>
         <Admonition type="destructive" title="Share form unavailable" description={error instanceof Error ? error.message : 'Try again after checking the repository configuration.'} />
         <Link

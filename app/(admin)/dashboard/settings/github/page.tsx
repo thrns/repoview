@@ -14,7 +14,7 @@ export default async function GitHubSettingsPage({ searchParams }: { searchParam
   return (
     <>
       {githubStatus ? <div className="pt-6"><GitHubConnectionStatusAlert status={githubStatus} /></div> : null}
-      <SettingsSection id="github" title="GitHub" description="Manage the GitHub accounts and organizations that can provide private repositories.">
+      <SettingsSection id="github">
         <SettingsGitHub installations={data.installations} canManage={canManageWorkspace} quotaUsage={data.quotaUsage} />
       </SettingsSection>
     </>

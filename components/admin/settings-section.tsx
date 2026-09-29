@@ -1,34 +1,11 @@
 import type { ReactNode } from 'react'
 
-import {
-  PageSection,
-  PageSectionContent,
-  PageSectionDescription,
-  PageSectionMeta,
-  PageSectionSummary,
-  PageSectionTitle,
-} from '@/components/ui'
-
 export function SettingsSection({
   id,
-  title,
-  description,
   children,
 }: {
   id: string
-  title: string
-  description: string
   children: ReactNode
 }) {
-  return (
-    <PageSection id={id} className="scroll-mt-8">
-      <PageSectionMeta>
-        <PageSectionSummary>
-          <PageSectionTitle>{title}</PageSectionTitle>
-          <PageSectionDescription>{description}</PageSectionDescription>
-        </PageSectionSummary>
-      </PageSectionMeta>
-      <PageSectionContent>{children}</PageSectionContent>
-    </PageSection>
-  )
+  return <section id={id} className="scroll-mt-8 space-y-4 py-7 lg:py-9">{children}</section>
 }

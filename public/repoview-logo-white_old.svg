@@ -1,0 +1,26 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path
+    d="M96 144C96 117.49 117.49 96 144 96H221.5L264 140H368C394.51 140 416 161.49 416 188V368C416 394.51 394.51 416 368 416H144C117.49 416 96 394.51 96 368V144Z"
+    stroke="white"
+    stroke-width="34"
+    stroke-linejoin="round"
+  />
+
+  <path
+    d="M204 212V308C204 325.673 218.327 340 236 340H300"
+    stroke="white"
+    stroke-width="24"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M204 260H300"
+    stroke="white"
+    stroke-width="24"
+    stroke-linecap="round"
+  />
+
+  <circle cx="204" cy="204" r="20" fill="white"/>
+  <circle cx="308" cy="260" r="20" fill="white"/>
+  <circle cx="308" cy="340" r="20" fill="white"/>
+</svg>

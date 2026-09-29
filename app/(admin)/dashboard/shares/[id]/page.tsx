@@ -19,10 +19,6 @@ export default async function ShareDetailPage({ params }: { params: Promise<{ id
 
     return (
       <PageContainer size="default" className="space-y-6">
-        <div>
-          <h1 className="type-page-title">Share detail</h1>
-          <p className="mt-2 type-small">Review this share's lifecycle and viewer activity.</p>
-        </div>
         <Admonition type="destructive" title="Share detail unavailable" description={message} />
       </PageContainer>
     )

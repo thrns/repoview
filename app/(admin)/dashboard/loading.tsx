@@ -3,13 +3,7 @@ import { PageContainer, Skeleton } from '@/components/ui'
 export default function DashboardLoading() {
   return (
     <PageContainer size="default" className="space-y-6" aria-busy="true" aria-label="Loading dashboard">
-      <header className="flex flex-col gap-4 border-b border-border/60 pb-7 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-2">
-          <Skeleton className="h-9 w-56 max-w-full" />
-          <Skeleton className="h-4 w-full max-w-2xl" />
-        </div>
-        <Skeleton className="h-10 w-28" />
-      </header>
+      <div className="flex justify-end"><Skeleton className="h-10 w-28" /></div>
 
       <section className="space-y-3" aria-hidden="true">
         <div className="flex items-center justify-between gap-4"><Skeleton className="h-3 w-32" /><Skeleton className="h-3 w-20" /></div>

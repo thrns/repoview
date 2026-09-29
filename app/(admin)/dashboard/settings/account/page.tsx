@@ -12,7 +12,7 @@ export default async function AccountSettingsPage({ searchParams }: { searchPara
   const fullName = data.profile?.full_name ?? getMetadataName(data.context.user.user_metadata)
 
   return (
-    <SettingsSection id="account" title="Account" description="Keep your identity and sign-in details up to date.">
+    <SettingsSection id="account">
       <SettingsAccount fullName={fullName} email={data.context.user.email ?? ''} emailVerified={data.emailVerified} reauthStatus={reauthStatus} reauthOperation={reauthOperation} />
     </SettingsSection>
   )

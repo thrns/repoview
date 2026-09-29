@@ -3,11 +3,7 @@ import { PageContainer, Skeleton } from '@/components/ui'
 export default function NewShareLoading() {
   return (
     <PageContainer size="small" aria-busy="true" aria-label="Loading new share form">
-      <header className="mb-8 space-y-3">
-        <Skeleton className="h-3 w-24" />
-        <Skeleton className="h-8 w-52" />
-        <Skeleton className="h-4 w-full max-w-xl" />
-      </header>
+      <div className="mb-6"><Skeleton className="h-3 w-24" /></div>
 
       <div className="space-y-9 pb-28">
         <FormSectionSkeleton fields={2} />

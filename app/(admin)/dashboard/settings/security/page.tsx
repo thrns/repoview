@@ -8,7 +8,7 @@ export default async function SecuritySettingsPage() {
   const data = await getSettingsPageData()
 
   return (
-    <SettingsSection id="security" title="Security" description="Review account protection and the sessions that can access this workspace.">
+    <SettingsSection id="security">
       <SettingsSecurity activity={data.activity} />
     </SettingsSection>
   )

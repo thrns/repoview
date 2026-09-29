@@ -17,33 +17,23 @@ import {
   EmptyState,
   Input,
   Label,
-  PageHeader,
-  PageHeaderAside,
-  PageHeaderDescription,
-  PageHeaderSummary,
-  PageHeaderTitle,
   cn,
 } from '@/components/ui'
 
-export function OwnerPageHeader({
-  title,
-  description,
+export function OwnerPageToolbar({
   meta,
   actions,
 }: {
-  title: string
-  description: string
   meta?: ReactNode
   actions?: ReactNode
 }) {
+  if (!meta && !actions) return null
+
   return (
-    <PageHeader>
-      <PageHeaderSummary>
-        <PageHeaderTitle>{title}</PageHeaderTitle>
-        <PageHeaderDescription>{description}</PageHeaderDescription>
-      </PageHeaderSummary>
-      {actions || meta ? <PageHeaderAside>{meta ? <span className="type-meta tabular-nums">{meta}</span> : null}{actions}</PageHeaderAside> : null}
-    </PageHeader>
+    <div className="flex min-h-9 flex-wrap items-center justify-end gap-3">
+      {meta ? <span className="type-meta tabular-nums">{meta}</span> : null}
+      {actions}
+    </div>
   )
 }
 

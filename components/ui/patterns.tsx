@@ -1,5 +1,7 @@
+import { AlertTriangle, HelpCircle } from 'lucide-react'
 import type { HTMLAttributes, ReactNode } from 'react'
 
+import { Card } from './card'
 import { cn } from './utils'
 
 type PageContainerSize = 'small' | 'medium' | 'default' | 'large' | 'full'
@@ -169,12 +171,43 @@ export function Admonition({ type = 'default', title, description, icon, childre
   )
 }
 
-export function ErrorDisplay({ title = 'Something went wrong', errorMessage, icon, action, className }: { title?: string; errorMessage: string; icon?: ReactNode; action?: ReactNode; className?: string }) {
+const defaultSupportHref = 'mailto:tharunpranav.ubc@gmail.com?subject=RepoView%20support%20request'
+
+export function ErrorDisplay({
+  title = 'Something went wrong',
+  errorMessage,
+  icon,
+  children,
+  supportHref = defaultSupportHref,
+  supportLabel = 'Contact support',
+  className,
+}: {
+  title?: ReactNode
+  errorMessage: string
+  icon?: ReactNode
+  children?: ReactNode
+  supportHref?: string
+  supportLabel?: string
+  className?: string
+}) {
   return (
-    <Admonition type="destructive" title={title} icon={icon} className={cn('flex-col', className)}>
-      <pre className="mt-3 overflow-x-auto rounded-md border border-destructive/20 bg-surface-200/60 p-3 font-mono text-xs leading-5 text-foreground">{errorMessage}</pre>
-      {action ? <div className="mt-4">{action}</div> : null}
-    </Admonition>
+    <Card role="alert" className={cn('rounded-md shadow-none', className)}>
+      <div className="flex min-h-12 items-center gap-2.5 px-3 py-2.5">
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-warning/15 text-warning" aria-hidden="true">
+          {icon ?? <AlertTriangle className="size-3.5" />}
+        </span>
+        <h2 className="min-w-0 text-sm font-medium text-foreground">{title}</h2>
+      </div>
+      <pre className="max-h-48 overflow-x-hidden overflow-y-auto whitespace-pre-wrap break-words border-y border-warning/30 bg-warning/5 px-4 py-3 font-mono text-xs leading-5 text-foreground">{errorMessage}</pre>
+      {children ? <div>{children}</div> : null}
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 border-t border-border-secondary px-3 py-2.5 text-xs text-foreground-muted">
+        <HelpCircle className="size-4 shrink-0" aria-hidden="true" />
+        <span>Need help?</span>
+        <a href={supportHref} className="min-w-0 break-words text-foreground underline decoration-border-strong underline-offset-4 hover:text-foreground-light hover:decoration-foreground-muted">
+          {supportLabel}
+        </a>
+      </div>
+    </Card>
   )
 }
 

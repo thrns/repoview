@@ -2,11 +2,8 @@ import { Card, Checkbox, PageContainer, Skeleton, Table, TableBody, TableCell, T
 
 export default function RepositoriesLoading() {
   return (
-    <PageContainer size="large" className="flex min-h-0 min-w-0 flex-1 flex-col gap-5" aria-busy="true" aria-label="Loading repositories">
-      <header className="flex flex-col gap-4 border-b border-border/60 pb-7 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-2"><Skeleton className="h-9 w-56" /><Skeleton className="h-4 w-full max-w-2xl" /></div>
-        <Skeleton className="h-3 w-24" />
-      </header>
+    <PageContainer size="large" className="space-y-5" aria-busy="true" aria-label="Loading repositories">
+      <div className="flex justify-end"><Skeleton className="h-3 w-24" /></div>
 
       <div className="space-y-3"><div className="flex flex-col gap-2 sm:flex-row"><Skeleton className="h-10 w-full max-w-xl flex-1" /><Skeleton className="h-10 w-32" /></div></div>
 
