@@ -125,8 +125,8 @@ function createComponents({ shareId, documentPath, tree, onOpenPath }: { shareId
       if (language.toLocaleLowerCase() === 'mermaid') {
         return (
           <div className="markdown-code-fence markdown-mermaid-fence">
-            <div className="markdown-code-fence-header">
-              <span className="font-mono text-xs text-foreground-muted">mermaid</span>
+            <div className="markdown-code-fence-header markdown-mermaid-header">
+              <span className="markdown-mermaid-language">mermaid</span>
               <CopyFileButton content={source} analyticsPath={documentPath} />
             </div>
             <MermaidDiagram chart={source} analyticsPath={documentPath} />

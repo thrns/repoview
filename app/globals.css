@@ -528,26 +528,30 @@ body:has([data-admin-shell]) {
 .markdown-callout-content > :first-child { margin-top: 0; }
 .markdown-callout-content > :last-child { margin-bottom: 0; }
 
-.markdown-mermaid { max-width: 100%; overflow: hidden; background: hsl(var(--card)); }
-.markdown-mermaid-toolbar { display: flex; min-height: 2.75rem; align-items: center; justify-content: flex-end; gap: 0.75rem; padding: 0.45rem 0.65rem 0.45rem 0.9rem; }
-.markdown-mermaid-hint { display: inline-flex; align-items: center; gap: 0.35rem; margin-right: auto; color: hsl(var(--muted-foreground)); font-size: 0.68rem; font-weight: 500; }
-.markdown-mermaid-controls { display: inline-flex; align-items: center; gap: 0.15rem; border: 1px solid hsl(var(--border)); border-radius: 0.5rem; background: hsl(var(--background) / 0.9); padding: 0.2rem; }
-.markdown-diagram-control { display: inline-flex; width: 1.8rem; height: 1.8rem; align-items: center; justify-content: center; border-radius: 0.3rem; color: hsl(var(--muted-foreground)); transition: background-color 140ms ease-out, color 140ms ease-out; }
-.markdown-diagram-control:hover { background: hsl(var(--accent)); color: hsl(var(--foreground)); }
+.markdown-content .markdown-mermaid-fence { --code-surface: hsl(var(--surface-100)); background: var(--code-surface); color: hsl(var(--foreground)); box-shadow: none; }
+.markdown-content .markdown-mermaid-fence .markdown-mermaid-header { background: hsl(var(--surface-200)); border-bottom-color: hsl(var(--border)); }
+.markdown-content .markdown-mermaid-fence .markdown-mermaid-language { color: hsl(var(--foreground-muted)); font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500; letter-spacing: normal; text-transform: none; }
+.markdown-content .markdown-mermaid-fence .markdown-mermaid-header > button { min-height: 2rem; height: 2rem; border-radius: 0.375rem; }
+.markdown-mermaid { max-width: 100%; overflow: hidden; background: hsl(var(--surface-100)); color: hsl(var(--foreground)); }
+.markdown-mermaid-toolbar { display: flex; min-height: 2.75rem; align-items: center; justify-content: flex-end; gap: 0.75rem; border-bottom: 1px solid hsl(var(--border)); background: hsl(var(--surface-100)); padding: 0.45rem 0.65rem 0.45rem 0.9rem; }
+.markdown-mermaid-hint { display: inline-flex; align-items: center; gap: 0.35rem; margin-right: auto; color: hsl(var(--foreground-muted)); font-size: 0.68rem; font-weight: 500; }
+.markdown-mermaid-controls { display: inline-flex; align-items: center; gap: 0.15rem; border: 1px solid hsl(var(--border)); border-radius: 0.5rem; background: hsl(var(--surface-100)); padding: 0.2rem; }
+.markdown-diagram-control { display: inline-flex; width: 1.8rem; height: 1.8rem; align-items: center; justify-content: center; border-radius: 0.3rem; color: hsl(var(--foreground-muted)); transition: background-color 140ms ease-out, color 140ms ease-out; }
+.markdown-diagram-control:hover { background: hsl(var(--surface-200)); color: hsl(var(--foreground)); }
 .markdown-diagram-control:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 1px; }
 .markdown-diagram-control:active { transform: scale(0.96); }
-.markdown-diagram-control-divider { width: 1px; height: 1.1rem; margin-inline: 0.2rem; background: hsl(var(--border)); }
-.markdown-diagram-zoom { min-width: 2.45rem; color: hsl(var(--muted-foreground)); font-family: var(--font-mono); font-size: 0.65rem; text-align: center; }
-.markdown-mermaid-viewport { position: relative; display: grid; min-height: 16rem; place-items: center; overflow: hidden; border-top: 1px solid hsl(var(--border) / 0.75); background: hsl(var(--background) / 0.5); touch-action: none; user-select: none; }
+.markdown-diagram-control-divider { width: 1px; height: 1.1rem; margin-inline: 0.2rem; background: hsl(var(--border-secondary)); }
+.markdown-diagram-zoom { min-width: 2.45rem; color: hsl(var(--foreground-muted)); font-family: var(--font-mono); font-size: 0.65rem; text-align: center; }
+.markdown-mermaid-viewport { position: relative; display: grid; min-height: 16rem; place-items: center; overflow: hidden; background: hsl(var(--surface-100)); padding: 2rem 1.5rem; touch-action: none; user-select: none; }
 .markdown-mermaid-canvas { display: inline-flex; min-width: min(100%, 28rem); align-items: center; justify-content: center; transform-origin: center; will-change: transform; }
 .markdown-mermaid-canvas svg { display: block; width: auto; min-width: min(100%, 28rem); max-width: none; height: auto; max-height: min(65vh, 42rem); }
-.markdown-mermaid-loading { display: inline-flex; align-items: center; gap: 0.35rem; color: hsl(var(--muted-foreground)); }
-.markdown-mermaid-loading span { width: 0.38rem; height: 0.38rem; border-radius: 999px; background: hsl(var(--muted-foreground) / 0.6); animation: markdown-mermaid-pulse 900ms ease-in-out infinite; }
+.markdown-mermaid-loading { display: inline-flex; align-items: center; gap: 0.35rem; color: hsl(var(--foreground-muted)); }
+.markdown-mermaid-loading span { width: 0.38rem; height: 0.38rem; border-radius: 999px; background: hsl(var(--foreground-muted) / 0.6); animation: markdown-mermaid-pulse 900ms ease-in-out infinite; }
 .markdown-mermaid-loading span:nth-child(2) { animation-delay: 120ms; }
 .markdown-mermaid-loading span:nth-child(3) { animation-delay: 240ms; }
 .markdown-mermaid-fallback { width: min(100%, 48rem); padding: 1rem; }
-.markdown-mermaid-fallback pre { margin-top: 0.75rem; overflow-x: auto; color: hsl(var(--muted-foreground)); font-family: var(--font-mono); font-size: 0.8rem; line-height: 1.4rem; white-space: pre; }
-.markdown-mermaid:fullscreen { display: flex; flex-direction: column; background: hsl(var(--background)); }
+.markdown-mermaid-fallback pre { margin-top: 0.75rem; overflow-x: auto; border: 1px solid hsl(var(--border-secondary)); border-radius: 0.5rem; background: hsl(var(--surface-200)); padding: 0.75rem; color: hsl(var(--foreground-light)); font-family: var(--font-mono); font-size: 0.8rem; line-height: 1.4rem; white-space: pre; }
+.markdown-mermaid:fullscreen { display: flex; flex-direction: column; background: hsl(var(--surface-100)); }
 .markdown-mermaid:fullscreen .markdown-mermaid-viewport { min-height: 0; flex: 1; }
 
 @keyframes markdown-mermaid-pulse {

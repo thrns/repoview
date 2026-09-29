@@ -1,195 +1,361 @@
-import { Activity, ArrowRight, BarChart3, Clipboard, Download, Eye, FileCode2, FileText, GitBranch, Link2, Users } from 'lucide-react'
+import {
+  Activity,
+  ArrowRight,
+  BarChart3,
+  Clipboard,
+  Clock3,
+  Download,
+  Eye,
+  FileCode2,
+  FileText,
+  GitBranch,
+  Link2,
+  Users,
+} from 'lucide-react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 
-import { Card, PageContainer } from '@/components/ui'
-import type { DashboardOverview, DashboardOverviewActivity, DashboardOverviewTimePoint } from '@/lib/dashboard/overview'
+import { Badge, Card, PageContainer } from '@/components/ui'
+import type {
+  DashboardMetricTrend,
+  DashboardOverview,
+  DashboardOverviewActivity,
+  DashboardOverviewTimePoint,
+  DashboardRange,
+} from '@/lib/dashboard/overview'
 
 export function DashboardOverviewView({ data }: { data: DashboardOverview }) {
-  const viewsLast7Days = data.viewsOverTime.reduce((total, point) => total + point.value, 0)
+  const signalSeries = data.workspaceSignalsOverTime
 
   return (
-    <PageContainer size="default" className="space-y-6">
-      <section aria-labelledby="workspace-summary" className="space-y-3">
-        <h2 id="workspace-summary" className="sr-only">Workspace metrics</h2>
+    <PageContainer size="default" className="space-y-4 sm:space-y-5">
+      <section aria-labelledby="workspace-summary">
+        <h1 id="workspace-summary" className="sr-only">Workspace overview</h1>
         <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <SummaryMetric label="Active shares" value={data.activeShares} detail={data.activeShares === 0 ? 'No active shares yet' : 'Ready for viewers'} icon={<Link2 className="size-4" aria-hidden="true" />} />
-          <SummaryMetric label="Anonymous viewers" value={data.uniqueAnonymousViewers} detail={data.uniqueAnonymousViewers === 0 ? 'Waiting for sessions' : formatReturningViewers(data.returningViewers)} icon={<Users className="size-4" aria-hidden="true" />} />
-          <SummaryMetric label="Confirmed views" value={data.totalViews} detail={viewsLast7Days === 0 ? 'No views in the last 7 days' : `${viewsLast7Days} in the last 7 days`} icon={<Eye className="size-4" aria-hidden="true" />} />
-          <SummaryMetric label="Enabled repositories" value={data.enabledRepositories} detail={data.enabledRepositories === 0 ? 'Connect a repository to begin' : 'Available for private shares'} icon={<GitBranch className="size-4" aria-hidden="true" />} />
+          <DashboardMetricCard
+            label="Active shares"
+            value={data.activeShares}
+            detail={data.activeShares === 0 ? 'No active shares yet' : 'Ready for viewers'}
+            icon={<Link2 className="size-4" aria-hidden="true" />}
+          />
+          <DashboardMetricCard
+            label="Anonymous viewers"
+            value={data.uniqueAnonymousViewers}
+            detail={data.uniqueAnonymousViewers === 0 ? 'Waiting for sessions' : formatReturningViewers(data.returningViewers)}
+            icon={<Users className="size-4" aria-hidden="true" />}
+            trend={data.metricTrends.anonymousViewers}
+            sparkline={signalSeries.map((point) => point.uniqueViewers)}
+            sparklineLabel="Daily unique viewers"
+          />
+          <DashboardMetricCard
+            label="Confirmed views"
+            value={data.totalViews}
+            detail={data.totalViews === 0 ? `No views in the last ${getRangeLabel(data.range)}` : `Confirmed in the last ${getRangeLabel(data.range)}`}
+            icon={<Eye className="size-4" aria-hidden="true" />}
+            trend={data.metricTrends.confirmedViews}
+            sparkline={data.viewsOverTime.map((point) => point.value)}
+            sparklineLabel="Daily confirmed views"
+          />
+          <DashboardMetricCard
+            label="Enabled repositories"
+            value={data.enabledRepositories}
+            detail={data.enabledRepositories === 0 ? 'Connect a repository to begin' : 'Available for private shares'}
+            icon={<GitBranch className="size-4" aria-hidden="true" />}
+          />
         </dl>
-        <WorkspaceSignals data={data} />
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,.65fr)] xl:items-start">
-        <Card className="overflow-hidden">
-          <section aria-labelledby="recent-activity">
-            <header className="flex flex-col gap-3 border-b border-border/60 bg-muted/20 px-5 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:px-6">
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <span className="inline-flex size-7 items-center justify-center rounded-md border border-border-secondary bg-surface-200 text-foreground-light"><Activity className="size-3.5" aria-hidden="true" /></span>
-                  <h2 id="recent-activity" className="font-heading text-xl font-semibold tracking-tight">Recent activity</h2>
-                </div>
-                <p className="mt-2 text-sm text-foreground-muted">Meaningful actions from confirmed private-share sessions.</p>
-              </div>
-              <Link href="/dashboard/activity" className="inline-flex min-h-9 items-center gap-1.5 self-start rounded-md px-2 text-xs font-medium text-link transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:self-auto">View all activity <ArrowRight className="size-3.5" aria-hidden="true" /></Link>
-            </header>
-            {data.recentActivity.length === 0 ? <EmptyActivity hasActiveShare={data.activeShares > 0} /> : <ActivityList items={data.recentActivity} />}
-          </section>
-        </Card>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
+        <WorkspaceSignalsCard data={data} />
+        <LastActivityCard items={data.recentActivity} />
+      </div>
 
-        <ViewsTrendCard points={data.viewsOverTime} totalViews={viewsLast7Days} />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <RecentActivityCard items={data.recentActivity} hasActiveShare={data.activeShares > 0} />
+        <ViewsTrendCard data={data} />
+        <TopRepositoriesCard repositories={data.topRepositories} />
       </div>
     </PageContainer>
   )
 }
 
-function SummaryMetric({ label, value, detail, icon }: { label: string; value: number; detail: string; icon: ReactNode }) {
+function DashboardMetricCard({
+  label,
+  value,
+  detail,
+  icon,
+  trend,
+  sparkline,
+  sparklineLabel,
+}: {
+  label: string
+  value: number
+  detail: string
+  icon: ReactNode
+  trend?: DashboardMetricTrend
+  sparkline?: number[]
+  sparklineLabel?: string
+}) {
   return (
-    <Card className="group flex min-h-36 flex-col justify-between p-4 transition-[border-color,transform] duration-150 hover:-translate-y-px hover:border-border-strong">
+    <Card className="min-w-0 p-4">
       <div className="flex items-start justify-between gap-3">
-        <dt className="min-w-0 text-xs font-medium text-foreground-muted">{label}</dt>
-        <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-border-secondary bg-surface-200 text-foreground-light transition-colors group-hover:border-border-secondary group-hover:bg-accent">{icon}</span>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-border-secondary bg-surface-200 text-foreground-light">{icon}</span>
+          <dt className="truncate text-xs font-medium text-foreground-muted">{label}</dt>
+        </div>
+        {trend ? <MetricTrend trend={trend} /> : null}
       </div>
-      <div>
-        <dd className="mt-5 font-heading text-3xl font-semibold leading-none tracking-tight tabular-nums">{value}</dd>
-        <p className="mt-2 truncate text-xs text-foreground-muted" title={detail}>{detail}</p>
-      </div>
+      <dd className="mt-4 font-heading text-2xl font-semibold leading-none tracking-tight tabular-nums">{formatNumber(value)}</dd>
+      <p className="mt-2 truncate text-xs text-foreground-muted" title={detail}>{detail}</p>
+      {sparkline && sparklineLabel ? <MiniBars values={sparkline} label={sparklineLabel} className="mt-3" /> : null}
     </Card>
   )
 }
 
-function WorkspaceSignals({ data }: { data: DashboardOverview }) {
-  const latestActivity = data.recentActivity[0]
+function MetricTrend({ trend }: { trend: DashboardMetricTrend }) {
+  const label = formatTrend(trend)
+  const variant = trend.changePercent !== null && trend.changePercent > 0 ? 'success' : 'secondary'
 
-  return (
-    <div className="rounded-lg border border-border/60 bg-muted/35 px-4 py-3.5 sm:px-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-2.5">
-          <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-border/70 bg-card text-foreground-muted"><BarChart3 className="size-3.5" aria-hidden="true" /></span>
-          <div className="min-w-0">
-            <p className="text-xs font-medium">Workspace signals</p>
-            <p className="mt-0.5 text-xs text-foreground-muted">Supporting context for your recent share activity</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4 lg:flex lg:items-center lg:gap-6">
-          <SignalItem label="Files viewed" value={data.filesViewed} />
-          <SignalItem label="Downloads" value={data.downloads} />
-          <SignalItem label="Copies" value={data.copyEvents} />
-          <div className="min-w-0 lg:border-l lg:border-border/60 lg:pl-6">
-            <p className="text-xs text-foreground-muted">Last activity</p>
-            <p className="mt-1 truncate text-xs font-medium" title={latestActivity?.repositoryName}>{latestActivity ? formatRelativeTime(latestActivity.createdAt) : 'None yet'}</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+  return <Badge variant={variant} className="shrink-0 px-1.5 py-0 font-mono text-[10px] tabular-nums" aria-label={`Compared with the previous period: ${label}`}>{label}</Badge>
 }
 
-function SignalItem({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="min-w-0">
-      <p className="text-xs text-foreground-muted">{label}</p>
-      <p className="mt-1 font-mono text-sm font-semibold tabular-nums">{value}</p>
-    </div>
-  )
-}
+function WorkspaceSignalsCard({ data }: { data: DashboardOverview }) {
+  const signals: Array<{ label: string; value: number; icon: ReactNode; values: number[]; description: string }> = [
+    { label: 'Files viewed', value: data.filesViewed, icon: <FileCode2 className="size-3.5" aria-hidden="true" />, values: data.workspaceSignalsOverTime.map((point) => point.filesViewed), description: 'Unique file/session views' },
+    { label: 'Downloads', value: data.downloads, icon: <Download className="size-3.5" aria-hidden="true" />, values: data.workspaceSignalsOverTime.map((point) => point.downloads), description: 'Download events' },
+    { label: 'Copies', value: data.copyEvents, icon: <Clipboard className="size-3.5" aria-hidden="true" />, values: data.workspaceSignalsOverTime.map((point) => point.copies), description: 'Copy events' },
+    { label: 'Unique viewers', value: data.uniqueAnonymousViewers, icon: <Users className="size-3.5" aria-hidden="true" />, values: data.workspaceSignalsOverTime.map((point) => point.uniqueViewers), description: 'Confirmed viewer identities' },
+  ]
 
-function ViewsTrendCard({ points, totalViews }: { points: DashboardOverviewTimePoint[]; totalViews: number }) {
   return (
-    <Card className="overflow-hidden">
-      <section aria-labelledby="view-trend">
-        <header className="flex items-start justify-between gap-4 border-b border-border/60 bg-muted/20 px-5 py-4 sm:px-6">
-          <div className="flex min-w-0 items-start gap-2.5">
-            <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-border-secondary bg-surface-200 text-foreground-light"><BarChart3 className="size-3.5" aria-hidden="true" /></span>
-            <div className="min-w-0">
-              <h2 id="view-trend" className="font-heading text-lg font-semibold tracking-tight">View trend</h2>
-              <p className="mt-1 text-xs text-foreground-muted">Confirmed views, last 7 days</p>
+    <Card className="min-w-0">
+      <section aria-labelledby="workspace-signals">
+        <DashboardCardHeader
+          id="workspace-signals"
+          icon={<BarChart3 className="size-3.5" aria-hidden="true" />}
+          title="Workspace signals"
+          description="Overview of share activity and file interactions in your workspace."
+          action={<DashboardRangeSelector range={data.range} />}
+        />
+        <div className="grid grid-cols-2 divide-y divide-border-secondary sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+          {signals.map((signal) => (
+            <div key={signal.label} className="min-w-0 px-4 py-4 sm:px-5 sm:py-5">
+              <div className="flex items-center gap-2 text-xs text-foreground-muted">
+                <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-md border border-border-secondary bg-surface-200 text-foreground-light">{signal.icon}</span>
+                <span className="truncate">{signal.label}</span>
+              </div>
+              <p className="mt-3 font-heading text-xl font-semibold tabular-nums">{formatNumber(signal.value)}</p>
+              <p className="mt-1 truncate text-[11px] text-foreground-muted" title={signal.description}>{signal.description}</p>
+              <MiniBars values={signal.values} label={`${signal.label} by day`} className="mt-3" />
             </div>
-          </div>
-          <span className="shrink-0 font-mono text-xs tabular-nums text-foreground-muted">{totalViews} total</span>
-        </header>
-        <div className="px-5 py-5 sm:px-6 sm:py-6">
-          {totalViews > 0 ? <ViewsOverTime points={points} /> : <EmptyTrend />}
+          ))}
         </div>
       </section>
     </Card>
   )
 }
 
+function LastActivityCard({ items }: { items: DashboardOverviewActivity[] }) {
+  return (
+    <Card className="min-w-0">
+      <section aria-labelledby="last-activity">
+        <DashboardCardHeader
+          id="last-activity"
+          icon={<Clock3 className="size-3.5" aria-hidden="true" />}
+          title="Last activity"
+          description="Your most recent share activity across repositories."
+          action={<ViewAllLink />}
+        />
+        {items.length === 0 ? <CompactEmptyState icon={<Activity className="size-4" aria-hidden="true" />} title="No activity yet" description="Activity will appear here once someone opens a private share." /> : <ActivityList items={items} limit={5} compact />}
+      </section>
+    </Card>
+  )
+}
+
+function RecentActivityCard({ items, hasActiveShare }: { items: DashboardOverviewActivity[]; hasActiveShare: boolean }) {
+  return (
+    <Card className="min-w-0">
+      <section aria-labelledby="recent-activity">
+        <DashboardCardHeader
+          id="recent-activity"
+          icon={<Activity className="size-3.5" aria-hidden="true" />}
+          title="Recent activity"
+          description="Meaningful actions from confirmed private-share sessions."
+          action={<ViewAllLink />}
+        />
+        {items.length === 0 ? <EmptyActivity hasActiveShare={hasActiveShare} /> : <ActivityList items={items} limit={6} compact />}
+      </section>
+    </Card>
+  )
+}
+
+function ViewsTrendCard({ data }: { data: DashboardOverview }) {
+  const totalViews = data.viewsOverTime.reduce((total, point) => total + point.value, 0)
+  const rangeLabel = getRangeLabel(data.range)
+
+  return (
+    <Card className="min-w-0">
+      <section aria-labelledby="view-trend">
+        <DashboardCardHeader
+          id="view-trend"
+          icon={<BarChart3 className="size-3.5" aria-hidden="true" />}
+          title="View trend"
+          description={`Confirmed views, last ${rangeLabel}`}
+          action={<span className="shrink-0 font-mono text-xs tabular-nums text-foreground-muted">{formatNumber(totalViews)} total</span>}
+        />
+        <div className="px-4 py-4 sm:px-5 sm:py-5">
+          {totalViews > 0 ? <ViewsOverTime points={data.viewsOverTime} /> : <EmptyTrend range={data.range} />}
+        </div>
+      </section>
+    </Card>
+  )
+}
+
+function TopRepositoriesCard({ repositories }: { repositories: DashboardOverview['topRepositories'] }) {
+  return (
+    <Card className="min-w-0">
+      <section aria-labelledby="top-shared-repositories">
+        <DashboardCardHeader
+          id="top-shared-repositories"
+          icon={<GitBranch className="size-3.5" aria-hidden="true" />}
+          title="Top shared repositories"
+          description="Repositories with the most confirmed views."
+        />
+        {repositories.length === 0 ? (
+          <CompactEmptyState
+            icon={<GitBranch className="size-4" aria-hidden="true" />}
+            title="No repository view data yet"
+            description="Repositories will be ranked after confirmed private-share views."
+            action={<Link href="/dashboard/repositories" className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-border-control bg-surface-100 px-2.5 text-xs font-medium text-foreground transition-colors hover:border-border-strong hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Open repositories <ArrowRight className="size-3.5" aria-hidden="true" /></Link>}
+          />
+        ) : (
+          <ol className="divide-y divide-border-secondary">
+            {repositories.map((repository, index) => {
+              const proportion = (repository.confirmedViews / repositories[0].confirmedViews) * 100
+              return (
+                <li key={repository.repositoryId}>
+                  <Link href="/dashboard/repositories" className="group block px-4 py-3.5 transition-colors hover:bg-surface-200/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-5">
+                    <div className="flex items-center gap-3">
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-surface-200 font-mono text-[11px] tabular-nums text-foreground-muted">{index + 1}</span>
+                      <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground-light group-hover:text-foreground">{repository.repositoryName}</span>
+                      <span className="shrink-0 font-mono text-xs font-medium tabular-nums text-foreground">{formatNumber(repository.confirmedViews)} {repository.confirmedViews === 1 ? 'view' : 'views'}</span>
+                    </div>
+                    <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-200" aria-hidden="true"><span className="block h-full rounded-full bg-brand-default/70" style={{ width: `${proportion}%` }} /></div>
+                  </Link>
+                </li>
+              )
+            })}
+          </ol>
+        )}
+      </section>
+    </Card>
+  )
+}
+
+function DashboardCardHeader({ id, icon, title, description, action }: { id: string; icon: ReactNode; title: string; description: string; action?: ReactNode }) {
+  return (
+    <header className="flex items-start justify-between gap-3 border-b border-border-secondary px-4 py-3.5 sm:px-5">
+      <div className="flex min-w-0 items-start gap-2.5">
+        <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-border-secondary bg-surface-200 text-foreground-light">{icon}</span>
+        <div className="min-w-0">
+          <h2 id={id} className="font-heading text-sm font-semibold tracking-tight">{title}</h2>
+          <p className="mt-1 max-w-2xl text-xs leading-4 text-foreground-muted">{description}</p>
+        </div>
+      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </header>
+  )
+}
+
+function DashboardRangeSelector({ range }: { range: DashboardRange }) {
+  return (
+    <nav aria-label="Dashboard time range" className="flex items-center rounded-md border border-border-control bg-surface-100 p-0.5">
+      {(['7d', '30d'] as const).map((option) => (
+        <Link
+          key={option}
+          href={`/dashboard?range=${option}`}
+          aria-current={range === option ? 'page' : undefined}
+          className={`inline-flex min-h-7 items-center rounded-sm px-2 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${range === option ? 'bg-surface-200 text-foreground' : 'text-foreground-muted hover:bg-surface-200/70 hover:text-foreground'}`}
+        >
+          {option === '7d' ? 'Last 7 days' : 'Last 30 days'}
+        </Link>
+      ))}
+    </nav>
+  )
+}
+
+function ViewAllLink() {
+  return <Link href="/dashboard/activity" className="inline-flex min-h-8 items-center gap-1 rounded-md px-1.5 text-xs font-medium text-link transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">View all <ArrowRight className="size-3.5" aria-hidden="true" /></Link>
+}
+
+function MiniBars({ values, label, className = '' }: { values: number[]; label: string; className?: string }) {
+  const maxValue = Math.max(...values, 0)
+  if (maxValue === 0) return null
+
+  return (
+    <div role="img" aria-label={`${label}: ${values.join(', ')}`} className={`flex h-6 items-end gap-0.5 ${className}`}>
+      {values.map((value, index) => (
+        <span key={`${label}-${index}`} className="min-w-0 flex-1 rounded-xs bg-brand-default/60" style={{ height: value > 0 ? `${Math.max(14, (value / maxValue) * 100)}%` : '2px' }} />
+      ))}
+      <span className="sr-only">{label}: {values.join(', ')}</span>
+    </div>
+  )
+}
+
 function ViewsOverTime({ points }: { points: DashboardOverviewTimePoint[] }) {
   const maxValue = Math.max(...points.map((point) => point.value), 1)
+  const labelEvery = points.length <= 7 ? 1 : 5
   const chartDescription = points.map((point) => `${point.label}: ${point.value}`).join(', ')
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-4 text-xs text-foreground-muted">
-        <span>Daily confirmed views</span>
-      </div>
-      <div className="relative mt-4 pl-7">
-        <span className="absolute left-0 top-0 font-mono text-xs tabular-nums text-foreground-muted">{maxValue}</span>
-        <span className="absolute bottom-6 left-0 font-mono text-xs tabular-nums text-foreground-muted">0</span>
-        <div className="pointer-events-none absolute inset-x-0 top-0 border-t border-dashed border-border/70" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-6 border-t border-border/70" />
-        <div role="img" aria-label={`Confirmed views by day: ${chartDescription}`} className="grid h-36 grid-cols-7 items-end gap-2">
+      <div className="flex items-center justify-between gap-4 text-xs text-foreground-muted"><span>Daily confirmed views</span><span className="font-mono tabular-nums">{maxValue} max</span></div>
+      <div className="relative mt-3 pl-1">
+        <div className="pointer-events-none absolute inset-x-0 top-1/2 border-t border-dashed border-border-secondary" />
+        <div role="img" aria-label={`Confirmed views by day: ${chartDescription}`} className="relative grid h-32 items-end gap-1.5" style={{ gridTemplateColumns: `repeat(${points.length}, minmax(0, 1fr))` }}>
           {points.map((point) => (
-            <div key={point.label} className="group flex h-full min-w-0 flex-col items-center justify-end gap-1.5" title={`${point.label}: ${point.value} confirmed ${point.value === 1 ? 'view' : 'views'}`}>
-              <span className="font-mono text-xs tabular-nums text-foreground-muted">{point.value > 0 ? point.value : '\u00a0'}</span>
-              <div className="flex h-[calc(100%-1rem)] w-full items-end justify-center">
-                <div className="w-full max-w-10 rounded-t-sm bg-brand-default transition-[height,background-color] duration-150 group-hover:bg-brand-default/85" style={{ height: point.value > 0 ? `${Math.max(12, (point.value / maxValue) * 100)}%` : '2px' }} />
-              </div>
+            <div key={point.label + point.value} className="group flex h-full min-w-0 flex-col items-center justify-end gap-1" title={`${point.label}: ${point.value} confirmed ${point.value === 1 ? 'view' : 'views'}`}>
+              <div className="flex h-[calc(100%-0.75rem)] w-full items-end justify-center"><span className="w-full max-w-7 rounded-t-sm bg-brand-default/75 transition-colors group-hover:bg-brand-default" style={{ height: point.value > 0 ? `${Math.max(10, (point.value / maxValue) * 100)}%` : '2px' }} /></div>
               <span className="sr-only">{point.label}: {point.value} views</span>
             </div>
           ))}
         </div>
-        <div className="mt-2 grid grid-cols-7 gap-2" aria-hidden="true">
-          {points.map((point) => <span key={point.label} className="truncate text-center text-xs text-foreground-muted">{point.label}</span>)}
+        <div className="mt-2 grid gap-1.5" aria-hidden="true" style={{ gridTemplateColumns: `repeat(${points.length}, minmax(0, 1fr))` }}>
+          {points.map((point, index) => <span key={`${point.label}-${index}`} className="truncate text-center text-[10px] text-foreground-muted">{index % labelEvery === 0 || index === points.length - 1 ? point.label : '\u00a0'}</span>)}
         </div>
       </div>
     </div>
   )
 }
 
-function EmptyTrend() {
+function ActivityList({ items, limit, compact = false }: { items: DashboardOverviewActivity[]; limit?: number; compact?: boolean }) {
   return (
-    <div className="flex min-h-44 flex-col items-center justify-center rounded-md border border-dashed border-border-strong/70 bg-muted/20 px-5 text-center">
-      <span className="inline-flex size-9 items-center justify-center rounded-lg border border-border/70 bg-card text-foreground-muted"><BarChart3 className="size-4" aria-hidden="true" /></span>
-      <p className="mt-3 text-sm font-medium">No confirmed views yet</p>
-      <p className="mt-1 max-w-xs text-xs leading-5 text-foreground-muted">The last seven days will take shape here as viewers open a private share.</p>
-    </div>
-  )
-}
-
-function ActivityList({ items }: { items: DashboardOverviewActivity[] }) {
-  return (
-    <div className="divide-y divide-border/60">
-      {items.map((item) => {
+    <ul className="divide-y divide-border-secondary">
+      {items.slice(0, limit).map((item) => {
         const action = formatAction(item)
         return (
-          <div key={item.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-5 py-4 transition-colors hover:bg-muted/25 sm:px-6">
+          <li key={item.id} className={`grid grid-cols-[minmax(0,1fr)_auto] gap-3 transition-colors hover:bg-surface-200/45 ${compact ? 'px-4 py-3 sm:px-5' : 'px-4 py-4 sm:px-5'}`}>
             <div className="min-w-0">
-              <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex min-w-0 items-center gap-2">
                 <ActivityIcon eventType={item.eventType} />
-                <p className="min-w-0 truncate text-sm font-medium text-foreground">
-                  {action.prefix}{action.target ? <> <code className="font-mono text-xs">{action.target}</code></> : null}{action.suffix ? ` ${action.suffix}` : ''}
+                <p className="min-w-0 truncate text-xs font-medium text-foreground">
+                  {action.prefix}{action.target ? <> <code className="font-mono text-[11px]">{action.target}</code></> : null}{action.suffix ? ` ${action.suffix}` : ''}
                 </p>
-                {item.eventCount > 1 ? <span className="shrink-0 font-mono text-xs tabular-nums text-foreground-muted">×{item.eventCount}</span> : null}
+                {item.eventCount > 1 ? <span className="shrink-0 font-mono text-[11px] tabular-nums text-foreground-muted">×{item.eventCount}</span> : null}
               </div>
-              <p className="mt-1.5 truncate pl-9 text-xs text-foreground-muted" title={`${item.viewerLabel} · ${item.repositoryName}`}>
-                <span className="font-mono">{item.viewerLabel}</span><span className="px-1.5 text-foreground-muted/50">·</span><span className="font-mono">{item.repositoryName}</span>
-              </p>
+              <p className="mt-1.5 truncate pl-8 text-[11px] text-foreground-muted" title={`${item.viewerLabel} · ${item.repositoryName}`}><span className="font-mono">{item.viewerLabel}</span><span className="px-1.5 text-foreground-muted/50">·</span><span className="font-mono">{item.repositoryName}</span></p>
             </div>
-            <time className="pt-0.5 text-right text-xs text-foreground-muted" dateTime={item.createdAt} title={formatDate(item.createdAt)}>{formatRelativeTime(item.createdAt)}</time>
-          </div>
+            <time className="pt-0.5 text-right text-[11px] text-foreground-muted" dateTime={item.createdAt} title={formatDate(item.createdAt)}>{formatRelativeTime(item.createdAt)}</time>
+          </li>
         )
       })}
-    </div>
+    </ul>
   )
 }
 
 function ActivityIcon({ eventType }: { eventType: string }) {
   const Icon = eventType === 'download' ? Download : eventType === 'copy' ? Clipboard : eventType === 'markdown_viewed' ? FileText : eventType === 'file_viewed' || eventType === 'raw_file_viewed' ? FileCode2 : eventType === 'view_confirmed' ? Eye : Activity
-  const tone = eventType === 'view_confirmed' ? 'border-success/20 bg-success/10 text-success' : eventType === 'download' || eventType === 'copy' ? 'border-border-secondary bg-surface-200 text-foreground-light' : 'border-border/70 bg-muted text-foreground-muted'
+  const tone = eventType === 'view_confirmed' ? 'border-success/20 bg-success/10 text-success' : eventType === 'download' || eventType === 'copy' ? 'border-border-secondary bg-surface-200 text-foreground-light' : 'border-border-secondary bg-surface-200 text-foreground-muted'
   return <span className={`inline-flex size-6 shrink-0 items-center justify-center rounded-md border ${tone}`}><Icon className="size-3.5" aria-hidden="true" /></span>
 }
 
@@ -209,13 +375,42 @@ function formatAction(item: DashboardOverviewActivity) {
 
 function EmptyActivity({ hasActiveShare }: { hasActiveShare: boolean }) {
   return (
-    <div className="flex flex-col items-center px-5 py-12 text-center sm:py-14">
-      <span className="inline-flex size-11 items-center justify-center rounded-md border border-border/70 bg-muted/45 text-foreground-muted"><Activity className="size-5" aria-hidden="true" /></span>
-      <p className="mt-4 text-sm font-medium">Waiting for the first viewer session</p>
-      <p className="mt-1 max-w-sm text-xs leading-5 text-foreground-muted">Confirmed opens and file actions will appear here with repository context and timing.</p>
-      <Link href={hasActiveShare ? '/dashboard/shares' : '/dashboard/shares/new'} className="mt-4 inline-flex min-h-9 items-center gap-1.5 rounded-md border border-border-strong/70 bg-card px-3 text-xs font-medium text-foreground transition-[background-color,border-color,color] duration-150 hover:border-border-secondary hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{hasActiveShare ? 'Open shares' : 'Create your first share'} <ArrowRight className="size-3.5" aria-hidden="true" /></Link>
+    <div className="flex flex-col items-center px-4 py-8 text-center sm:px-5">
+      <span className="inline-flex size-9 items-center justify-center rounded-md border border-border-secondary bg-surface-200 text-foreground-muted"><Activity className="size-4" aria-hidden="true" /></span>
+      <p className="mt-3 text-sm font-medium">No recent activity</p>
+      <p className="mt-1 max-w-xs text-xs leading-5 text-foreground-muted">Confirmed opens, file views, downloads and copies will appear here with repository context and timing.</p>
+      <Link href={hasActiveShare ? '/dashboard/shares' : '/dashboard/shares/new'} className="mt-4 inline-flex min-h-8 items-center gap-1.5 rounded-md border border-border-control bg-surface-100 px-2.5 text-xs font-medium text-foreground transition-colors hover:border-border-strong hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{hasActiveShare ? 'Open shares' : 'Create your first share'} <ArrowRight className="size-3.5" aria-hidden="true" /></Link>
     </div>
   )
+}
+
+function CompactEmptyState({ icon, title, description, action }: { icon: ReactNode; title: string; description: string; action?: ReactNode }) {
+  return (
+    <div className="flex min-h-44 flex-col items-center justify-center px-4 py-7 text-center sm:px-5">
+      <span className="inline-flex size-9 items-center justify-center rounded-md border border-border-secondary bg-surface-200 text-foreground-muted">{icon}</span>
+      <p className="mt-3 text-sm font-medium">{title}</p>
+      <p className="mt-1 max-w-xs text-xs leading-5 text-foreground-muted">{description}</p>
+      {action ? <div className="mt-4">{action}</div> : null}
+    </div>
+  )
+}
+
+function EmptyTrend({ range }: { range: DashboardRange }) {
+  return <CompactEmptyState icon={<BarChart3 className="size-4" aria-hidden="true" />} title="No confirmed views yet" description={`The last ${getRangeLabel(range)} will take shape here as viewers open a private share.`} />
+}
+
+function formatTrend(trend: DashboardMetricTrend) {
+  if (trend.changePercent === null) return 'New'
+  if (trend.changePercent === 0) return '0%'
+  return `${trend.changePercent > 0 ? '+' : ''}${Math.round(trend.changePercent)}%`
+}
+
+function getRangeLabel(range: DashboardRange) {
+  return range === '30d' ? '30 days' : '7 days'
+}
+
+function formatNumber(value: number) {
+  return value.toLocaleString('en-US')
 }
 
 function formatReturningViewers(value: number) {

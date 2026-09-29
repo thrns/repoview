@@ -3,14 +3,16 @@ import { redirect } from 'next/navigation'
 import { DashboardOverviewView } from '@/components/admin/dashboard-overview'
 import { Admonition, PageContainer } from '@/components/ui'
 import { getOnboardingState } from '@/lib/auth/onboarding'
-import { getDashboardOverview } from '@/lib/dashboard/overview'
+import { getDashboardOverview, normalizeDashboardRange } from '@/lib/dashboard/overview'
 import { requireWorkspace } from '@/lib/auth/workspace'
 import { enforceAuthenticatedRateLimit } from '../../../lib/security/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   try {
+    const params = await searchParams
+    const range = normalizeDashboardRange(params.range)
     const onboarding = await getOnboardingState()
     if (!onboarding.isComplete) redirect('/onboarding')
 
@@ -18,7 +20,7 @@ export default async function DashboardPage() {
     await enforceAuthenticatedRateLimit('authenticated-dashboard-analytics', context.workspace.id, context.user.id)
 
     return (
-      <DashboardOverviewView data={await getDashboardOverview()} />
+      <DashboardOverviewView data={await getDashboardOverview(new Date(), range)} />
     )
   } catch (error) {
     if (isRedirectError(error)) throw error
