@@ -10,10 +10,6 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
-export async function GET(request: Request) {
-  return run(request)
-}
-
 export async function POST(request: Request) {
   return run(request)
 }
@@ -33,16 +29,12 @@ async function run(request: Request) {
 }
 
 function isAuthorized(request: Request) {
-  const env = getServerEnv()
+  const secret = getServerEnv().NOTIFICATION_DISPATCH_SECRET
   const authorization = request.headers.get('authorization') ?? ''
   const provided = authorization.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : ''
-  if (!provided) return false
+  if (!secret || !provided) return false
 
-  return [env.NOTIFICATION_DISPATCH_SECRET, env.CRON_SECRET]
-    .filter((secret): secret is string => Boolean(secret))
-    .some((secret) => {
-      const expectedBytes = Buffer.from(secret)
-      const providedBytes = Buffer.from(provided)
-      return expectedBytes.length === providedBytes.length && timingSafeEqual(expectedBytes, providedBytes)
-    })
+  const expectedBytes = Buffer.from(secret)
+  const providedBytes = Buffer.from(provided)
+  return expectedBytes.length === providedBytes.length && timingSafeEqual(expectedBytes, providedBytes)
 }
