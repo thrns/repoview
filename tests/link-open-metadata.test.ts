@@ -6,11 +6,12 @@ import {
   toLinkOpenEventMetadata,
 } from '../lib/shares/link-open-metadata'
 
-beforeEach(() => vi.stubEnv('VERCEL', '1'))
+beforeEach(() => vi.stubEnv('REPOVIEW_TRUSTED_SOURCE_IP_MODE', 'unavailable'))
 afterEach(() => vi.unstubAllEnvs())
 
 describe('link-open metadata', () => {
   it('keeps only a referrer host and coarse fetch context', () => {
+    vi.stubEnv('REPOVIEW_TRUSTED_SOURCE_IP_MODE', 'vercel')
     const request = new Request('https://repoview.test/s/token', {
       headers: {
         referer: 'https://example.com/recruiting/repo?candidate=secret',
@@ -48,18 +49,55 @@ describe('link-open metadata', () => {
     })
   })
 
-  it('ignores spoofable forwarding headers unless the deployment edge supplied its normalized header', () => {
-    expect(getLinkOpenMetadata(new Request('https://repoview.test/s/token', {
-      headers: { 'x-forwarded-for': '198.51.100.77', 'x-real-ip': '198.51.100.88' },
-    })).publicIp).toBeNull()
-
-    expect(getLinkOpenMetadata(new Request('https://repoview.test/s/token', {
+  it('ignores spoofed forwarding headers in default/untrusted mode', () => {
+    const request = new Request('https://repoview.test/s/token', {
       headers: {
-        'x-vercel-forwarded-for': '203.0.113.42',
         'x-forwarded-for': '198.51.100.77',
         'x-real-ip': '198.51.100.88',
+        'x-vercel-forwarded-for': '203.0.113.42',
       },
-    })).publicIp).toBe('203.0.113.42')
+    })
+    expect(getLinkOpenMetadata(request).publicIp).toBeNull()
+  })
+
+  it('parses the Vercel IP only in vercel mode', () => {
+    const request = new Request('https://repoview.test/s/token', {
+      headers: { 'x-vercel-forwarded-for': '203.0.113.42' },
+    })
+    expect(getLinkOpenMetadata(request).publicIp).toBeNull()
+    vi.stubEnv('REPOVIEW_TRUSTED_SOURCE_IP_MODE', 'vercel')
+    expect(getLinkOpenMetadata(request).publicIp).toBe('203.0.113.42')
+  })
+
+  it('parses X-Real-IP only in trusted-x-real-ip mode', () => {
+    const request = new Request('https://repoview.test/s/token', {
+      headers: { 'x-real-ip': '198.51.100.88', 'x-forwarded-for': '198.51.100.77' },
+    })
+    vi.stubEnv('REPOVIEW_TRUSTED_SOURCE_IP_MODE', 'trusted-x-forwarded-for')
+    expect(getLinkOpenMetadata(request).publicIp).toBe('198.51.100.77')
+    vi.stubEnv('REPOVIEW_TRUSTED_SOURCE_IP_MODE', 'trusted-x-real-ip')
+    expect(getLinkOpenMetadata(request).publicIp).toBe('198.51.100.88')
+  })
+
+  it('parses X-Forwarded-For only in trusted-x-forwarded-for mode', () => {
+    const request = new Request('https://repoview.test/s/token', {
+      headers: { 'x-forwarded-for': '198.51.100.77, 203.0.113.2' },
+    })
+    vi.stubEnv('REPOVIEW_TRUSTED_SOURCE_IP_MODE', 'trusted-x-real-ip')
+    expect(getLinkOpenMetadata(request).publicIp).toBeNull()
+    vi.stubEnv('REPOVIEW_TRUSTED_SOURCE_IP_MODE', 'trusted-x-forwarded-for')
+    expect(getLinkOpenMetadata(request).publicIp).toBe('198.51.100.77')
+  })
+
+  it('rejects malformed or partially malformed IP candidates', () => {
+    vi.stubEnv('REPOVIEW_TRUSTED_SOURCE_IP_MODE', 'trusted-x-real-ip')
+    expect(getLinkOpenMetadata(new Request('https://repoview.test/s/token', {
+      headers: { 'x-real-ip': 'not-an-ip' },
+    })).publicIp).toBeNull()
+    vi.stubEnv('REPOVIEW_TRUSTED_SOURCE_IP_MODE', 'trusted-x-forwarded-for')
+    expect(getLinkOpenMetadata(new Request('https://repoview.test/s/token', {
+      headers: { 'x-forwarded-for': '198.51.100.77, not-an-ip' },
+    })).publicIp).toBeNull()
   })
 
   it('rejects unsafe or unknown metadata values', () => {

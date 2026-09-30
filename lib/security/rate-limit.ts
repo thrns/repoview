@@ -127,13 +127,17 @@ export async function enforceRateLimits(scope: RateLimitScope, keys: RateLimitKe
   if (decision) throw new RateLimitExceededError(decision)
 }
 
-/** Apply an IP bucket before an expensive public operation. */
+/** Apply a trusted IP bucket and any operation-specific buckets before public work. */
 export async function checkPublicRateLimit(request: Request, scope: RateLimitScope, additionalKeys: string[] = []) {
   const clientIp = getRequestIp(request)
   const keys = [
-    { value: `ip:${clientIp ?? 'unknown'}` },
+    ...(clientIp ? [{ value: `ip:${clientIp}` }] : []),
     ...additionalKeys.map((value) => ({ value })),
   ]
+  // Without a trusted IP, authorized viewer routes apply their session/share
+  // buckets after authorization. Capability routes can pass their existing
+  // HMAC-derived identifier here. Never collapse unrelated viewers into one bucket.
+  if (keys.length === 0) return null
   return checkRateLimits(scope, keys)
 }
 

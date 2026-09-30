@@ -1,5 +1,21 @@
 import { z } from 'zod'
 
+export const trustedSourceIpModeSchema = z.enum([
+  'vercel',
+  'trusted-x-real-ip',
+  'trusted-x-forwarded-for',
+  'unavailable',
+])
+export type TrustedSourceIpMode = z.infer<typeof trustedSourceIpModeSchema>
+
+export function parseTrustedSourceIpMode(value: string | undefined = process.env.REPOVIEW_TRUSTED_SOURCE_IP_MODE): TrustedSourceIpMode {
+  const result = trustedSourceIpModeSchema.safeParse(value ?? 'unavailable')
+  if (!result.success) {
+    throw new Error(`Invalid REPOVIEW_TRUSTED_SOURCE_IP_MODE: expected ${trustedSourceIpModeSchema.options.join(', ')}`)
+  }
+  return result.data
+}
+
 const baseServerEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
   GITHUB_APP_ID: z.coerce.number().int().positive('GITHUB_APP_ID must be a positive integer'),
@@ -11,6 +27,8 @@ const baseServerEnvSchema = z.object({
   SHARE_TOKEN_PEPPER: z.string().min(32, 'SHARE_TOKEN_PEPPER must be at least 32 characters'),
   SESSION_TOKEN_PEPPER: z.string().min(32, 'SESSION_TOKEN_PEPPER must be at least 32 characters'),
   IP_HASH_SALT: z.string().min(32, 'IP_HASH_SALT must be at least 32 characters'),
+  // Only trust source-IP headers that the configured deployment boundary normalizes.
+  REPOVIEW_TRUSTED_SOURCE_IP_MODE: trustedSourceIpModeSchema.default('unavailable'),
   EMAIL_PROVIDER: z.enum(['smtp', 'resend', 'postmark']).default('smtp'),
   EMAIL_FROM: z.string().email('EMAIL_FROM must be a valid email').optional(),
   OPERATOR_EMAIL: z.string().email('OPERATOR_EMAIL must be a valid email').optional(),
@@ -41,7 +59,7 @@ export const serverEnvSchema = baseServerEnvSchema.superRefine((env, context) =>
   }
 })
 
-const rateLimitEnvSchema = baseServerEnvSchema.pick({ IP_HASH_SALT: true })
+const rateLimitEnvSchema = baseServerEnvSchema.pick({ IP_HASH_SALT: true, REPOVIEW_TRUSTED_SOURCE_IP_MODE: true })
 const supabaseAdminEnvSchema = baseServerEnvSchema.pick({ SUPABASE_SERVICE_ROLE_KEY: true })
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>

@@ -4,7 +4,7 @@ import type { NextResponse } from 'next/server'
 
 import { VIEWER_ID_COOKIE } from '../analytics/constants'
 import { isViewerIdentity } from '../analytics/identity'
-import { exchangeShareToken, VIEWER_SESSION_COOKIE } from './exchange'
+import { exchangeShareToken, getViewerSessionCookieName } from './exchange'
 import { getLinkOpenMetadata } from './link-open-metadata'
 import { findViewerPrivacyPreference } from '../viewer/privacy'
 import { isGlobalPrivacyControl, VIEWER_PRIVACY_PREFERENCE_COOKIE, type ViewerAnalyticsMode } from '../viewer/privacy-shared'
@@ -44,7 +44,7 @@ export function setViewerSessionCookies(response: NextResponse, requestUrl: stri
   response.headers.set('Cache-Control', 'no-store')
   response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive')
   response.cookies.set({
-    name: VIEWER_SESSION_COOKIE,
+    name: getViewerSessionCookieName(result.shareCode),
     value: result.rawSessionToken,
     httpOnly: true,
     secure: secureCookies,
@@ -73,6 +73,19 @@ export function setViewerSessionCookies(response: NextResponse, requestUrl: stri
       maxAge: 0,
     })
   }
+}
+
+export function clearViewerSessionCookie(response: NextResponse, requestUrl: string, shareIdentifier: string) {
+  const secureCookies = new URL(requestUrl).protocol === 'https:'
+  response.cookies.set({
+    name: getViewerSessionCookieName(shareIdentifier),
+    value: '',
+    httpOnly: true,
+    secure: secureCookies,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 0,
+  })
 }
 
 /**
@@ -111,7 +124,7 @@ export function clearShareRedirectCookie(response: NextResponse, requestUrl: str
  * request. Response cookies alone only reach the next browser request.
  */
 export function setViewerSessionRequestCookie(requestHeaders: Headers, result: ViewerSessionExchangeResult) {
-  replaceRequestCookie(requestHeaders, VIEWER_SESSION_COOKIE, result.rawSessionToken)
+  replaceRequestCookie(requestHeaders, getViewerSessionCookieName(result.shareCode), result.rawSessionToken)
   replaceRequestCookie(requestHeaders, VIEWER_ID_COOKIE, result.rawViewerId ?? null)
 }
 

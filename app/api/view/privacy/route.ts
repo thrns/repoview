@@ -38,6 +38,15 @@ export async function GET(request: Request) {
     return json({ error: 'unauthorized' }, 401)
   }
 
+  try {
+    const decision = await checkRateLimits('public-viewer-privacy', [
+      { value: `session:${viewer.session.id}` },
+    ])
+    if (decision) return rateLimitResponse(decision)
+  } catch {
+    return rateLimitUnavailableResponse()
+  }
+
   const gpc = isGlobalPrivacyControl(request.headers.get('sec-gpc'))
   const analyticsMode: ViewerAnalyticsMode = gpc ? 'necessary' : viewer.session.analytics_mode === 'optional' ? 'optional' : 'necessary'
   return json({ analyticsMode, gpc, optionalAvailable: !gpc })

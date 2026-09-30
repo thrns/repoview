@@ -524,7 +524,7 @@ The relevant browser-side lifetimes are:
 |---|---|
 | \`repoview_viewer_privacy\` | Opaque HttpOnly first-party preference token; may remain in the browser for approximately **730 days** after a choice. The server-side preference record is retained separately for **${RETENTION_DAYS.viewerPrivacyPreferences} days from update**. |
 | \`repoview_viewer_id\` | Opaque HttpOnly first-party pseudonymous Viewer token; may remain in the browser for approximately **730 days** while Optional engagement analytics is active. Selecting Necessary only clears this cookie, but does not by itself erase already stored server-side records. |
-| \`repoview_viewer_session\` | HttpOnly server-session cookie used for the current Share. If the Share has an expiry, the cookie is set to expire with that Share; otherwise it is a browser-session cookie. The server stores a hash and session record, not the raw session token. |
+| \`repoview_viewer_session_<share-hash>\` | HttpOnly server-session cookie scoped to one Share. Separate Shares use separate cookies, and each cookie expires with its Share when the Share has an expiry; otherwise it is a browser-session cookie. The server stores a hash and session record, not the raw session token. |
 | \`repoview_share_redirect\` | Short-lived HttpOnly marker used during the legacy Share redirect flow; it may remain in the browser for up to approximately **60 seconds** and is not a Viewer analytics identifier. |
 
 Where applicable law requires consent before non-essential storage or access on a Viewer's device, RepoView will ask for that consent before activating a persistent individual-level Viewer analytics identifier. Refusing Optional engagement analytics will not, by itself, prevent access to an otherwise valid Share.

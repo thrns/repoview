@@ -1,10 +1,9 @@
 import { isIP } from 'node:net'
 
+import { parseTrustedSourceIpMode, type TrustedSourceIpMode } from '../env/schema'
 import { parseUserAgent, type ParsedUserAgent } from '../security/user-agent'
 
 export type LinkFetchSite = 'same-origin' | 'same-site' | 'cross-site' | 'none'
-
-export type SourceIpDeployment = 'vercel' | 'local'
 
 /**
  * Request metadata is split into:
@@ -183,25 +182,33 @@ function getPublicIp(headers: Headers) {
 }
 
 /**
- * Resolve the source IP from the deployment boundary, not from arbitrary
- * forwarding headers supplied by a client. Direct Vercel traffic includes
- * `x-vercel-forwarded-for`, which Vercel normalizes to the public client IP.
- * Local development intentionally uses one shared bucket unless a developer
- * explicitly opts into a trusted local proxy with REPOVIEW_TRUST_LOCAL_PROXY=1.
+ * Resolve the source IP only from the header selected for the configured
+ * deployment boundary. Set REPOVIEW_TRUSTED_SOURCE_IP_MODE only when that
+ * boundary replaces or normalizes the selected header before it reaches RepoView.
  */
-export function getTrustedSourceIp(headers: Headers, deployment: SourceIpDeployment = getSourceIpDeployment()) {
-  if (deployment === 'vercel') return parseSingleIp(headers.get('x-vercel-forwarded-for'))
-  if (process.env.REPOVIEW_TRUST_LOCAL_PROXY === '1') return parseSingleIp(headers.get('x-forwarded-for'))
-  return null
-}
-
-function getSourceIpDeployment(): SourceIpDeployment {
-  return process.env.VERCEL === '1' ? 'vercel' : 'local'
+export function getTrustedSourceIp(headers: Headers, mode: TrustedSourceIpMode = parseTrustedSourceIpMode()) {
+  switch (mode) {
+    case 'vercel':
+      return parseForwardedIp(headers.get('x-vercel-forwarded-for'))
+    case 'trusted-x-real-ip':
+      return parseSingleIp(headers.get('x-real-ip'))
+    case 'trusted-x-forwarded-for':
+      return parseForwardedIp(headers.get('x-forwarded-for'))
+    case 'unavailable':
+      return null
+  }
 }
 
 function parseSingleIp(value: string | null) {
-  const candidate = value?.split(',')[0]?.trim()
+  const candidate = value?.trim()
   return candidate && isIP(candidate) ? candidate : null
+}
+
+function parseForwardedIp(value: string | null) {
+  if (!value || value.length > 1024) return null
+  const candidates = value.split(',').map((candidate) => candidate.trim())
+  if (candidates.length === 0 || candidates.some((candidate) => !candidate || !isIP(candidate))) return null
+  return candidates[0]
 }
 
 function sanitizeIp(value: string | null | undefined) {

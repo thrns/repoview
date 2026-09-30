@@ -1,16 +1,20 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
+vi.mock('next/headers', () => ({ cookies: vi.fn() }))
 vi.mock('../lib/supabase/admin', () => ({
   createSupabaseAdminClient: vi.fn(),
 }))
 
+import { cookies } from 'next/headers'
 import { createSupabaseAdminClient } from '../lib/supabase/admin'
 import { hashViewerSessionToken } from '../lib/security/tokens'
 import {
   authorizeViewerSession,
+  requireViewerSession,
   ViewerAuthorizationError,
 } from '../lib/auth/viewer-session'
+import { getViewerSessionCookieName, LEGACY_VIEWER_SESSION_COOKIE } from '../lib/shares/exchange'
 
 const getAdmin = vi.mocked(createSupabaseAdminClient)
 const shareId = '22222222-2222-4222-8222-222222222222'
@@ -157,5 +161,23 @@ describe('viewer session authorization', () => {
 
     await expect(authorizeViewerSession(shareId, sessionToken)).rejects.toMatchObject({ reason: 'invalid' })
     expect(rpc).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not use share A cookie to authorize share B', async () => {
+    const shareACookie = getViewerSessionCookieName('Ab3k9Qx2')
+    const shareBCookie = getViewerSessionCookieName('Bc4yL0rS3')
+    const requestedCookieNames: string[] = []
+    const cookieGet = vi.fn((name: string) => {
+      requestedCookieNames.push(name)
+      return name === shareACookie ? { name, value: 'share-a-session-token' } : undefined
+    })
+    vi.mocked(cookies).mockResolvedValue({ get: cookieGet } as never)
+    const rpc = vi.fn()
+    getAdmin.mockReturnValue({ rpc } as never)
+
+    await expect(requireViewerSession('Bc4yL0rS3')).rejects.toMatchObject({ reason: 'invalid' })
+
+    expect(requestedCookieNames).toEqual([shareBCookie, LEGACY_VIEWER_SESSION_COOKIE])
+    expect(rpc).not.toHaveBeenCalled()
   })
 })

@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
 import { createContentSecurityPolicy } from './lib/security/csp'
-import { ShareExchangeError, exchangeShareToken, VIEWER_SESSION_COOKIE } from './lib/shares/exchange'
-import { clearShareRedirectCookie, getShareExchangeRequestContext, SHARE_REDIRECT_COOKIE, setViewerSessionCookies, setViewerSessionRequestCookie } from './lib/shares/request'
+import { ShareExchangeError, exchangeShareToken, getViewerSessionCookieName, LEGACY_VIEWER_SESSION_COOKIE } from './lib/shares/exchange'
+import { clearShareRedirectCookie, clearViewerSessionCookie, getShareExchangeRequestContext, SHARE_REDIRECT_COOKIE, setViewerSessionCookies, setViewerSessionRequestCookie } from './lib/shares/request'
 import { isNewShareCode } from './lib/shares/share-code'
 import { checkPublicRateLimit, getPublicShareRateLimitKey, rateLimitResponse, rateLimitUnavailableResponse } from './lib/security/rate-limit'
 import { updateSupabaseSession } from './lib/supabase/proxy'
@@ -42,7 +42,9 @@ async function openDirectShare(request: NextRequest, shareCode: string, requestH
 
   try {
     const redirectedShareCode = request.cookies.get(SHARE_REDIRECT_COOKIE)?.value
-    if (redirectedShareCode === shareCode && request.cookies.get(VIEWER_SESSION_COOKIE)?.value) {
+    const scopedSessionCookie = request.cookies.get(getViewerSessionCookieName(shareCode))?.value
+    const legacySessionCookie = request.cookies.get(LEGACY_VIEWER_SESSION_COOKIE)?.value
+    if (redirectedShareCode === shareCode && (scopedSessionCookie || legacySessionCookie)) {
       const response = NextResponse.next({ request: { headers: requestHeaders } })
       clearShareRedirectCookie(response, request.url)
       logViewerDiagnostic('direct-share-redirect-session-reused', {
@@ -81,6 +83,7 @@ async function openDirectShare(request: NextRequest, shareCode: string, requestH
     })
     const reason = error instanceof ShareExchangeError && error.code !== 'upstream' ? error.code : 'unavailable'
     const response = NextResponse.redirect(new URL(`/view/error?reason=${reason}`, request.url), { status: 303 })
+    clearViewerSessionCookie(response, request.url, shareCode)
     response.headers.set('Cache-Control', 'no-store')
     response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive')
     return response

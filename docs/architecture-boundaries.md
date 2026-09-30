@@ -47,11 +47,14 @@ application compilation scope; its adopted visual surface lives in
   email. Both are enforced after viewer/workspace context is known where
   possible; Vercel or another edge firewall can add coarse volumetric limits
   without replacing these application checks.
-- Request source-IP identity is intentionally deployment-specific: Vercel
-  production trusts only its normalized `x-vercel-forwarded-for` header;
-  arbitrary `x-forwarded-for` and `x-real-ip` values are ignored. Local
-  development shares one safe bucket unless `REPOVIEW_TRUST_LOCAL_PROXY=1` is
-  explicitly set for a trusted local proxy.
+- Request source-IP identity is configured explicitly with
+  `REPOVIEW_TRUSTED_SOURCE_IP_MODE`. The default `unavailable` mode trusts no
+  forwarding header; `vercel`, `trusted-x-real-ip`, and
+  `trusted-x-forwarded-for` trust only their matching, IP-validated header when
+  the deployment boundary replaces or normalizes it. Without a trusted IP,
+  capability opens use HMAC-derived identifiers before authorization and
+  viewer APIs use share/session rate-limit keys after authorization. A request
+  without a trusted or operation-specific key does not enter a shared bucket.
 - `lib/supabase/` owns browser, SSR, and server-only admin clients.
 - `lib/viewer/` owns share loading, authorization, and view event operations.
 

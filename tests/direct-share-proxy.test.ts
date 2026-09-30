@@ -18,7 +18,7 @@ vi.mock('../lib/viewer/diagnostics', () => ({ logViewerDiagnostic: vi.fn(), summ
 import { NextRequest } from 'next/server'
 
 import { proxy } from '../proxy'
-import { exchangeShareToken, ShareExchangeError } from '../lib/shares/exchange'
+import { exchangeShareToken, getViewerSessionCookieName, LEGACY_VIEWER_SESSION_COOKIE, ShareExchangeError } from '../lib/shares/exchange'
 import { checkPublicRateLimit } from '../lib/security/rate-limit'
 
 const exchange = vi.mocked(exchangeShareToken)
@@ -42,13 +42,13 @@ describe('direct new share access through proxy', () => {
 
     expect(response.status).toBe(200)
     expect(response.headers.get('location')).toBeNull()
-    expect(response.headers.get('set-cookie')).toContain('repoview_viewer_session=session-token')
+    expect(response.headers.get('set-cookie')).toContain(`${getViewerSessionCookieName('aB3xK9pQ2')}=session-token`)
     expect(exchange).toHaveBeenCalledWith('aB3xK9pQ2', expect.any(Object), undefined, { analyticsMode: 'necessary', gpc: false })
   })
 
   it('creates a fresh visit session for a new direct top-level navigation', async () => {
     const request = new NextRequest('https://repoview.test/view/aB3xK9pQ2', {
-      headers: { cookie: 'repoview_viewer_session=session-token' },
+      headers: { cookie: `${getViewerSessionCookieName('aB3xK9pQ2')}=session-token` },
     })
 
     const response = await proxy(request)
@@ -59,7 +59,7 @@ describe('direct new share access through proxy', () => {
 
   it('does not create a second session after the legacy token redirect', async () => {
     const request = new NextRequest('https://repoview.test/view/aB3xK9pQ2', {
-      headers: { cookie: 'repoview_viewer_session=session-token; repoview_share_redirect=aB3xK9pQ2' },
+      headers: { cookie: `${LEGACY_VIEWER_SESSION_COOKIE}=session-token; repoview_share_redirect=aB3xK9pQ2` },
     })
 
     const response = await proxy(request)
@@ -89,6 +89,9 @@ describe('direct new share access through proxy', () => {
 
     expect(response.status).toBe(303)
     expect(response.headers.get('location')).toBe('https://repoview.test/view/error?reason=revoked')
+    expect(response.headers.get('set-cookie')).toContain(`${getViewerSessionCookieName('aB3xK9pQ2')}=`)
+    expect(response.headers.get('set-cookie')).toContain('Max-Age=0')
+    expect(response.headers.get('set-cookie')).not.toContain(`${getViewerSessionCookieName('otherShare')}=`)
   })
 
   it('does not treat malformed paths as new share capabilities', async () => {

@@ -36,7 +36,7 @@ import { cookies, headers } from 'next/headers'
 
 import { GET } from '../app/s/[token]/route'
 import { getViewerPageData } from '../lib/viewer/page-data'
-import { VIEWER_SESSION_COOKIE } from '../lib/shares/exchange'
+import { getViewerSessionCookieName } from '../lib/shares/exchange'
 import { hashViewerSessionToken } from '../lib/security/tokens'
 import { createSupabaseAdminClient } from '../lib/supabase/admin'
 import { listWorkspaceGitHubInstallations } from '../lib/github/client'
@@ -96,14 +96,15 @@ describe('public share to viewer flow', () => {
     expect(exchangeResponse.headers.get('location')).toBe(`https://repoview.test/view/${shareCode}`)
 
     const setCookie = exchangeResponse.headers.get('set-cookie') ?? ''
-    const rawSessionToken = setCookie.match(new RegExp(`${VIEWER_SESSION_COOKIE}=([^;]+)`))?.[1]
+    const sessionCookieName = getViewerSessionCookieName(shareCode)
+    const rawSessionToken = setCookie.match(new RegExp(`${sessionCookieName}=([^;]+)`))?.[1]
     expect(rawSessionToken).toBeTruthy()
     expect(state.sessionInsert).toHaveBeenCalledWith(expect.objectContaining({
       session_token_hash: hashViewerSessionToken(rawSessionToken ?? ''),
     }))
 
     getCookies.mockResolvedValue({
-      get: (name: string) => name === VIEWER_SESSION_COOKIE ? { name, value: rawSessionToken } : undefined,
+      get: (name: string) => name === sessionCookieName ? { name, value: rawSessionToken } : undefined,
     } as never)
 
     const pageData = await getViewerPageData(shareCode)

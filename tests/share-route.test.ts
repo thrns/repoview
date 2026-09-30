@@ -12,11 +12,10 @@ vi.mock('@/lib/supabase/admin', () => ({ createSupabaseAdminClient: vi.fn() }))
 vi.mock('@/lib/shares/link-open-metadata', () => ({
   getLinkOpenMetadata: vi.fn(() => ({})),
 }))
-vi.mock('@/lib/shares/exchange', () => ({
-  exchangeShareToken: vi.fn(),
-  ShareExchangeError: class ShareExchangeError extends Error {},
-  VIEWER_SESSION_COOKIE: 'repoview_viewer_session',
-}))
+vi.mock('@/lib/shares/exchange', async () => {
+  const actual = await vi.importActual<typeof import('../lib/shares/exchange')>('../lib/shares/exchange')
+  return { ...actual, exchangeShareToken: vi.fn() }
+})
 
 import { GET } from '../app/s/[token]/route'
 import { exchangeShareToken } from '@/lib/shares/exchange'

@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { createHash } from 'node:crypto'
+
 import {
   sanitizeLinkOpenMetadata,
   toLinkOpenEventMetadata,
@@ -13,7 +15,13 @@ import type { ViewerAnalyticsMode } from '../viewer/privacy'
 import { recordViewerViewEvent } from '../viewer/view-events'
 import { logViewerDiagnostic } from '../viewer/diagnostics'
 
-export const VIEWER_SESSION_COOKIE = 'repoview_viewer_session'
+export const LEGACY_VIEWER_SESSION_COOKIE = 'repoview_viewer_session'
+
+/** Derive a stable cookie-safe name without putting a raw share identifier in it. */
+export function getViewerSessionCookieName(shareIdentifier: string) {
+  const suffix = createHash('sha256').update(shareIdentifier, 'utf8').digest('hex').slice(0, 24)
+  return `repoview_viewer_session_${suffix}`
+}
 
 type ResolvedCapabilityShare = Pick<Database['public']['Tables']['shares']['Row'],
   'id' | 'workspace_id' | 'repository_id' | 'share_code' | 'ref' | 'expires_at' | 'created_at' | 'updated_at'

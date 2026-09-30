@@ -60,6 +60,18 @@ describe('environment validation', () => {
     expect(result.SMTP_HOST).toBe('smtp.gmail.com')
     expect(result.SMTP_PORT).toBe(465)
     expect(result.SMTP_FROM_NAME).toBe('RepoView')
+    expect(result.REPOVIEW_TRUSTED_SOURCE_IP_MODE).toBe('unavailable')
+  })
+
+  it.each(['vercel', 'trusted-x-real-ip', 'trusted-x-forwarded-for', 'unavailable'] as const)(
+    'validates trusted source-IP mode %s',
+    (mode) => {
+      expect(parseServerEnv({ ...serverFixture, REPOVIEW_TRUSTED_SOURCE_IP_MODE: mode }).REPOVIEW_TRUSTED_SOURCE_IP_MODE).toBe(mode)
+    },
+  )
+
+  it('rejects an unsupported trusted source-IP mode', () => {
+    expect(() => parseServerEnv({ ...serverFixture, REPOVIEW_TRUSTED_SOURCE_IP_MODE: 'trust-everything' })).toThrow(/trust-everything/)
   })
 
   it('allows a transactional API provider without personal SMTP credentials', () => {
@@ -84,7 +96,7 @@ describe('environment validation', () => {
   })
 
   it('validates rate limiting and Supabase admin dependencies independently', () => {
-    expect(parseRateLimitEnv({ IP_HASH_SALT: 'i'.repeat(32) })).toEqual({ IP_HASH_SALT: 'i'.repeat(32) })
+    expect(parseRateLimitEnv({ IP_HASH_SALT: 'i'.repeat(32) })).toEqual({ IP_HASH_SALT: 'i'.repeat(32), REPOVIEW_TRUSTED_SOURCE_IP_MODE: 'unavailable' })
     expect(parseSupabaseAdminEnv({ SUPABASE_SERVICE_ROLE_KEY: 'service-role' })).toEqual({ SUPABASE_SERVICE_ROLE_KEY: 'service-role' })
   })
 })

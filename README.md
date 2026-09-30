@@ -195,7 +195,7 @@ RepoView composes low-volume, deduplicated first-meaningful-view and session-sum
 - Necessary-only sessions retain the minimum request, salted-IP-hash, bot, abuse, and security signals needed to operate a protected share. First-party anonymous viewer IDs and coarse browser/device/location and engagement analytics are stored only after the viewer enables optional engagement analytics; browser fingerprinting is not used as identity.
 - Coarse browser/device labels and provider-supplied location labels may be stored for owner analytics only when optional engagement analytics is enabled. These values are labeled approximate/observed/inferred in the dashboard and notification emails; they are never used to claim a real identity. Global Privacy Control keeps optional analytics off.
 - Raw viewer tokens, installation tokens, private keys, raw IPs, raw user-agents, and transactional provider credentials are not sent to the browser or email. Security uses compact indicators and salted hashes rather than raw network or device profiles.
-- Public rate limits use Vercel's normalized `x-vercel-forwarded-for` source-IP header only. Client-supplied `x-forwarded-for` and `x-real-ip` are ignored; this assumes traffic reaches the app through Vercel's edge, which documents that it overwrites `x-forwarded-for` to prevent spoofing. Local development uses one shared IP bucket by default; set `REPOVIEW_TRUST_LOCAL_PROXY=1` only when a local reverse proxy is known to rewrite `x-forwarded-for`.
+- Source-IP rate limits use only the header selected by `REPOVIEW_TRUSTED_SOURCE_IP_MODE`: `vercel`, `trusted-x-real-ip`, `trusted-x-forwarded-for`, or `unavailable`. The default is `unavailable`; configure a trusted mode only when the deployment boundary replaces or normalizes that header. Without a trusted IP, capability opens use a share-token HMAC before authorization, and viewer APIs use session/share keys after authorization. Requests without any trusted or operation-specific key do not enter a shared unknown-IP bucket.
 - Public JSON endpoints reject oversized bodies before parsing. Viewer events are capped at 128 KiB; small authentication/viewer state bodies are capped at 16–32 KiB; GitHub webhook bodies are bounded at 26 MiB to remain above GitHub's documented 25 MB payload cap.
 - Download events are recorded only when the owner explicitly enables protected text downloads.
 
@@ -205,7 +205,8 @@ RepoView composes low-volume, deduplicated first-meaningful-view and session-sum
 2. Use the default build command, `pnpm build`.
 3. Add all `.env` values in the appropriate Vercel environment scopes.
 4. Set `NEXT_PUBLIC_APP_URL=https://code.thrn.im` for production.
-5. Keep GitHub, SMTP, Supabase service-role, and Shiki work on the normal Node/serverless runtime; do not move them to Edge without validating the dependencies.
+5. Set `REPOVIEW_TRUSTED_SOURCE_IP_MODE=vercel` when requests reach RepoView through Vercel's edge.
+6. Keep GitHub, SMTP, Supabase service-role, and Shiki work on the normal Node/serverless runtime; do not move them to Edge without validating the dependencies.
 
 ## `code.thrn.im` domain
 

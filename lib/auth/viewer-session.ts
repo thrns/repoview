@@ -2,7 +2,7 @@ import 'server-only'
 
 import { cookies } from 'next/headers'
 
-import { VIEWER_SESSION_COOKIE } from '../shares/exchange'
+import { getViewerSessionCookieName, LEGACY_VIEWER_SESSION_COOKIE } from '../shares/exchange'
 import { hashViewerSessionToken } from '../security/tokens'
 import { isShareCode } from '../shares/share-code'
 import { createSupabaseAdminClient } from '../supabase/admin'
@@ -73,7 +73,8 @@ export class ViewerAuthorizationError extends Error {
 
 export async function requireViewerSession(shareId: string) {
   const cookieStore = await cookies()
-  const rawSessionToken = cookieStore.get(VIEWER_SESSION_COOKIE)?.value
+  const rawSessionToken = cookieStore.get(getViewerSessionCookieName(shareId))?.value
+    ?? cookieStore.get(LEGACY_VIEWER_SESSION_COOKIE)?.value
   logViewerDiagnostic('viewer-session-cookie', {
     shareIdentifierType: getShareIdentifierType(shareId),
     cookiePresent: Boolean(rawSessionToken),
