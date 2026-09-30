@@ -69,12 +69,21 @@ describe('production RLS hardening', () => {
       'lib/shares/dashboard.ts',
       'lib/shares/detail.ts',
       'app/(admin)/dashboard/shares/[id]/actions.ts',
-      'app/(admin)/dashboard/shares/new/actions.ts',
     ]
 
     for (const file of dashboardFiles) {
       const source = readFileSync(resolve(process.cwd(), file), 'utf8')
       expect(source, file).not.toContain('createSupabaseAdminClient')
     }
+  })
+
+  it('limits the share creation admin client to the service-only atomic RPC after authorization', () => {
+    const source = readFileSync(resolve(process.cwd(), 'app/(admin)/dashboard/shares/new/actions.ts'), 'utf8')
+    expect(source).toContain("import { createSupabaseAdminClient } from '../../../../../lib/supabase/admin'")
+    expect(source).toContain("admin.rpc('create_share_with_recipient'")
+    expect(source).not.toContain(".from('shares')")
+    expect(source).not.toContain(".from('share_recipients')")
+    expect(source.indexOf('await requireWorkspaceRole')).toBeLessThan(source.indexOf("admin.rpc('create_share_with_recipient'"))
+    expect(source.indexOf('reserveResourceQuota(')).toBeLessThan(source.indexOf("admin.rpc('create_share_with_recipient'"))
   })
 })

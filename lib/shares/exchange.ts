@@ -8,11 +8,16 @@ import {
 import { generateViewerSessionToken, hashNetworkValue, hashShareToken, hashViewerSessionToken } from '../security/tokens'
 import { findOrCreateViewer } from '../analytics/identity'
 import { createSupabaseAdminClient } from '../supabase/admin'
+import type { Database } from '../supabase/database.types'
 import type { ViewerAnalyticsMode } from '../viewer/privacy'
 import { recordViewerViewEvent } from '../viewer/view-events'
 import { logViewerDiagnostic } from '../viewer/diagnostics'
 
 export const VIEWER_SESSION_COOKIE = 'repoview_viewer_session'
+
+type ResolvedCapabilityShare = Pick<Database['public']['Tables']['shares']['Row'],
+  'id' | 'workspace_id' | 'repository_id' | 'share_code' | 'ref' | 'expires_at' | 'created_at' | 'updated_at'
+>
 
 export type ShareExchangeErrorCode = 'invalid' | 'expired' | 'revoked' | 'repository_unavailable' | 'upstream'
 
@@ -35,61 +40,38 @@ export async function exchangeShareToken(
   }
 
   const admin = createSupabaseAdminClient()
-  const { data: share, error: shareError } = await admin
-    .from('shares')
-    .select('*')
-    .eq('token_hash', hashShareToken(normalizedToken))
-    .maybeSingle()
+  const capabilityHash = hashShareToken(normalizedToken)
+  const { data: resolution, error: shareError } = await admin.rpc('resolve_share_capability', {
+    target_token_hash: capabilityHash,
+  })
 
   if (shareError) {
     throw new ShareExchangeError('upstream')
   }
-  if (!share) {
-    void recordInvalidAttempt(admin, hashShareToken(normalizedToken), 'invalid', sanitizeLinkOpenMetadata(requestMetadata))
+  const resolved = resolution?.[0]
+  if (!resolved) {
+    void recordInvalidAttempt(admin, capabilityHash, 'invalid', sanitizeLinkOpenMetadata(requestMetadata))
     throw new ShareExchangeError('invalid')
   }
-  const { data: workspace, error: workspaceError } = await admin
-    .from('workspaces')
-    .select('status')
-    .eq('id', share.workspace_id)
-    .maybeSingle()
-  if (workspaceError || workspace?.status !== 'active') {
-    throw new ShareExchangeError('repository_unavailable')
-  }
-  if (share.revoked_at) {
-    void recordInvalidAttempt(admin, hashShareToken(normalizedToken), 'revoked', sanitizeLinkOpenMetadata(requestMetadata), share.id, share.workspace_id)
+  const share = resolved.share as unknown as ResolvedCapabilityShare
+
+  if (resolved.authorization_status === 'revoked') {
+    void recordInvalidAttempt(admin, capabilityHash, 'revoked', sanitizeLinkOpenMetadata(requestMetadata), share.id, share.workspace_id)
     throw new ShareExchangeError('revoked')
   }
-  if (share.expires_at && new Date(share.expires_at).getTime() <= Date.now()) {
-    void recordInvalidAttempt(admin, hashShareToken(normalizedToken), 'expired', sanitizeLinkOpenMetadata(requestMetadata), share.id, share.workspace_id)
+  if (resolved.authorization_status === 'expired') {
+    void recordInvalidAttempt(admin, capabilityHash, 'expired', sanitizeLinkOpenMetadata(requestMetadata), share.id, share.workspace_id)
     throw new ShareExchangeError('expired')
+  }
+  if (resolved.authorization_status === 'invalid') {
+    void recordInvalidAttempt(admin, capabilityHash, 'invalid', sanitizeLinkOpenMetadata(requestMetadata), share.id, share.workspace_id)
+    throw new ShareExchangeError('invalid')
+  }
+  if (resolved.authorization_status !== 'authorized') {
+    throw new ShareExchangeError('repository_unavailable')
   }
   if (!share.ref.trim()) {
     throw new ShareExchangeError('invalid')
-  }
-
-  const { data: repository, error: repositoryError } = await admin
-    .from('repositories')
-    .select('*')
-    .eq('id', share.repository_id)
-    .eq('workspace_id', share.workspace_id)
-    .maybeSingle()
-
-  if (repositoryError || !repository || !repository.enabled) {
-    throw new ShareExchangeError('repository_unavailable')
-  }
-
-  if (repository.github_installation_id) {
-    const { data: installation, error: installationError } = await admin
-      .from('github_installations')
-      .select('status')
-      .eq('id', repository.github_installation_id)
-      .eq('workspace_id', share.workspace_id)
-      .maybeSingle()
-
-    if (installationError || !installation || installation.status !== 'active') {
-      throw new ShareExchangeError('repository_unavailable')
-    }
   }
 
   const metadata = sanitizeLinkOpenMetadata(requestMetadata)
@@ -114,14 +96,14 @@ export async function exchangeShareToken(
   let previousVisitCount = 0
   if (collectOptionalAnalytics && viewer) {
     try {
-      const { data: previousSessions } = await admin
+      const { count } = await admin
         .from('viewer_sessions')
-        .select('id')
+        .select('id', { count: 'exact', head: true })
         .eq('share_id', share.id)
         .eq('workspace_id', share.workspace_id)
         .eq('viewer_id', viewer.id)
         .not('confirmed_at', 'is', null)
-      previousVisitCount = previousSessions?.length ?? 0
+      previousVisitCount = count ?? 0
     } catch {
       // Visit classification is useful telemetry, but never blocks the share.
     }
@@ -200,7 +182,7 @@ export async function exchangeShareToken(
   const accessAttempt = {
     workspace_id: share.workspace_id,
     share_id: share.id,
-    token_hash: hashShareToken(normalizedToken),
+    token_hash: capabilityHash,
     valid: true,
     token_age_seconds: tokenAgeSeconds,
     ip_hash: ipHash,

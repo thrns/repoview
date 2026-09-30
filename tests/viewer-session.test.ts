@@ -6,6 +6,7 @@ vi.mock('../lib/supabase/admin', () => ({
 }))
 
 import { createSupabaseAdminClient } from '../lib/supabase/admin'
+import { hashViewerSessionToken } from '../lib/security/tokens'
 import {
   authorizeViewerSession,
   ViewerAuthorizationError,
@@ -15,6 +16,7 @@ const getAdmin = vi.mocked(createSupabaseAdminClient)
 const shareId = '22222222-2222-4222-8222-222222222222'
 const sessionId = '33333333-3333-4333-8333-333333333333'
 const repositoryId = '11111111-1111-4111-8111-111111111111'
+const sessionToken = 'raw-session-token'
 
 beforeAll(() => {
   Object.assign(process.env, {
@@ -34,122 +36,126 @@ beforeAll(() => {
 })
 
 function createAdminMock(overrides: {
-  revokedAt?: string | null
-  expiresAt?: string | null
+  authorizationStatus?: string
   repositoryEnabled?: boolean
   repositoryIdentity?: number | null
-  workspaceStatus?: 'active' | 'deleting' | 'deleted'
-  installationStatus?: 'active' | 'inactive'
 } = {}) {
   const session = {
     id: sessionId,
     share_id: shareId,
-    session_token_hash: 'session-hash',
-    first_seen_at: '2026-09-21T00:00:00.000Z',
+    workspace_id: 'workspace-1',
+    viewer_id: null,
+    analytics_mode: 'necessary',
+    gpc_applied: false,
     last_seen_at: '2026-09-21T00:00:00.000Z',
     confirmed_at: null,
-    notified_at: null,
-    user_agent: null,
+    active_ms: 0,
+    security_signals: {},
+    entry_path: null,
     browser: null,
     os: null,
     device_type: null,
     country: null,
+    city: null,
+    region: null,
     referrer_host: null,
-    ip_hash: null,
     is_probable_bot: false,
+    vpn_indication: null,
+    proxy_indication: null,
+    tor_indication: null,
+    datacenter_indication: null,
   }
   const share = {
     id: shareId,
     repository_id: repositoryId,
     workspace_id: 'workspace-1',
     share_code: 'Ab3k9Qx2',
-    token_hash: 'share-hash',
+    share_type: 'recipient',
     recipient_label: 'Interview',
     ref: 'heads/main',
-    expires_at: overrides.expiresAt ?? null,
-    revoked_at: overrides.revokedAt ?? null,
+    expires_at: null,
     notify_on_view: true,
     allow_download: false,
     rules: {},
-    note: null,
-    created_by: null,
-    created_at: '2026-09-21T00:00:00.000Z',
-    updated_at: '2026-09-21T00:00:00.000Z',
   }
   const repository = {
     id: repositoryId,
     workspace_id: 'workspace-1',
     github_installation_id: '44444444-4444-4444-8444-444444444444',
     github_repository_id: overrides.repositoryIdentity === undefined ? 42 : overrides.repositoryIdentity,
-    github_node_id: 'node-42',
     github_owner: 'octocat',
     github_repo: 'hello-world',
-    default_branch: 'main',
     enabled: overrides.repositoryEnabled ?? true,
     default_rules: {},
-    created_at: '2026-09-21T00:00:00.000Z',
-    updated_at: '2026-09-21T00:00:00.000Z',
   }
-  const joinedShare = { ...share, repository, viewer_sessions: [session] }
-  const admin = {
-    from(table: string) {
-      if (table === 'workspaces') {
-        return {
-          select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          maybeSingle: vi.fn().mockResolvedValue({ data: { status: overrides.workspaceStatus ?? 'active' }, error: null }),
-        }
-      }
-      if (table === 'github_installations') {
-        return {
-          select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          maybeSingle: vi.fn().mockResolvedValue({ data: { status: overrides.installationStatus ?? 'active' }, error: null }),
-        }
-      }
-      return {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn().mockResolvedValue({ data: joinedShare, error: null }),
-      }
-    },
-  }
-  return admin
+  const rpc = vi.fn().mockResolvedValue({
+    data: [{
+      authorization_status: overrides.authorizationStatus ?? 'authorized',
+      session,
+      share,
+      repository,
+    }],
+    error: null,
+  })
+  return { rpc, admin: { rpc } }
 }
 
 describe('viewer session authorization', () => {
-  it('requires a valid session/share relationship and returns authorized context', async () => {
-    getAdmin.mockReturnValue(createAdminMock() as never)
+  it('authorizes a valid UUID share and passes only the session hash to the RPC', async () => {
+    const { admin, rpc } = createAdminMock()
+    getAdmin.mockReturnValue(admin as never)
 
-    await expect(authorizeViewerSession(shareId, 'raw-session-token')).resolves.toMatchObject({
+    await expect(authorizeViewerSession(shareId, sessionToken)).resolves.toMatchObject({
       session: { id: sessionId, share_id: shareId },
       share: { id: shareId, repository_id: repositoryId },
       repository: { id: repositoryId, enabled: true },
     })
+    expect(rpc).toHaveBeenCalledWith('authorize_viewer_session', {
+      target_session_token_hash: hashViewerSessionToken(sessionToken),
+      target_share_id: shareId,
+      target_share_code: null,
+    })
+    expect(JSON.stringify(rpc.mock.calls)).not.toContain(sessionToken)
   })
 
-  it('resolves the short public share code to the internal share', async () => {
-    getAdmin.mockReturnValue(createAdminMock() as never)
+  it('resolves a short public share code through the share-code RPC argument', async () => {
+    const { admin, rpc } = createAdminMock()
+    getAdmin.mockReturnValue(admin as never)
 
-    await expect(authorizeViewerSession('Ab3k9Qx2', 'raw-session-token')).resolves.toMatchObject({
+    await expect(authorizeViewerSession('Ab3k9Qx2', sessionToken)).resolves.toMatchObject({
       shareId,
       shareCode: 'Ab3k9Qx2',
       session: { id: sessionId, share_id: shareId },
     })
+    expect(rpc).toHaveBeenCalledWith('authorize_viewer_session', {
+      target_session_token_hash: hashViewerSessionToken(sessionToken),
+      target_share_id: null,
+      target_share_code: 'Ab3k9Qx2',
+    })
   })
 
   it.each([
-    { label: 'missing cookie', token: undefined, shareId },
-    { label: 'wrong share id', token: 'raw-session-token', shareId: 'not-a-uuid' },
-    { label: 'revoked share', token: 'raw-session-token', shareId, overrides: { revokedAt: '2026-09-21T01:00:00.000Z' } },
-    { label: 'expired share', token: 'raw-session-token', shareId, overrides: { expiresAt: '2020-01-01T00:00:00.000Z' } },
-    { label: 'disabled repository', token: 'raw-session-token', shareId, overrides: { repositoryEnabled: false } },
-    { label: 'missing stable repository identity', token: 'raw-session-token', shareId, overrides: { repositoryIdentity: null } },
-    { label: 'deleting workspace', token: 'raw-session-token', shareId, overrides: { workspaceStatus: 'deleting' as const } },
-    { label: 'inactive installation', token: 'raw-session-token', shareId, overrides: { installationStatus: 'inactive' as const } },
+    { label: 'missing cookie', token: undefined },
+    { label: 'invalid share identifier', token: sessionToken, shareId: 'not-a-uuid' },
+    { label: 'revoked share', token: sessionToken, overrides: { authorizationStatus: 'revoked' } },
+    { label: 'expired share', token: sessionToken, overrides: { authorizationStatus: 'expired' } },
+    { label: 'inactive workspace', token: sessionToken, overrides: { authorizationStatus: 'repository_unavailable' } },
+    { label: 'disabled repository', token: sessionToken, overrides: { repositoryEnabled: false } },
+    { label: 'missing stable repository identity', token: sessionToken, overrides: { repositoryIdentity: null } },
+    { label: 'inactive installation', token: sessionToken, overrides: { authorizationStatus: 'repository_unavailable' } },
   ])('denies $label', async ({ token, shareId: effectiveShareId, overrides }) => {
-    getAdmin.mockReturnValue(createAdminMock(overrides) as never)
+    const { admin } = createAdminMock(overrides)
+    getAdmin.mockReturnValue(admin as never)
 
-    await expect(authorizeViewerSession(effectiveShareId, token)).rejects.toBeInstanceOf(ViewerAuthorizationError)
+    await expect(authorizeViewerSession(effectiveShareId ?? shareId, token)).rejects.toBeInstanceOf(ViewerAuthorizationError)
+  })
+
+  it('denies a session that does not match the requested share or workspace', async () => {
+    const { admin, rpc } = createAdminMock()
+    rpc.mockResolvedValue({ data: [], error: null })
+    getAdmin.mockReturnValue(admin as never)
+
+    await expect(authorizeViewerSession(shareId, sessionToken)).rejects.toMatchObject({ reason: 'invalid' })
+    expect(rpc).toHaveBeenCalledTimes(1)
   })
 })

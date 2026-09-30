@@ -211,6 +211,84 @@ function createFlowAdmin() {
   const updateQuery = createQuery({ data: syncRepository, error: null })
 
   const admin = {
+    rpc: vi.fn().mockImplementation((name: string, args: { target_session_token_hash?: string }) => {
+      if (name === 'resolve_share_capability') {
+        return Promise.resolve({
+          data: [{
+            authorization_status: 'authorized',
+            share: {
+              id: share.id,
+              workspace_id: share.workspace_id,
+              repository_id: share.repository_id,
+              share_code: share.share_code,
+              ref: share.ref,
+              expires_at: share.expires_at,
+              created_at: share.created_at,
+              updated_at: share.updated_at,
+            },
+          }],
+          error: null,
+        })
+      }
+      if (name === 'authorize_viewer_session') {
+        viewerSessionHashFilter = args.target_session_token_hash
+        return Promise.resolve({
+          data: [{
+            authorization_status: 'authorized',
+            session: {
+              id: session.id,
+              share_id: session.share_id,
+              workspace_id: session.workspace_id,
+              viewer_id: session.viewer_id,
+              analytics_mode: session.analytics_mode,
+              gpc_applied: session.gpc_applied,
+              last_seen_at: session.last_seen_at,
+              confirmed_at: session.confirmed_at,
+              active_ms: 0,
+              security_signals: session.security_signals,
+              entry_path: null,
+              browser: session.browser,
+              os: session.os,
+              device_type: session.device_type,
+              country: session.country,
+              city: null,
+              region: session.region,
+              referrer_host: session.referrer_host,
+              is_probable_bot: session.is_probable_bot,
+              vpn_indication: session.vpn_indication,
+              proxy_indication: session.proxy_indication,
+              tor_indication: session.tor_indication,
+              datacenter_indication: session.datacenter_indication,
+            },
+            share: {
+              id: share.id,
+              workspace_id: share.workspace_id,
+              repository_id: share.repository_id,
+              share_code: share.share_code,
+              share_type: 'recipient',
+              recipient_label: share.recipient_label,
+              ref: share.ref,
+              expires_at: share.expires_at,
+              notify_on_view: share.notify_on_view,
+              allow_download: share.allow_download,
+              rules: share.rules,
+            },
+            repository: {
+              id: repository.id,
+              workspace_id: repository.workspace_id,
+              github_installation_id: repository.github_installation_id,
+              github_repository_id: repository.github_repository_id,
+              github_owner: repository.github_owner,
+              github_repo: repository.github_repo,
+              enabled: repository.enabled,
+              default_rules: repository.default_rules,
+            },
+          }],
+          error: null,
+        })
+      }
+      return Promise.resolve({ data: null, error: new Error(`Unexpected RPC: ${name}`) })
+    }),
     from(table: string) {
       if (table === 'shares') {
         const call = createQuery({

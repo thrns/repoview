@@ -7,7 +7,7 @@ import { getPublicEnv } from '../../../../../lib/env/public'
 import { getRepositoryRef } from '../../../../../lib/github/repositories'
 import { parseVisibilityRules } from '../../../../../lib/security/visibility'
 import { generateShareCode, hashShareToken } from '../../../../../lib/security/tokens'
-import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
+import { createSupabaseAdminClient } from '../../../../../lib/supabase/admin'
 import { listRegisteredRepositories } from '../../../../../lib/repositories/registry'
 import { synchronizeRepositoryForGitHub } from '../../../../../lib/repositories/synchronize'
 import { SHARE_CODE_MAX_ATTEMPTS, isShareCodeUniqueViolation } from '../../../../../lib/shares/share-code'
@@ -106,47 +106,62 @@ export async function createShare(input: unknown) {
     const repositoryRef = await getRepositoryRef(repository.github_owner, repository.github_repo, parsed.ref, repository.github_installation_id, repositoryAccess.workspace.id, 'member')
     const rules = parseVisibilityRules({ hidden: parsed.hidden, allowOnly: parsed.allowOnly })
     const recipientLabel = parsed.recipientName || parsed.recipientLabel || parsed.company || null
-    const shareCode = generateShareCode()
-    const supabase = await createSupabaseServerClient()
+    const admin = createSupabaseAdminClient()
     let data: { id: string; share_code: string } | null = null
     let generatedShareCode: string | null = null
 
     for (let attempt = 0; attempt < SHARE_CODE_MAX_ATTEMPTS; attempt += 1) {
-      const candidate = attempt === 0 ? shareCode : generateShareCode()
+      const candidate = generateShareCode()
       const tokenHash = hashShareToken(candidate)
       const candidateReservation = await reserveResourceQuota(
         'active-shares',
         repositoryAccess.workspace.id,
         `share:${tokenHash}`,
       )
-      const inserted = await supabase
-        .from('shares')
-        .insert({
-          repository_id: repository.id,
-          share_code: candidate,
-          share_type: parsed.shareType,
-          token_hash: tokenHash,
-          recipient_label: recipientLabel,
-          commit_sha: repositoryRef.sha,
-          ref: repositoryRef.name,
-          expires_at: parsed.expiresAt,
-          notify_on_view: parsed.notifyOnView,
-          allow_download: parsed.allowDownload,
-          rules: {
+      const createRecipient = parsed.shareType === 'recipient'
+        || Boolean(parsed.recipientName || parsed.company || parsed.email || parsed.roleNotes)
+      let inserted
+      try {
+        inserted = await admin.rpc('create_share_with_recipient', {
+          target_workspace_id: repositoryAccess.workspace.id,
+          target_repository_id: repository.id,
+          target_share_code: candidate,
+          target_share_type: parsed.shareType,
+          target_token_hash: tokenHash,
+          target_recipient_label: recipientLabel,
+          target_commit_sha: repositoryRef.sha,
+          target_ref: repositoryRef.name,
+          target_expires_at: parsed.expiresAt,
+          target_notify_on_view: parsed.notifyOnView,
+          target_allow_download: parsed.allowDownload,
+          target_rules: {
             hidden: [...rules.hidden],
             allowOnly: [...rules.allowOnly],
           },
-          note: parsed.note || null,
-          workspace_id: repositoryAccess.workspace.id,
-          created_by: repositoryAccess.user.id,
+          target_note: parsed.note || null,
+          target_created_by: repositoryAccess.user.id,
+          target_create_recipient: createRecipient,
+          target_recipient_name: parsed.recipientName || null,
+          target_company: parsed.company || null,
+          target_email: parsed.email || null,
+          target_role_notes: parsed.roleNotes || null,
         })
-        .select('id, share_code')
-        .single()
+      } catch (error) {
+        if (candidateReservation.owned) {
+          try {
+            await releaseResourceQuota(candidateReservation)
+          } catch {
+            // The short reservation lease safely expires if cleanup is unavailable.
+          }
+        }
+        throw error
+      }
 
-      if (!inserted.error && inserted.data) {
+      const created = inserted.data?.[0]
+      if (!inserted.error && created) {
         resourceReservation = candidateReservation
-        data = inserted.data
-        generatedShareCode = candidate
+        data = created
+        generatedShareCode = created.share_code
         break
       }
 
@@ -173,18 +188,6 @@ export async function createShare(input: unknown) {
       } catch {
         // The share is durable; the short reservation lease safely expires.
       }
-    }
-
-    if (parsed.shareType === 'recipient' || parsed.recipientName || parsed.company || parsed.email || parsed.roleNotes) {
-      const { error: recipientError } = await supabase.from('share_recipients').insert({
-        workspace_id: repositoryAccess.workspace.id,
-        share_id: data.id,
-        recipient_name: parsed.recipientName || null,
-        company: parsed.company || null,
-        email: parsed.email || null,
-        role_notes: parsed.roleNotes || null,
-      })
-      if (recipientError) throw new Error('RepoView could not save recipient details.')
     }
 
     await recordAuditLogBestEffort({

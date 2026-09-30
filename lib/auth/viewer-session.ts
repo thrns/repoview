@@ -9,10 +9,54 @@ import { createSupabaseAdminClient } from '../supabase/admin'
 import type { Database } from '../supabase/database.types'
 import { logViewerDiagnostic, summarizeViewerError } from '../viewer/diagnostics'
 
-type JoinedViewerShare = Database['public']['Tables']['shares']['Row'] & {
-  repository: Database['public']['Tables']['repositories']['Row']
-  viewer_sessions: Database['public']['Tables']['viewer_sessions']['Row'][]
-}
+type AuthorizedSession = Pick<Database['public']['Tables']['viewer_sessions']['Row'],
+  | 'id'
+  | 'share_id'
+  | 'workspace_id'
+  | 'viewer_id'
+  | 'analytics_mode'
+  | 'gpc_applied'
+  | 'last_seen_at'
+  | 'confirmed_at'
+  | 'active_ms'
+  | 'security_signals'
+  | 'entry_path'
+  | 'browser'
+  | 'os'
+  | 'device_type'
+  | 'country'
+  | 'city'
+  | 'region'
+  | 'referrer_host'
+  | 'is_probable_bot'
+  | 'vpn_indication'
+  | 'proxy_indication'
+  | 'tor_indication'
+  | 'datacenter_indication'
+>
+type AuthorizedShare = Pick<Database['public']['Tables']['shares']['Row'],
+  | 'id'
+  | 'workspace_id'
+  | 'repository_id'
+  | 'share_code'
+  | 'share_type'
+  | 'recipient_label'
+  | 'ref'
+  | 'expires_at'
+  | 'notify_on_view'
+  | 'allow_download'
+  | 'rules'
+>
+type AuthorizedRepository = Pick<Database['public']['Tables']['repositories']['Row'],
+  | 'id'
+  | 'workspace_id'
+  | 'github_installation_id'
+  | 'github_repository_id'
+  | 'github_owner'
+  | 'github_repo'
+  | 'enabled'
+  | 'default_rules'
+>
 
 export class ViewerAuthorizationError extends Error {
   readonly code = 'viewer_unauthorized' as const
@@ -38,7 +82,9 @@ export async function requireViewerSession(shareId: string) {
 }
 
 export async function authorizeViewerSession(shareId: string, rawSessionToken: string | undefined) {
-  if ((!isUuid(shareId) && !isShareCode(shareId)) || !rawSessionToken) {
+  const isShareUuid = isUuid(shareId)
+  const isValidIdentifier = isShareUuid || isShareCode(shareId)
+  if (!isValidIdentifier || !rawSessionToken) {
     logViewerDiagnostic('viewer-session-input-invalid', {
       shareIdentifierType: getShareIdentifierType(shareId),
       cookiePresent: Boolean(rawSessionToken),
@@ -47,22 +93,17 @@ export async function authorizeViewerSession(shareId: string, rawSessionToken: s
   }
 
   const admin = createSupabaseAdminClient()
-  const shareFilter = isUuid(shareId) ? 'id' : 'share_code'
-  const { data: joinedShare, error } = await admin
-    .from('shares')
-    // Workspace tenancy adds composite foreign keys alongside the original
-    // single-column relationships. Name the intended relationships explicitly
-    // so PostgREST does not reject this embed as ambiguous.
-    .select('*, repository:repositories!shares_workspace_repository_fk!inner(*), viewer_sessions:viewer_sessions!viewer_sessions_workspace_share_fk!inner(*)')
-    .eq(shareFilter, shareId)
-    .eq('viewer_sessions.session_token_hash', hashViewerSessionToken(rawSessionToken))
-    .maybeSingle()
+  const sessionTokenHash = hashViewerSessionToken(rawSessionToken)
+  const { data, error } = await admin.rpc('authorize_viewer_session', {
+    target_session_token_hash: sessionTokenHash,
+    target_share_id: isShareUuid ? shareId : null,
+    target_share_code: isShareUuid ? null : shareId,
+  })
 
   logViewerDiagnostic('viewer-session-lookup', {
     shareIdentifierType: getShareIdentifierType(shareId),
-    shareFilter,
     cookiePresent: true,
-    sessionMatched: Boolean(joinedShare),
+    sessionMatched: Boolean(data?.[0]),
     databaseError: Boolean(error),
     ...(error ? { error: summarizeViewerError(error).message } : {}),
   })
@@ -70,58 +111,41 @@ export async function authorizeViewerSession(shareId: string, rawSessionToken: s
   if (error) {
     throw new ViewerAuthorizationError('unavailable', error)
   }
-  if (!joinedShare) {
+  const result = data?.[0]
+  if (!result) {
     throw new ViewerAuthorizationError('invalid')
   }
-
-  const { repository, viewer_sessions: sessions, ...share } = joinedShare as unknown as JoinedViewerShare
-  const session = sessions[0]
-
-  const { data: workspace, error: workspaceError } = await admin
-    .from('workspaces')
-    .select('status')
-    .eq('id', share.workspace_id)
-    .maybeSingle()
-
-  if (!session || session.share_id !== share.id) {
-    logViewerDiagnostic('viewer-session-relationship-invalid', {
-      shareIdentifierType: getShareIdentifierType(shareId),
-      sessionPresent: Boolean(session),
-      shareMatched: Boolean(session && session.share_id === share.id),
-    })
-    throw new ViewerAuthorizationError('invalid')
-  }
-
-  if (share.revoked_at) {
+  if (result.authorization_status === 'revoked') {
     logViewerDiagnostic('viewer-share-revoked', { shareIdentifierType: getShareIdentifierType(shareId) })
     throw new ViewerAuthorizationError('revoked')
   }
-
-  if (share.expires_at && new Date(share.expires_at).getTime() <= Date.now()) {
+  if (result.authorization_status === 'expired') {
     logViewerDiagnostic('viewer-share-expired', { shareIdentifierType: getShareIdentifierType(shareId) })
     throw new ViewerAuthorizationError('expired')
   }
-
-  if (workspaceError) {
-    logViewerDiagnostic('viewer-workspace-lookup-failed', {
+  if (result.authorization_status !== 'authorized') {
+    logViewerDiagnostic('viewer-workspace-or-repository-unavailable', {
       shareIdentifierType: getShareIdentifierType(shareId),
-      databaseError: true,
-      error: summarizeViewerError(workspaceError).message,
-    })
-    throw new ViewerAuthorizationError('unavailable', workspaceError)
-  }
-
-  if (!workspace || workspace.status !== 'active') {
-    logViewerDiagnostic('viewer-workspace-unavailable', {
-      shareIdentifierType: getShareIdentifierType(shareId),
-      workspacePresent: Boolean(workspace),
-      workspaceStatus: workspace?.status,
+      authorizationStatus: result.authorization_status,
     })
     throw new ViewerAuthorizationError('repository_unavailable')
   }
 
+  const session = result.session as unknown as AuthorizedSession
+  const share = result.share as unknown as AuthorizedShare
+  const repository = result.repository as unknown as AuthorizedRepository
+
+  if (!session?.id || session.share_id !== share.id || session.workspace_id !== share.workspace_id) {
+    logViewerDiagnostic('viewer-session-relationship-invalid', {
+      shareIdentifierType: getShareIdentifierType(shareId),
+      sessionPresent: Boolean(session?.id),
+      shareMatched: Boolean(session?.id && session.share_id === share.id),
+    })
+    throw new ViewerAuthorizationError('invalid')
+  }
+
   if (
-    !repository
+    !repository?.id
     || repository.id !== share.repository_id
     || repository.workspace_id !== share.workspace_id
     || !repository.enabled
@@ -135,7 +159,7 @@ export async function authorizeViewerSession(shareId: string, rawSessionToken: s
   ) {
     logViewerDiagnostic('viewer-repository-validation-failed', {
       shareIdentifierType: getShareIdentifierType(shareId),
-      repositoryPresent: Boolean(repository),
+      repositoryPresent: Boolean(repository?.id),
       repositoryMatchesShare: Boolean(repository && repository.id === share.repository_id),
       repositoryMatchesWorkspace: Boolean(repository && repository.workspace_id === share.workspace_id),
       repositoryEnabled: repository?.enabled === true,
@@ -163,28 +187,11 @@ export async function authorizeViewerSession(shareId: string, rawSessionToken: s
     throw new ViewerAuthorizationError('repository_unavailable')
   }
 
-  const { data: installation, error: installationError } = await admin
-    .from('github_installations')
-    .select('status')
-    .eq('id', repository.github_installation_id)
-    .eq('workspace_id', share.workspace_id)
-    .maybeSingle()
-
   logViewerDiagnostic('viewer-installation-validation', {
     shareIdentifierType: getShareIdentifierType(shareId),
-    installationPresent: Boolean(installation),
-    installationActive: installation?.status === 'active',
-    databaseError: Boolean(installationError),
-    ...(installationError ? { error: summarizeViewerError(installationError).message } : {}),
+    installationPresent: true,
+    installationActive: true,
   })
-
-  if (installationError) {
-    throw new ViewerAuthorizationError('unavailable', installationError)
-  }
-  if (!installation || installation.status !== 'active') {
-    throw new ViewerAuthorizationError('repository_unavailable')
-  }
-
   logViewerDiagnostic('viewer-session-authorized', {
     shareIdentifierType: getShareIdentifierType(shareId),
     repositoryEnabled: repository.enabled,

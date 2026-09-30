@@ -10,6 +10,7 @@ vi.mock('../lib/analytics/identity', () => ({
 vi.mock('../lib/viewer/view-events', () => ({ recordViewerViewEvent: vi.fn().mockResolvedValue({ recorded: true }) }))
 
 import { createSupabaseAdminClient } from '../lib/supabase/admin'
+import { hashShareToken } from '../lib/security/tokens'
 import { findOrCreateViewer } from '../lib/analytics/identity'
 import { type LinkOpenMetadata } from '../lib/shares/link-open-metadata'
 import { exchangeShareToken, ShareExchangeError } from '../lib/shares/exchange'
@@ -49,6 +50,7 @@ function createAdminMock(
   sharePresent = true,
   shareCode = 'Ab3k9Qx2',
   sessionIds = ['33333333-3333-4333-8333-333333333333'],
+  installationStatus: 'active' | 'inactive' = 'active',
 ) {
   const share = {
     id: '22222222-2222-4222-8222-222222222222',
@@ -68,54 +70,61 @@ function createAdminMock(
     created_at: '2026-09-21T00:00:00.000Z',
     updated_at: '2026-09-21T00:00:00.000Z',
   }
-  const repository = {
-    id: share.repository_id,
-    github_owner: 'octocat',
-    github_repo: 'hello-world',
-    default_branch: 'main',
-    enabled: repositoryEnabled,
-    workspace_id: share.workspace_id,
-    default_rules: {},
-    created_at: '2026-09-21T00:00:00.000Z',
-    updated_at: '2026-09-21T00:00:00.000Z',
-  }
+  const authorizationStatus = !sharePresent
+    ? null
+    : shareOverrides.revoked_at
+      ? 'revoked'
+      : shareOverrides.expires_at
+        ? 'expired'
+        : workspaceStatus !== 'active' || !repositoryEnabled || installationStatus !== 'active'
+          ? 'repository_unavailable'
+          : 'authorized'
+  const rpc = vi.fn().mockResolvedValue({
+    data: authorizationStatus
+      ? [{
+          authorization_status: authorizationStatus,
+          share: {
+            id: share.id,
+            workspace_id: share.workspace_id,
+            repository_id: share.repository_id,
+            share_code: share.share_code,
+            ref: share.ref,
+            expires_at: share.expires_at,
+            created_at: share.created_at,
+            updated_at: share.updated_at,
+          },
+        }]
+      : [],
+    error: null,
+  })
   const sessionInsert = vi.fn().mockImplementation(() => ({
     select: vi.fn().mockReturnValue({
       single: vi.fn().mockResolvedValue({ data: { id: sessionIds[Math.min(sessionInsert.mock.calls.length - 1, sessionIds.length - 1)] }, error: null }),
     }),
   }))
   const eventInsert = vi.fn().mockResolvedValue({ error: null })
+  const previousCountSelect = vi.fn().mockReturnThis()
   const admin = {
+    rpc,
     from(table: string) {
-      if (table === 'shares') {
-        return {
-          select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          maybeSingle: vi.fn().mockResolvedValue({ data: sharePresent ? share : null, error: null }),
-        }
-      }
-      if (table === 'repositories') {
-        return {
-          select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          maybeSingle: vi.fn().mockResolvedValue({ data: repository, error: null }),
-        }
-      }
-      if (table === 'workspaces') {
-        return {
-          select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          maybeSingle: vi.fn().mockResolvedValue({ data: { status: workspaceStatus }, error: null }),
-        }
-      }
       if (table === 'viewer_sessions') {
-        return { insert: sessionInsert }
+        const query = {
+          select: previousCountSelect,
+          eq: vi.fn().mockReturnThis(),
+          not: vi.fn().mockResolvedValue({ count: 2, error: null }),
+          order: vi.fn().mockReturnThis(),
+          limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+          update: vi.fn().mockReturnThis(),
+          insert: sessionInsert,
+        }
+        query.eq.mockReturnThis()
+        return query
       }
       return { insert: eventInsert }
     },
   }
 
-  return { admin, sessionInsert, eventInsert }
+  return { admin, rpc, sessionInsert, eventInsert, previousCountSelect }
 }
 
 describe('share token exchange', () => {
@@ -140,7 +149,7 @@ describe('share token exchange', () => {
   })
 
   it('stores only the viewer-session hash and records link_opened', async () => {
-    const { admin, sessionInsert } = createAdminMock()
+    const { admin, rpc, sessionInsert, eventInsert, previousCountSelect } = createAdminMock()
     getAdmin.mockReturnValue(admin as never)
     getViewer.mockResolvedValue({
       viewer: { id: 'viewer-1', viewer_code: 'A123', viewer_token_hash: 'hash', workspace_id: '77777777-7777-4777-8777-777777777777', first_seen_at: '2026-09-21T00:00:00.000Z', last_seen_at: '2026-09-21T00:00:00.000Z' },
@@ -163,6 +172,9 @@ describe('share token exchange', () => {
 
     expect(result.shareId).toBe('22222222-2222-4222-8222-222222222222')
     expect(result.shareCode).toBe('Ab3k9Qx2')
+    expect(rpc).toHaveBeenCalledWith('resolve_share_capability', { target_token_hash: hashShareToken(rawShareToken) })
+    expect(JSON.stringify(rpc.mock.calls)).not.toContain(rawShareToken)
+    expect(previousCountSelect).toHaveBeenCalledWith('id', { count: 'exact', head: true })
     expect(result.rawSessionToken).not.toBe(rawShareToken)
     expect(sessionInsert).toHaveBeenCalledWith(expect.objectContaining({
       share_id: '22222222-2222-4222-8222-222222222222',
@@ -177,6 +189,9 @@ describe('share token exchange', () => {
     expect(sessionInsert.mock.calls[0]?.[0]).toHaveProperty('ip_hash', expect.stringMatching(/^[a-f0-9]{64}$/))
     expect(sessionInsert.mock.calls[0]?.[0]).not.toHaveProperty('public_ip')
     expect(sessionInsert.mock.calls[0]?.[0]).not.toHaveProperty('rawSessionToken')
+    expect(JSON.stringify(sessionInsert.mock.calls)).not.toContain(result.rawSessionToken)
+    expect(eventInsert).toHaveBeenCalledWith(expect.objectContaining({ token_hash: hashShareToken(rawShareToken) }))
+    expect(JSON.stringify(eventInsert.mock.calls)).not.toContain(rawShareToken)
     expect(recordViewEvent).toHaveBeenCalledWith(expect.objectContaining({
       workspaceId: '77777777-7777-4777-8777-777777777777',
       shareId: '22222222-2222-4222-8222-222222222222',
@@ -257,6 +272,14 @@ describe('share token exchange', () => {
       code: 'repository_unavailable',
     })
     await expect(exchangeShareToken(rawShareToken)).rejects.toBeInstanceOf(ShareExchangeError)
+    expect(sessionInsert).not.toHaveBeenCalled()
+  })
+
+  it('rejects an inactive GitHub installation before creating a viewer session', async () => {
+    const { admin, sessionInsert } = createAdminMock(true, 'active', {}, true, 'Ab3k9Qx2', undefined, 'inactive')
+    getAdmin.mockReturnValue(admin as never)
+
+    await expect(exchangeShareToken(rawShareToken)).rejects.toMatchObject({ code: 'repository_unavailable' })
     expect(sessionInsert).not.toHaveBeenCalled()
   })
 

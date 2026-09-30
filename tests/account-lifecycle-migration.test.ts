@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 const migration = readFileSync('supabase/migrations/20260924200000_account_lifecycle.sql', 'utf8')
 const exchange = readFileSync('lib/shares/exchange.ts', 'utf8')
 const viewerSession = readFileSync('lib/auth/viewer-session.ts', 'utf8')
+const viewerAuthorizationMigration = readFileSync('supabase/migrations/20260930190000_viewer_authorization_rpc.sql', 'utf8')
 const deletion = readFileSync('lib/account/deletion.ts', 'utf8')
 const deletionJob = readFileSync('lib/account/deletion-job.ts', 'utf8')
 const deletionJobMigration = readFileSync('supabase/migrations/20260924290000_resumable_account_deletion.sql', 'utf8')
@@ -14,10 +15,9 @@ const onboarding = readFileSync('lib/auth/onboarding.ts', 'utf8')
 
 describe('account lifecycle hardening', () => {
   it('checks workspace lifecycle before public share access', () => {
-    expect(exchange).toContain("from('workspaces')")
-    expect(exchange).toContain("workspace?.status !== 'active'")
-    expect(viewerSession).toContain("from('workspaces')")
-    expect(viewerSession).toContain("workspace.status !== 'active'")
+    expect(exchange).toContain("rpc('resolve_share_capability'")
+    expect(viewerSession).toContain("rpc('authorize_viewer_session'")
+    expect(viewerAuthorizationMigration).toContain("workspaces.status <> 'active'")
     expect(onboarding).toContain("workspace.status !== 'active'")
   })
 

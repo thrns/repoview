@@ -471,6 +471,38 @@ export interface Database {
         Args: { target_delivery_id: string; target_now?: string }
         Returns: NotificationDelivery[]
       }
+      resolve_share_capability: {
+        Args: { target_token_hash: string }
+        Returns: Array<{ authorization_status: 'authorized' | 'revoked' | 'expired' | 'invalid' | 'repository_unavailable'; share: Json }>
+      }
+      authorize_viewer_session: {
+        Args: { target_session_token_hash: string; target_share_id: string | null; target_share_code: string | null }
+        Returns: Array<{ authorization_status: 'authorized' | 'revoked' | 'expired' | 'repository_unavailable'; session: Json | null; share: Json | null; repository: Json | null }>
+      }
+      create_share_with_recipient: {
+        Args: {
+          target_workspace_id: string
+          target_repository_id: string
+          target_share_code: string
+          target_share_type: Share['share_type']
+          target_token_hash: string
+          target_recipient_label: string | null
+          target_commit_sha: string | null
+          target_ref: string
+          target_expires_at: string | null
+          target_notify_on_view: boolean
+          target_allow_download: boolean
+          target_rules: Json
+          target_note: string | null
+          target_created_by: string
+          target_create_recipient: boolean
+          target_recipient_name: string | null
+          target_company: string | null
+          target_email: string | null
+          target_role_notes: string | null
+        }
+        Returns: Array<{ id: string; share_code: string }>
+      }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
