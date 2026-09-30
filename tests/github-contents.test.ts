@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 vi.mock('../lib/github/client', () => ({
@@ -6,6 +6,7 @@ vi.mock('../lib/github/client', () => ({
 }))
 
 import { getGitHubInstallationClientForInstallation } from '../lib/github/client'
+import { isPathAllowedForShare } from '../lib/security/visibility'
 import {
   GitHubFileError,
   loadRepositoryAsset,
@@ -13,131 +14,271 @@ import {
   MAX_ASSET_PREVIEW_BYTES,
   MAX_TEXT_PREVIEW_BYTES,
 } from '../lib/github/contents'
+import { loadAuthorizedViewerRoot } from '../lib/viewer/root-loader'
+import type { GitHubRawTreeEntry } from '../lib/github/trees'
+import type { ViewerTreeState } from '../lib/viewer/tree-model'
 
 const getClient = vi.mocked(getGitHubInstallationClientForInstallation)
+const getTree = vi.fn()
+const getBlob = vi.fn()
 
 const installationRecordId = 'installation-record-id'
 const workspaceId = 'workspace-id'
+const owner = 'octocat'
+const repo = 'hello-world'
+const ref = 'main'
+
+function treeEntry(
+  path: string,
+  options: Partial<GitHubRawTreeEntry> = {},
+): GitHubRawTreeEntry {
+  return {
+    path,
+    mode: '100644',
+    type: 'blob',
+    sha: 'blob-sha',
+    size: 0,
+    ...options,
+  }
+}
+
+function configureGitHub(entries: GitHubRawTreeEntry[], bytes = Buffer.from('RepoView source')) {
+  getTree.mockResolvedValue({
+    data: {
+      truncated: false,
+      tree: entries.map((entry) => ({ ...entry, url: 'https://provider.invalid/private-tree-url' })),
+    },
+  })
+  getBlob.mockResolvedValue({
+    data: {
+      sha: entries.find((entry) => entry.type === 'blob')?.sha ?? 'blob-sha',
+      size: bytes.length,
+      encoding: 'base64',
+      content: bytes.toString('base64'),
+      url: 'https://provider.invalid/private-blob-url',
+      download_url: 'https://provider.invalid/private-download-url',
+      token: 'private-provider-token',
+    },
+  })
+  getClient.mockReturnValue({ rest: { git: { getTree, getBlob } } } as never)
+}
+
+beforeEach(() => {
+  getTree.mockReset()
+  getBlob.mockReset()
+  getClient.mockReset()
+})
 
 describe('GitHub repository file loading', () => {
-  it('fetches text server-side, decodes it, and does not return provider URLs', async () => {
-    const getContent = vi.fn().mockResolvedValue({
+  it.each(['100644', '100755'])('loads a verified %s blob by the tree SHA', async (mode) => {
+    const bytes = Buffer.from('Hello, RepoView!')
+    configureGitHub([treeEntry('src/README.md', { mode, sha: 'verified-tree-blob', size: bytes.length })], bytes)
+    getBlob.mockResolvedValue({
       data: {
-        type: 'file',
-        size: 13,
+        sha: 'verified-tree-blob',
+        size: bytes.length,
         encoding: 'base64',
-        content: Buffer.from('Hello, RepoView!').toString('base64'),
-        download_url: 'temporary-private-url',
+        content: bytes.toString('base64'),
+        url: 'https://provider.invalid/private-blob-url',
+        download_url: 'https://provider.invalid/private-download-url',
+        token: 'private-provider-token',
       },
     })
-    getClient.mockReturnValue({ rest: { repos: { getContent } } } as never)
 
-    await expect(loadRepositoryFile('octocat', 'hello-world', '/src/README.md', 'main', installationRecordId, workspaceId)).resolves.toEqual({
-      kind: 'text',
-      path: 'src/README.md',
-      size: 13,
-      content: 'Hello, RepoView!',
+    const file = await loadRepositoryFile(owner, repo, '/src/README.md', ref, installationRecordId, workspaceId)
+
+    expect(file).toEqual({ kind: 'text', path: 'src/README.md', size: bytes.length, content: 'Hello, RepoView!' })
+    expect(getTree).toHaveBeenCalledWith({
+      owner,
+      repo,
+      tree_sha: 'main',
+      recursive: '1',
     })
-    expect(getContent).toHaveBeenCalledWith({
-      owner: 'octocat',
-      repo: 'hello-world',
-      path: 'src/README.md',
-      ref: 'main',
+    expect(getBlob).toHaveBeenCalledWith({
+      owner,
+      repo,
+      file_sha: 'verified-tree-blob',
       headers: { Accept: 'application/vnd.github+json' },
     })
+    expect(JSON.stringify(file)).not.toMatch(/provider\.invalid|private-provider-token|verified-tree-blob/)
   })
 
-  it('returns an explicit image result and unavailable result for binary and oversized files', async () => {
-    const getContent = vi.fn()
-      .mockResolvedValueOnce({ data: { type: 'file', size: 12, encoding: 'base64', content: 'not-decoded' } })
-      .mockResolvedValueOnce({ data: { type: 'file', size: MAX_TEXT_PREVIEW_BYTES + 1, encoding: 'none', content: '' } })
-    getClient.mockReturnValue({ rest: { repos: { getContent } } } as never)
+  it('denies a visible symlink to a hidden .env without fetching either object', async () => {
+    configureGitHub([
+      treeEntry('docs/config.txt', { mode: '120000', sha: 'symlink-blob', size: 8 }),
+      treeEntry('.env', { sha: 'hidden-env-blob', size: 24 }),
+    ])
+    const repositoryRules = { hidden: ['.env', '**/.env*'], allowOnly: [] }
 
-    await expect(loadRepositoryFile('octocat', 'hello-world', 'logo.png', 'main', installationRecordId, workspaceId)).resolves.toEqual({
-      kind: 'image',
-      path: 'logo.png',
-      size: 12,
-      mediaType: 'image/png',
-    })
-    await expect(loadRepositoryFile('octocat', 'hello-world', 'large.txt', 'main', installationRecordId, workspaceId)).resolves.toMatchObject({
-      kind: 'unavailable',
-      reason: 'oversized',
-      message: 'Preview unavailable.',
-    })
+    expect(isPathAllowedForShare('docs/config.txt', repositoryRules, {})).toBe(true)
+    expect(isPathAllowedForShare('.env', repositoryRules, {})).toBe(false)
+    await expect(loadRepositoryFile(owner, repo, 'docs/config.txt', ref, installationRecordId, workspaceId))
+      .rejects.toMatchObject({ code: 'not_a_file' })
+    expect(getBlob).not.toHaveBeenCalled()
   })
 
-  it('detects NUL bytes and maps missing files without exposing provider errors', async () => {
-    const getContent = vi.fn()
-      .mockResolvedValueOnce({
-        data: {
-          type: 'file',
-          size: 4,
-          encoding: 'base64',
-          content: Buffer.from([65, 0, 66, 67]).toString('base64'),
-        },
-      })
-      .mockRejectedValueOnce({ status: 404 })
-    getClient.mockReturnValue({ rest: { repos: { getContent } } } as never)
+  it('rejects a visible symlink even when its target is visible', async () => {
+    configureGitHub([
+      treeEntry('docs/config.txt', { mode: '120000', sha: 'symlink-blob', size: 8 }),
+      treeEntry('config.txt', { sha: 'visible-target-blob', size: 12 }),
+    ])
 
-    await expect(loadRepositoryFile('octocat', 'hello-world', 'data.txt', 'main', installationRecordId, workspaceId)).resolves.toMatchObject({
-      kind: 'unavailable',
-      reason: 'binary',
-    })
-    const missingFile = loadRepositoryFile('octocat', 'hello-world', 'missing.txt', 'main', installationRecordId, workspaceId)
-    await expect(missingFile).rejects.toMatchObject({
-      code: 'not_found',
-    })
-    await expect(missingFile).rejects.toBeInstanceOf(
-      GitHubFileError,
-    )
+    await expect(loadRepositoryFile(owner, repo, 'docs/config.txt', ref, installationRecordId, workspaceId))
+      .rejects.toMatchObject({ code: 'not_a_file' })
+    expect(getBlob).not.toHaveBeenCalled()
   })
 
-  it('loads only allowlisted image assets within the protected size cap', async () => {
+  it('rejects symlink images and symlink downloads', async () => {
+    configureGitHub([
+      treeEntry('docs/logo.png', { mode: '120000', sha: 'image-link-blob', size: 10 }),
+      treeEntry('docs/manual.txt', { mode: '120000', sha: 'download-link-blob', size: 12 }),
+    ])
+
+    await expect(loadRepositoryAsset(owner, repo, 'docs/logo.png', ref, installationRecordId, workspaceId))
+      .rejects.toMatchObject({ code: 'not_a_file' })
+    await expect(loadRepositoryFile(owner, repo, 'docs/manual.txt', ref, installationRecordId, workspaceId))
+      .rejects.toMatchObject({ code: 'not_a_file' })
+    expect(getBlob).not.toHaveBeenCalled()
+  })
+
+  it('rejects root README symlinks before rendering their contents', async () => {
+    configureGitHub([treeEntry('README.md', { mode: '120000', sha: 'readme-link-blob', size: 8 })])
+    const tree: ViewerTreeState = {
+      status: 'ready',
+      nodes: [{
+        path: 'README.md',
+        name: 'README.md',
+        parentPath: null,
+        kind: 'file',
+        sourceType: 'blob',
+      }],
+    }
+
+    await expect(loadAuthorizedViewerRoot({
+      owner,
+      repository: repo,
+      ref,
+      tree,
+      installationRecordId,
+      workspaceId,
+    })).resolves.toEqual({ status: 'unavailable', reason: 'unavailable' })
+    expect(getBlob).not.toHaveBeenCalled()
+  })
+
+  it('rejects gitlinks, trees, unexpected modes, and unexpected object types', async () => {
+    const invalidEntries = [
+      treeEntry('vendor/library', { mode: '160000', type: 'commit', sha: 'submodule-sha' }),
+      treeEntry('docs', { mode: '040000', type: 'tree', sha: 'tree-sha' }),
+      treeEntry('script.sh', { mode: '100600', sha: 'unexpected-mode-sha' }),
+      treeEntry('mystery.bin', { type: 'tag', sha: 'unexpected-type-sha' }),
+    ]
+
+    for (const entry of invalidEntries) {
+      configureGitHub([entry])
+      await expect(loadRepositoryFile(owner, repo, entry.path, ref, installationRecordId, workspaceId))
+        .rejects.toMatchObject({ code: 'not_a_file' })
+    }
+
+    expect(getBlob).not.toHaveBeenCalled()
+  })
+
+  it('fails closed for truncated or incomplete trees and absent exact paths', async () => {
+    configureGitHub([treeEntry('docs/file.txt')])
+    getTree.mockResolvedValueOnce({ data: { truncated: true, tree: [] } })
+    await expect(loadRepositoryFile(owner, repo, 'docs/file.txt', ref, installationRecordId, workspaceId))
+      .rejects.toMatchObject({ code: 'upstream' })
+    expect(getBlob).not.toHaveBeenCalled()
+
+    getTree.mockResolvedValueOnce({ data: { tree: [treeEntry('docs/file.txt')] } })
+    await expect(loadRepositoryFile(owner, repo, 'docs/file.txt', ref, installationRecordId, workspaceId))
+      .rejects.toMatchObject({ code: 'upstream' })
+    expect(getBlob).not.toHaveBeenCalled()
+
+    configureGitHub([])
+    await expect(loadRepositoryFile(owner, repo, 'docs/missing.txt', ref, installationRecordId, workspaceId))
+      .rejects.toMatchObject({ code: 'not_found' })
+  })
+
+  it('keeps traversal protections and rejects paths before asking GitHub', async () => {
+    for (const path of ['../.env', 'docs/../.env', 'docs/%252e%252e/.env', 'docs\\..\\.env']) {
+      await expect(loadRepositoryFile(owner, repo, path, ref, installationRecordId, workspaceId))
+        .rejects.toBeInstanceOf(GitHubFileError)
+      await expect(loadRepositoryFile(owner, repo, path, ref, installationRecordId, workspaceId))
+        .rejects.toMatchObject({ code: 'invalid_path' })
+    }
+
+    expect(getTree).not.toHaveBeenCalled()
+  })
+
+  it('preserves binary and oversized preview behavior', async () => {
+    const binary = Buffer.from([65, 0, 66, 67])
+    configureGitHub([
+      treeEntry('data.txt', { sha: 'binary-blob', size: binary.length }),
+      treeEntry('large.txt', { sha: 'large-blob', size: MAX_TEXT_PREVIEW_BYTES + 1 }),
+    ], binary)
+    getBlob.mockResolvedValueOnce({
+      data: { sha: 'binary-blob', size: binary.length, encoding: 'base64', content: binary.toString('base64') },
+    })
+
+    await expect(loadRepositoryFile(owner, repo, 'data.txt', ref, installationRecordId, workspaceId))
+      .resolves.toMatchObject({ kind: 'unavailable', reason: 'binary' })
+    await expect(loadRepositoryFile(owner, repo, 'large.txt', ref, installationRecordId, workspaceId))
+      .resolves.toMatchObject({ kind: 'unavailable', reason: 'oversized', size: MAX_TEXT_PREVIEW_BYTES + 1 })
+    expect(getBlob).toHaveBeenCalledTimes(1)
+  })
+
+  it('loads only allowlisted image assets within the existing size cap', async () => {
     const bytes = Buffer.from('png-bytes')
-    const getContent = vi.fn()
-      .mockResolvedValueOnce({ data: { type: 'file', size: bytes.length, encoding: 'base64', content: bytes.toString('base64') } })
-      .mockResolvedValueOnce({ data: { type: 'file', size: 4, encoding: 'base64', content: Buffer.from('text').toString('base64') } })
-      .mockResolvedValueOnce({ data: { type: 'file', size: MAX_ASSET_PREVIEW_BYTES + 1, encoding: 'none', content: '' } })
-    getClient.mockReturnValue({ rest: { repos: { getContent } } } as never)
+    configureGitHub([
+      treeEntry('docs/diagram.png', { sha: 'diagram-blob', size: bytes.length }),
+      treeEntry('docs/readme.txt', { sha: 'text-blob', size: 4 }),
+      treeEntry('docs/large.png', { sha: 'large-image-blob', size: MAX_ASSET_PREVIEW_BYTES + 1 }),
+    ], bytes)
+    getBlob.mockResolvedValue({
+      data: { sha: 'diagram-blob', size: bytes.length, encoding: 'base64', content: bytes.toString('base64') },
+    })
 
-    await expect(loadRepositoryAsset('octocat', 'hello-world', 'docs/diagram.png', 'main', installationRecordId, workspaceId)).resolves.toMatchObject({
+    await expect(loadRepositoryAsset(owner, repo, 'docs/diagram.png', ref, installationRecordId, workspaceId)).resolves.toMatchObject({
       path: 'docs/diagram.png',
       size: bytes.length,
       mediaType: 'image/png',
       bytes,
     })
-    await expect(loadRepositoryAsset('octocat', 'hello-world', 'docs/readme.txt', 'main', installationRecordId, workspaceId)).rejects.toMatchObject({ code: 'not_a_file' })
-    await expect(loadRepositoryAsset('octocat', 'hello-world', 'docs/large.png', 'main', installationRecordId, workspaceId)).rejects.toMatchObject({ status: 413 })
+    await expect(loadRepositoryAsset(owner, repo, 'docs/readme.txt', ref, installationRecordId, workspaceId))
+      .rejects.toMatchObject({ code: 'not_a_file' })
+    await expect(loadRepositoryAsset(owner, repo, 'docs/large.png', ref, installationRecordId, workspaceId))
+      .rejects.toMatchObject({ status: 413 })
+    expect(getBlob).toHaveBeenCalledTimes(1)
   })
 
-  it('falls back to the authenticated Git Blob API when Contents omits inline image bytes', async () => {
-    const bytes = Buffer.from('large-png-bytes')
-    const getContent = vi.fn().mockResolvedValue({
-      data: {
-        type: 'file',
-        size: 2 * 1024 * 1024,
-        encoding: 'none',
-        sha: 'blob-sha',
-      },
+  it('rejects a blob response that does not match the verified tree object', async () => {
+    configureGitHub([treeEntry('README.md', { sha: 'tree-blob-sha', size: 4 })])
+    getBlob.mockResolvedValue({
+      data: { sha: 'different-blob-sha', size: 4, encoding: 'base64', content: Buffer.from('safe').toString('base64') },
     })
-    const getBlob = vi.fn().mockResolvedValue({
-      data: {
-        encoding: 'base64',
-        content: bytes.toString('base64'),
-      },
-    })
-    getClient.mockReturnValue({ rest: { repos: { getContent }, git: { getBlob } } } as never)
 
-    await expect(loadRepositoryAsset('octocat', 'hello-world', 'docs/large.png', 'main', installationRecordId, workspaceId)).resolves.toMatchObject({
-      path: 'docs/large.png',
-      mediaType: 'image/png',
-      bytes,
+    await expect(loadRepositoryFile(owner, repo, 'README.md', ref, installationRecordId, workspaceId))
+      .rejects.toMatchObject({ code: 'upstream' })
+  })
+
+  it('maps missing blob errors without returning provider error details', async () => {
+    configureGitHub([treeEntry('README.md', { sha: 'tree-blob-sha', size: 4 })])
+    getBlob.mockRejectedValue({ status: 404, message: 'https://provider.invalid/secret-token' })
+
+    const error = loadRepositoryFile(owner, repo, 'README.md', ref, installationRecordId, workspaceId)
+    await expect(error).rejects.toMatchObject({ code: 'not_found' })
+    await expect(error).rejects.not.toThrow(/provider\.invalid|secret-token/)
+  })
+
+  it('preserves rate limit mapping from the Git tree request', async () => {
+    configureGitHub([treeEntry('README.md', { sha: 'tree-blob-sha', size: 4 })])
+    getTree.mockRejectedValue({
+      status: 403,
+      response: { headers: { 'x-ratelimit-remaining': '0' } },
     })
-    expect(getBlob).toHaveBeenCalledWith({
-      owner: 'octocat',
-      repo: 'hello-world',
-      file_sha: 'blob-sha',
-      headers: { Accept: 'application/vnd.github+json' },
-    })
+
+    await expect(loadRepositoryFile(owner, repo, 'README.md', ref, installationRecordId, workspaceId))
+      .rejects.toMatchObject({ code: 'rate_limited', status: 403 })
+    expect(getBlob).not.toHaveBeenCalled()
   })
 })

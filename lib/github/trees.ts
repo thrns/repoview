@@ -11,6 +11,16 @@ export interface GitHubTreeEntry {
   size?: number
 }
 
+export interface GitHubRawTreeEntry {
+  path: string
+  mode: string
+  type: string
+  sha: string
+  size?: number
+}
+
+type GitHubInstallationClient = Awaited<ReturnType<typeof getGitHubInstallationClientForInstallation>>
+
 export class GitHubTreeTruncatedError extends Error {
   readonly code = 'tree_truncated' as const
 
@@ -29,6 +39,31 @@ export async function loadRepositoryTree(
   access: GitHubInstallationAccess = 'system',
 ): Promise<GitHubTreeEntry[]> {
   const client = await getGitHubInstallationClientForInstallation(installationRecordId, workspaceId, access)
+  const entries = await loadRepositoryTreeEntriesFromClient(client, owner, repo, ref)
+
+  return entries
+    .filter((entry): entry is GitHubRawTreeEntry & { type: GitHubTreeEntry['type'] } =>
+      entry.type === 'blob' || entry.type === 'tree' || entry.type === 'commit',
+    )
+    .map((entry) => ({
+      path: normalizeTreePath(entry.path),
+      mode: entry.mode,
+      type: entry.type,
+      sha: entry.sha,
+      ...(entry.size === undefined ? {} : { size: entry.size }),
+    }))
+}
+
+/**
+ * Loads unmodified tree paths so file readers can verify the exact requested
+ * path before trusting an object SHA. UI tree paths are normalized separately.
+ */
+export async function loadRepositoryTreeEntriesFromClient(
+  client: GitHubInstallationClient,
+  owner: string,
+  repo: string,
+  ref: string,
+): Promise<GitHubRawTreeEntry[]> {
   let data: Awaited<ReturnType<typeof client.rest.git.getTree>>['data']
 
   try {
@@ -42,21 +77,30 @@ export async function loadRepositoryTree(
     throw mapGitHubRepositoryError(error)
   }
 
-  if (data.truncated) {
+  if (data.truncated !== false || !Array.isArray(data.tree)) {
     throw new GitHubTreeTruncatedError()
   }
 
-  return data.tree
-    .filter((entry): entry is typeof entry & { type: 'blob' | 'tree' | 'commit' } =>
-      entry.type === 'blob' || entry.type === 'tree' || entry.type === 'commit',
-    )
-    .map((entry) => ({
-      path: normalizeTreePath(entry.path),
+  return data.tree.map((entry) => {
+    if (
+      !entry
+      || typeof entry.path !== 'string'
+      || typeof entry.mode !== 'string'
+      || typeof entry.type !== 'string'
+      || typeof entry.sha !== 'string'
+      || (entry.size !== undefined && (!Number.isSafeInteger(entry.size) || entry.size < 0))
+    ) {
+      throw new GitHubTreeTruncatedError()
+    }
+
+    return {
+      path: entry.path,
       mode: entry.mode,
       type: entry.type,
       sha: entry.sha,
       ...(entry.size === undefined ? {} : { size: entry.size }),
-    }))
+    }
+  })
 }
 
 function normalizeTreeRef(ref: string) {

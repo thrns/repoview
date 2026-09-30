@@ -2,6 +2,10 @@ import 'server-only'
 
 import { getGitHubInstallationClientForInstallation, type GitHubInstallationAccess } from './client'
 import { mapGitHubRepositoryError } from './repositories'
+import { loadRepositoryTreeEntriesFromClient } from './trees'
+import { normalizeRepositoryPath } from '../security/path'
+import type { GitHubRawTreeEntry } from './trees'
+import { GitHubRepositoryError } from './types'
 
 export const MAX_TEXT_PREVIEW_BYTES = 1_000_000
 export const MAX_ASSET_PREVIEW_BYTES = 5_000_000
@@ -13,6 +17,12 @@ const SAFE_ASSET_MEDIA_TYPES = new Set([
   'image/svg+xml',
   'image/webp',
 ])
+
+type VerifiedRepositoryBlobEntry = GitHubRawTreeEntry & {
+  mode: '100644' | '100755'
+  type: 'blob'
+  size: number
+}
 
 export type GitHubFileContent =
   | {
@@ -71,29 +81,13 @@ export async function loadRepositoryFile(
   workspaceId: string,
   access: GitHubInstallationAccess = 'system',
 ): Promise<GitHubFileContent> {
-  let normalizedPath: string
-  try {
-    normalizedPath = normalizeFilePath(path)
-  } catch {
-    throw new GitHubFileError('invalid_path')
-  }
+  const normalizedPath = normalizeFilePath(path)
 
   const client = await getGitHubInstallationClientForInstallation(installationRecordId, workspaceId, access)
 
   try {
-    const { data } = await client.rest.repos.getContent({
-      owner,
-      repo,
-      path: normalizedPath,
-      ref: ref.trim(),
-      headers: { Accept: 'application/vnd.github+json' },
-    })
-
-    if (Array.isArray(data) || data.type !== 'file') {
-      throw new GitHubFileError('not_a_file')
-    }
-
-    const size = data.size
+    const entry = await resolveRepositoryBlobEntry(client, owner, repo, normalizedPath, ref)
+    const size = entry.size
     if (size > MAX_TEXT_PREVIEW_BYTES) {
       return {
         kind: 'unavailable',
@@ -124,7 +118,7 @@ export async function loadRepositoryFile(
       }
     }
 
-    const bytes = decodeContent(data.content, data.encoding)
+    const bytes = await loadVerifiedBlobBytes(client, owner, repo, entry)
     if (hasNullByte(bytes)) {
       return {
         kind: 'unavailable',
@@ -146,20 +140,7 @@ export async function loadRepositoryFile(
       throw error
     }
 
-    const mapped = mapGitHubRepositoryError(error)
-    const code = mapped.code === 'not_found'
-      ? 'not_found'
-      : mapped.code === 'unauthorized'
-        ? 'unauthorized'
-        : mapped.code === 'forbidden'
-          ? 'forbidden'
-          : mapped.code === 'rate_limited'
-            ? 'rate_limited'
-            : mapped.code === 'unavailable'
-              ? 'unavailable'
-              : 'upstream'
-
-    throw new GitHubFileError(code, mapped.status)
+    throw mapGitHubFileError(error)
   }
 }
 
@@ -172,81 +153,78 @@ export async function loadRepositoryAsset(
   workspaceId: string,
   access: GitHubInstallationAccess = 'system',
 ): Promise<GitHubImageAsset> {
-  let normalizedPath: string
-  try {
-    normalizedPath = normalizeFilePath(path)
-  } catch {
-    throw new GitHubFileError('invalid_path')
-  }
+  const normalizedPath = normalizeFilePath(path)
 
   const client = await getGitHubInstallationClientForInstallation(installationRecordId, workspaceId, access)
 
   try {
-    const { data } = await client.rest.repos.getContent({
-      owner,
-      repo,
-      path: normalizedPath,
-      ref: ref.trim(),
-      headers: { Accept: 'application/vnd.github+json' },
-    })
-
-    if (Array.isArray(data) || data.type !== 'file') {
-      throw new GitHubFileError('not_a_file')
-    }
+    const entry = await resolveRepositoryBlobEntry(client, owner, repo, normalizedPath, ref)
 
     const mediaType = getImageMediaType(normalizedPath)
     if (!mediaType || !SAFE_ASSET_MEDIA_TYPES.has(mediaType)) {
       throw new GitHubFileError('not_a_file')
     }
 
-    if (data.size > MAX_ASSET_PREVIEW_BYTES) {
+    if (entry.size > MAX_ASSET_PREVIEW_BYTES) {
       throw new GitHubFileError('upstream', 413)
     }
 
-    const bytes = await loadAssetBytes(client, owner, repo, data)
+    const bytes = await loadVerifiedBlobBytes(client, owner, repo, entry)
     if (bytes.length > MAX_ASSET_PREVIEW_BYTES) {
       throw new GitHubFileError('upstream', 413)
     }
 
-    return { path: normalizedPath, size: data.size, mediaType, bytes }
+    return { path: normalizedPath, size: entry.size, mediaType, bytes }
   } catch (error) {
     if (error instanceof GitHubFileError) {
       throw error
     }
 
-    const mapped = mapGitHubRepositoryError(error)
-    const code = mapped.code === 'not_found'
-      ? 'not_found'
-      : mapped.code === 'unauthorized'
-        ? 'unauthorized'
-        : mapped.code === 'forbidden'
-          ? 'forbidden'
-          : mapped.code === 'rate_limited'
-            ? 'rate_limited'
-            : mapped.code === 'unavailable'
-              ? 'unavailable'
-              : 'upstream'
-
-    throw new GitHubFileError(code, mapped.status)
+    throw mapGitHubFileError(error)
   }
 }
 
-async function loadAssetBytes(
+async function resolveRepositoryBlobEntry(
   client: Awaited<ReturnType<typeof getGitHubInstallationClientForInstallation>>,
   owner: string,
   repo: string,
-  file: { content?: string; encoding?: string; sha?: string },
-) {
-  // GitHub's Contents API omits inline content for larger files. Fall back to
-  // the authenticated Git Blob API instead of exposing a raw download URL.
-  if (file.encoding === 'base64' && typeof file.content === 'string' && file.content.trim()) {
-    return decodeContent(file.content, file.encoding)
+  path: string,
+  ref: string,
+): Promise<VerifiedRepositoryBlobEntry> {
+  const entries = await loadRepositoryTreeEntriesFromClient(client, owner, repo, ref)
+  const exactEntries = entries.filter((entry) => entry.path === path)
+
+  if (exactEntries.length === 0) {
+    throw new GitHubFileError('not_found')
   }
 
-  if (!file.sha) {
+  if (exactEntries.length !== 1) {
+    throw new GitHubFileError('not_a_file')
+  }
+
+  const entry = exactEntries[0]
+  if (entry.type !== 'blob' || (entry.mode !== '100644' && entry.mode !== '100755')) {
+    throw new GitHubFileError('not_a_file')
+  }
+
+  if (!entry.sha.trim() || entry.size === undefined) {
     throw new GitHubFileError('upstream')
   }
 
+  return {
+    ...entry,
+    mode: entry.mode,
+    type: 'blob',
+    size: entry.size,
+  }
+}
+
+async function loadVerifiedBlobBytes(
+  client: Awaited<ReturnType<typeof getGitHubInstallationClientForInstallation>>,
+  owner: string,
+  repo: string,
+  file: { sha: string; size: number },
+) {
   const { data } = await client.rest.git.getBlob({
     owner,
     repo,
@@ -254,37 +232,53 @@ async function loadAssetBytes(
     headers: { Accept: 'application/vnd.github+json' },
   })
 
-  return decodeContent(data.content, data.encoding)
+  if (data.sha !== file.sha || data.size !== file.size || typeof data.content !== 'string') {
+    throw new GitHubFileError('upstream')
+  }
+
+  const bytes = decodeBlobContent(data.content, data.encoding)
+  if (bytes.length !== file.size) {
+    throw new GitHubFileError('upstream')
+  }
+
+  return bytes
 }
 
 function normalizeFilePath(path: string) {
-  const segments: string[] = []
-
-  for (const segment of path.replaceAll('\\', '/').split('/')) {
-    if (segment.length === 0 || segment === '.') {
-      continue
-    }
-
-    if (segment === '..') {
-      throw new Error('File path traversal is not allowed')
-    }
-
-    segments.push(segment)
+  const normalizedPath = normalizeRepositoryPath(path)
+  if (!normalizedPath) {
+    throw new GitHubFileError('invalid_path')
   }
-
-  if (segments.length === 0) {
-    throw new Error('File path is required')
-  }
-
-  return segments.join('/')
+  return normalizedPath
 }
 
-function decodeContent(content: string, encoding: string) {
+function mapGitHubFileError(error: unknown) {
+  const mapped = error instanceof GitHubRepositoryError ? error : mapGitHubRepositoryError(error)
+  const code = mapped.code === 'not_found'
+    ? 'not_found'
+    : mapped.code === 'unauthorized'
+      ? 'unauthorized'
+      : mapped.code === 'forbidden'
+        ? 'forbidden'
+        : mapped.code === 'rate_limited'
+          ? 'rate_limited'
+          : mapped.code === 'unavailable'
+            ? 'unavailable'
+            : 'upstream'
+
+  return new GitHubFileError(code, mapped.status)
+}
+
+function decodeBlobContent(content: string, encoding: string) {
   if (encoding === 'base64') {
     return Buffer.from(content.replaceAll(/\s/g, ''), 'base64')
   }
 
-  return Buffer.from(content, 'utf8')
+  if (encoding === 'utf-8') {
+    return Buffer.from(content, 'utf8')
+  }
+
+  throw new GitHubFileError('upstream')
 }
 
 function hasNullByte(bytes: Buffer) {

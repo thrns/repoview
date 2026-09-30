@@ -17,9 +17,10 @@ vi.mock('../lib/security/rate-limit', () => ({
   rateLimitResponse: vi.fn(),
   rateLimitUnavailableResponse: vi.fn(),
 }))
-vi.mock('@/lib/shares/link-open-metadata', () => ({
-  getLinkOpenMetadata: vi.fn(() => ({})),
-}))
+vi.mock('@/lib/shares/link-open-metadata', async () => {
+  const actual = await vi.importActual<typeof import('../lib/shares/link-open-metadata')>('../lib/shares/link-open-metadata')
+  return { ...actual, getLinkOpenMetadata: vi.fn(() => ({})) }
+})
 vi.mock('../lib/analytics/identity', () => ({ findOrCreateViewer: vi.fn() }))
 vi.mock('../lib/viewer/view-events', () => ({ recordViewerViewEvent: vi.fn().mockResolvedValue({ recorded: true }) }))
 vi.mock('../lib/github/client', () => ({ listWorkspaceGitHubInstallations: vi.fn() }))
