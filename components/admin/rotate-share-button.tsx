@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useTransition } from 'react'
 
 import { rotateShare } from '@/app/(admin)/dashboard/shares/[id]/actions'
-import { Alert, AlertDescription, AlertTitle, Button, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui'
+import { Alert, AlertDescription, AlertTitle, Button, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogSection, DialogSectionSeparator, DialogTitle, DialogTrigger, Input, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui'
 
 export function RotateShareButton({ shareId, compact = false, revoked = false, iconOnly = false }: { shareId: string; compact?: boolean; revoked?: boolean; iconOnly?: boolean }) {
   const router = useRouter()
@@ -102,15 +102,19 @@ export function RotateShareButton({ shareId, compact = false, revoked = false, i
           <DialogTitle>{revoked ? 'Issue a replacement link?' : 'Generate a new share link?'}</DialogTitle>
           <DialogDescription>{revoked ? 'The previous link has been revoked. This issues a fresh nine-character capability code and reactivates the share; the URL will be shown once below.' : 'Generating a fresh nine-character capability code will invalidate the previous link immediately.'}</DialogDescription>
         </DialogHeader>
+        <DialogSectionSeparator />
         {error ? <Alert className="mt-4 border-destructive/40"><AlertTitle>Could not generate a new share link</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
         {shareUrl ? (
-          <div className="mt-5 space-y-4 rounded-lg border border-success/40 bg-success/5 p-4">
+          <div className="mt-4 min-w-0 space-y-4 rounded-md border border-success/40 bg-success/5 p-4">
             <div><p className="text-sm font-medium">New share link</p><p className="mt-1 text-sm text-foreground-muted">Save or copy this link now. The public code is stored for share lookup, while its HMAC is used for server-side validation.</p></div>
             <div className="flex flex-col gap-2 sm:flex-row"><Input ref={urlInputRef} readOnly value={shareUrl} aria-label="New share URL" className="bg-background font-mono text-xs" onFocus={(event) => event.currentTarget.select()} /><Button type="button" variant="primary" onClick={() => { void copyUrl() }} icon={copied ? <Check className="size-4" /> : <Copy className="size-4" />}>{copied ? 'Copied' : 'Copy link'}</Button></div>
             <p aria-live="polite" className={`min-h-5 text-xs ${copyError ? 'text-destructive' : 'text-success'}`}>{copyError || (copied ? 'New link copied' : 'Copy the new link before closing this dialog.')}</p>
           </div>
         ) : (
-          <Alert className="mt-5"><AlertTitle>{revoked ? 'New capability required' : 'Old URL invalidation'}</AlertTitle><AlertDescription>{revoked ? 'The revoked share will only be usable again through the new URL issued below.' : 'Anyone using the previous URL will lose access as soon as rotation completes.'}</AlertDescription></Alert>
+          <DialogSection className="space-y-1.5">
+            <p className="text-sm font-medium">{revoked ? 'New capability required' : 'Old URL invalidation'}</p>
+            <p className="text-sm text-foreground-muted">{revoked ? 'The revoked share will only be usable again through the new URL issued below.' : 'Anyone using the previous URL will lose access as soon as rotation completes.'}</p>
+          </DialogSection>
         )}
         <DialogFooter>
           <DialogClose>{shareUrl ? 'Done' : 'Cancel'}</DialogClose>

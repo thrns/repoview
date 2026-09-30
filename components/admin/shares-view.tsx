@@ -150,9 +150,9 @@ function ShareRow({ item }: { item: ShareListItem }) {
     <TableRow>
       <TableCell className="min-w-0">
         <Link href={detailHref} className="block min-w-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface-100">
-          <span className="block truncate text-sm font-semibold tracking-tight text-foreground" title={shareLabel}>{shareLabel}</span>
+          <span className="block truncate text-sm font-semibold tracking-tight text-foreground" title={repositoryName}>{repositoryName}</span>
           <span className="mt-1 flex min-w-0 items-center gap-1.5 truncate text-xs text-foreground-muted">
-            <span className="truncate font-mono" title={repositoryName}>{repositoryName}</span>
+            <span className="truncate" title={shareLabel}>{shareLabel}</span>
             <span aria-hidden="true" className="text-foreground-muted/60">·</span>
             <span className="truncate font-mono" title={item.share.ref}>{item.share.ref}</span>
           </span>

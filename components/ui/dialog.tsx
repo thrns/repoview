@@ -43,7 +43,7 @@ export function DialogContent({ children, className, 'aria-label': ariaLabel, 'a
   if (!dialog?.open) return null
   const labelledby = ariaLabel ? undefined : ariaLabelledby ?? dialog.titleId
   const describedby = ariaDescribedby ?? dialog.descriptionId
-  return <div className="ui-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) dialog.setOpen(false) }}><section {...props} ref={contentRef} role="dialog" aria-modal="true" aria-label={ariaLabel ?? (!labelledby ? 'Dialog' : undefined)} aria-labelledby={labelledby} aria-describedby={describedby} tabIndex={-1} className={cn('ui-dialog-panel relative w-full max-w-lg rounded-md border border-border bg-surface-100 p-6 text-card-foreground shadow-lg shadow-foreground/10', className)}>{children}</section></div>
+  return <div className="ui-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) dialog.setOpen(false) }}><section {...props} ref={contentRef} role="dialog" aria-modal="true" aria-label={ariaLabel ?? (!labelledby ? 'Dialog' : undefined)} aria-labelledby={labelledby} aria-describedby={describedby} tabIndex={-1} className={cn('ui-dialog-panel relative w-full max-w-lg rounded-md border border-border bg-surface-100 p-6 text-left text-card-foreground whitespace-normal break-words shadow-lg shadow-foreground/10', className)}>{children}</section></div>
 }
 
 export function DialogHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn('flex flex-col space-y-1.5 text-left', className)} {...props} /> }
