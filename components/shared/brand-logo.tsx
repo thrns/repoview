@@ -13,7 +13,7 @@ export function BrandLogo({ alt = '', className, priority = false, size = 28 }: 
   return (
     <span className={cn('relative inline-flex shrink-0', className)} style={{ width: size, height: size }}>
       <Image
-        src="/repoview-logo.svg"
+        src="/repoview-logo-light.svg"
         alt={alt}
         width={size}
         height={size}
@@ -21,7 +21,7 @@ export function BrandLogo({ alt = '', className, priority = false, size = 28 }: 
         className="block h-full w-full object-contain dark:hidden"
       />
       <Image
-        src="/repoview-logo-white.svg"
+        src="/repoview-logo-dark.svg"
         alt={alt}
         width={size}
         height={size}

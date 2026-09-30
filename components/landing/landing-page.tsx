@@ -51,20 +51,18 @@ export function LandingPage({ account }: { account?: AccountMenuData }) {
       <section className="hero-section" id="top">
         <div className="landing-container hero-layout">
           <div className="hero-copy">
-            <h1>Give private code a <span>proper review surface.</span></h1>
+            <h1><span className="hero-heading-lead">Give private code a</span><span>proper review surface.</span></h1>
             <p className="hero-description">
-              RepoView turns a private repository into a scoped, read-only link that feels familiar to the person reviewing it — and gives you a useful signal when they engage.
+              Share private code with a scoped, read-only link. See what reviewers explore.
             </p>
             <div className="hero-actions">
-              <Button asChild variant="primary" size="large">
+              <Button asChild variant="primary" size="large" className="button-md">
                 <Link href="/signup">Create a workspace <ArrowUpRight className="size-4" aria-hidden="true" /></Link>
               </Button>
-              <Button asChild variant="outline" size="large"><Link href="#recipient">See the experience</Link></Button>
             </div>
             <ul className="hero-proof" aria-label="RepoView basics">
               <li><Check className="size-3.5" aria-hidden="true" /> Read-only by design</li>
               <li><Check className="size-3.5" aria-hidden="true" /> No viewer account</li>
-              <li><Check className="size-3.5" aria-hidden="true" /> Expiry and revocation are yours</li>
             </ul>
           </div>
 
@@ -149,9 +147,9 @@ export function LandingPage({ account }: { account?: AccountMenuData }) {
           <h2>Private code deserves a focused review.</h2>
           <p>Create a workspace and share your first repository when you are ready.</p>
           <div className="hero-actions">
-            <Button asChild variant="primary" size="large">
-              <Link href="/signup">Create a workspace <ArrowUpRight className="size-4" aria-hidden="true" /></Link>
-            </Button>
+              <Button asChild variant="primary" size="large" className="button-md">
+                <Link href="/signup">Create a workspace <ArrowUpRight className="size-4" aria-hidden="true" /></Link>
+              </Button>
           </div>
         </div>
       </section>
@@ -243,7 +241,7 @@ function ShareLinkPreview({ copied, onCopy }: { copied: boolean; onCopy: () => v
           <label>Expiry<span className="fake-input"><Clock3 className="size-3.5" aria-hidden="true" /><span>7 days</span></span></label>
         </div>
         <div className="generated-link"><span><Link2 className="size-3.5" aria-hidden="true" /> repoview.dev/view/aB3xK9pQ2</span><span className="link-status"><i className="status-dot" /> active</span></div>
-        <Button type="button" variant="primary" size="large" className="share-button" onClick={onCopy} iconRight={<ArrowUpRight className="size-3.5" aria-hidden="true" />}>{copied ? 'Link copied' : 'Copy private link'}</Button>
+        <Button type="button" variant="primary" size="large" className="button-md share-button" onClick={onCopy} iconRight={<ArrowUpRight className="size-3.5" aria-hidden="true" />}>{copied ? 'Link copied' : 'Copy private link'}</Button>
       </div>
       <div className="share-preview-footer"><span><Check className="size-3" aria-hidden="true" /> Read-only</span><span>Revoke anytime</span></div>
     </div>

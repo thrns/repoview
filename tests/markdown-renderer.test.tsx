@@ -82,7 +82,8 @@ describe('markdown renderer', () => {
     expect(html).toContain('alt="tracebox system map"')
     expect(html).toContain('src="https://example.com/readme-hero.webp"')
     expect(html).toContain('alt="External preview"')
-    expect(html).toContain('class="markdown-image"')
+    expect(html).toContain('class="markdown-image markdown-image-pending"')
+    expect(html).toContain('markdown-image-skeleton')
     expect(html).not.toContain('![tracebox system map](docs/assets/readme-hero.png)')
   })
 
@@ -93,7 +94,7 @@ describe('markdown renderer', () => {
     expect(html).toContain('src="/api/assets/share-123/docs/assets/readme-hero.png"')
     expect(html).toContain('alt="Tekkscope system map"')
     expect(html).toContain('width="100%"')
-    expect(html).toContain('class="markdown-image"')
+    expect(html).toContain('class="markdown-image markdown-image-pending"')
   })
 
   it('renders a realistic README fixture with publication-quality GFM and document links', async () => {

@@ -9,7 +9,7 @@ interface GoogleAuthButtonProps {
   redirectPath?: string
 }
 
-export function GoogleAuthButton({ label = 'Sign in with Google', redirectPath = '/dashboard' }: GoogleAuthButtonProps) {
+export function GoogleAuthButton({ label = 'Continue with Google', redirectPath = '/dashboard' }: GoogleAuthButtonProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -31,7 +31,8 @@ export function GoogleAuthButton({ label = 'Sign in with Google', redirectPath =
       <Button
         type="button"
         variant="outline"
-        className="auth-google-button w-full"
+        size="large"
+        className="button-md w-full"
         loading={isSubmitting}
         icon={<GoogleMark className="size-4" />}
         onClick={handleGoogleSignIn}

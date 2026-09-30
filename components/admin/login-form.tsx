@@ -6,7 +6,7 @@ import { FormEvent, useState } from 'react'
 import { ArrowRight, Eye, EyeOff } from 'lucide-react'
 
 import { GoogleAuthButton } from '@/components/admin/google-auth-button'
-import { Alert, AlertDescription, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label } from '@/components/ui'
+import { Alert, AlertDescription, Button, Input, Label } from '@/components/ui'
 
 export function LoginForm() {
   const router = useRouter()
@@ -40,39 +40,34 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="login-card">
-      <CardHeader className="login-card-header">
-        <div className="login-form-meta">Workspace sign-in</div>
-        <CardTitle className="login-card-title">Sign in to RepoView</CardTitle>
-        <CardDescription className="login-card-description">Manage private repository shares and view activity.</CardDescription>
-      </CardHeader>
-      <CardContent className="login-card-content">
-        <GoogleAuthButton />
-        <div className="auth-divider" aria-hidden="true"><span>or continue with email</span></div>
-        <form className="login-form" onSubmit={handleSubmit}>
-          {error ? <Alert className="login-error" aria-live="polite"><AlertDescription><strong>We couldn&apos;t sign you in.</strong><span>{error}</span></AlertDescription></Alert> : null}
-          <div className="login-field">
+    <div className="auth-form-stack">
+      <div className="auth-form-heading">
+        <h1>Sign in</h1>
+      </div>
+      <GoogleAuthButton label="Continue with Google" />
+      <div className="auth-divider"><span>or continue with email</span></div>
+      <form className="auth-form" onSubmit={handleSubmit}>
+        {error ? <Alert className="auth-error" aria-live="polite"><AlertDescription><strong>We couldn&apos;t sign you in.</strong><span>{error}</span></AlertDescription></Alert> : null}
+        <div className="auth-fields">
+          <div className="auth-field">
             <Label htmlFor="email">Email address</Label>
-            <div className="login-input-wrap">
-              <Input id="email" className="login-input" type="email" autoComplete="email" placeholder="you@company.com" required value={email} onChange={(event) => setEmail(event.target.value)} />
-            </div>
+            <Input id="email" type="email" autoComplete="email" placeholder="you@company.com" required value={email} onChange={(event) => setEmail(event.target.value)} />
           </div>
-          <div className="login-field">
+          <div className="auth-field">
             <Label htmlFor="password">Password</Label>
-            <div className="login-input-wrap">
-              <Input id="password" className="login-input pr-10" type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Enter your password" required value={password} onChange={(event) => setPassword(event.target.value)} />
-              <button className="login-password-toggle" type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)}>
+            <div className="auth-password-wrap">
+              <Input id="password" className="pr-10" type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Enter your password" required value={password} onChange={(event) => setPassword(event.target.value)} />
+              <button className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-md text-foreground-muted transition-colors hover:bg-surface-200 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)}>
                 {showPassword ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
               </button>
             </div>
           </div>
-          <Button type="submit" variant="primary" size="large" className="login-submit-button w-full" loading={isSubmitting} iconRight={<ArrowRight className="size-4" aria-hidden="true" />}>
-            Sign in
-          </Button>
-          <p className="login-form-note">Your workspace determines the repositories and shares you can access.</p>
-          <p className="login-form-note">Need an account? <Link href="/signup">Create one</Link></p>
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+        <Button type="submit" variant="primary" size="large" className="button-md w-full" loading={isSubmitting} iconRight={<ArrowRight className="size-4" aria-hidden="true" />}>
+          Sign in
+        </Button>
+        <p className="auth-account-note">Need an account? <Link href="/signup">Create one</Link></p>
+      </form>
+    </div>
   )
 }

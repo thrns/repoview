@@ -44,7 +44,7 @@ export function buildViewNotificationEmail(input: ViewNotificationEmailInput): V
   const entryPath = input.entryPath || 'Not available'
   const securityContext = formatSecurityContext(input)
   const activityUrl = new URL(`/dashboard/shares/${encodeURIComponent(input.shareId)}`, input.appUrl).toString()
-  const logoUrl = new URL('/repoview-logo-white.svg', input.appUrl).toString()
+  const logoUrl = new URL('/repoview-logo-light.svg', input.appUrl).toString()
   const subject = `RepoView: ${cleanSubject(viewerLabel)} viewed ${cleanSubject(repositoryName)}`
   const lines = [
     'RepoView',
@@ -100,7 +100,7 @@ export function buildSessionSummaryEmail(input: SessionSummaryEmailInput): ViewN
   const viewerLabel = cleanText(input.viewerLabel, 'Anonymous Viewer')
   const repositoryName = cleanText(input.repositoryName, 'repository')
   const activityUrl = new URL(`/dashboard/shares/${encodeURIComponent(input.shareId)}`, input.appUrl).toString()
-  const logoUrl = new URL('/repoview-logo-white.svg', input.appUrl).toString()
+  const logoUrl = new URL('/repoview-logo-light.svg', input.appUrl).toString()
   const lines = [
     'RepoView', '', 'A viewer session ended.', '',
     `Viewer: ${viewerLabel}`,

@@ -6,7 +6,7 @@ import { FormEvent, useState } from 'react'
 import { ArrowRight, Eye, EyeOff } from 'lucide-react'
 
 import { GoogleAuthButton } from '@/components/admin/google-auth-button'
-import { Alert, AlertDescription, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label } from '@/components/ui'
+import { Alert, AlertDescription, Button, Input, Label } from '@/components/ui'
 
 export function SignupForm() {
   const router = useRouter()
@@ -76,61 +76,61 @@ export function SignupForm() {
   }
 
   return (
-    <Card className="login-card">
-      <CardHeader className="login-card-header">
-        <div className="login-form-meta">Workspace sign-up</div>
-        <CardTitle className="login-card-title">Create your RepoView account</CardTitle>
-        <CardDescription className="login-card-description">Create a personal workspace for private repository shares and viewer activity.</CardDescription>
-      </CardHeader>
-      <CardContent className="login-card-content">
-        {isComplete ? (
-          <div className="signup-success" role="status" aria-live="polite">
-            <strong>Check your inbox.</strong>
-            <p>We sent a confirmation link to <span>{email}</span>. Confirm it to finish creating your account.</p>
-            <Link href="/login" className="signup-success-link">Back to sign in <ArrowRight className="size-3.5" aria-hidden="true" /></Link>
-          </div>
-        ) : (
-          <>
-            <GoogleAuthButton label="Continue with Google" redirectPath="/onboarding" />
-            <div className="auth-divider" aria-hidden="true"><span>or use email</span></div>
-            <form className="login-form" onSubmit={handleSubmit}>
-              {error ? <Alert className="login-error" aria-live="polite"><AlertDescription><strong>We couldn&apos;t create your account.</strong><span>{error}</span></AlertDescription></Alert> : null}
-              <div className="login-field">
+    <div className="auth-form-stack">
+      <div className="auth-form-heading">
+        <h1>Create your account</h1>
+      </div>
+      {isComplete ? (
+        <div className="auth-success" role="status" aria-live="polite">
+          <strong>Check your inbox.</strong>
+          <p>We sent a confirmation link to <span>{email}</span>. Confirm it to finish creating your account.</p>
+          <Link href="/login" className="auth-success-link">Back to sign in <ArrowRight className="size-3.5" aria-hidden="true" /></Link>
+        </div>
+      ) : (
+        <>
+          <GoogleAuthButton label="Continue with Google" redirectPath="/onboarding" />
+          <div className="auth-divider"><span>or use email</span></div>
+          <form className="auth-form" onSubmit={handleSubmit}>
+            {error ? <Alert className="auth-error" aria-live="polite"><AlertDescription><strong>We couldn&apos;t create your account.</strong><span>{error}</span></AlertDescription></Alert> : null}
+            <div className="auth-fields">
+              <div className="auth-field">
                 <Label htmlFor="signup-full-name">Full name</Label>
-                <Input id="signup-full-name" className="login-input" type="text" autoComplete="name" maxLength={100} placeholder="Ada Lovelace" required value={fullName} onChange={(event) => setFullName(event.target.value)} />
+                <Input id="signup-full-name" type="text" autoComplete="name" maxLength={100} placeholder="Ada Lovelace" required value={fullName} onChange={(event) => setFullName(event.target.value)} />
               </div>
-              <div className="login-field">
+              <div className="auth-field">
                 <Label htmlFor="signup-email">Email address</Label>
-                <Input id="signup-email" className="login-input" type="email" autoComplete="email" placeholder="you@company.com" required value={email} onChange={(event) => setEmail(event.target.value)} />
+                <Input id="signup-email" type="email" autoComplete="email" placeholder="you@company.com" required value={email} onChange={(event) => setEmail(event.target.value)} />
               </div>
-              <div className="login-field">
+              <div className="auth-field">
                 <Label htmlFor="signup-password">Password</Label>
-                <div className="login-input-wrap">
-                  <Input id="signup-password" className="login-input pr-10" type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength={6} placeholder="At least 6 characters" required value={password} onChange={(event) => setPassword(event.target.value)} />
-                  <button className="login-password-toggle" type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)}>
+                <div className="auth-password-wrap">
+                  <Input id="signup-password" className="pr-10" type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength={6} placeholder="At least 6 characters" required value={password} onChange={(event) => setPassword(event.target.value)} />
+                  <button className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-md text-foreground-muted transition-colors hover:bg-surface-200 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)}>
                     {showPassword ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
                   </button>
                 </div>
               </div>
-              <div className="login-field">
+              <div className="auth-field">
                 <Label htmlFor="signup-password-confirmation">Confirm password</Label>
-                <div className="login-input-wrap">
-                  <Input id="signup-password-confirmation" className="login-input pr-10" type={showPasswordConfirmation ? 'text' : 'password'} autoComplete="new-password" minLength={6} placeholder="Re-enter your password" required value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} />
-                  <button className="login-password-toggle" type="button" aria-label={showPasswordConfirmation ? 'Hide password confirmation' : 'Show password confirmation'} onClick={() => setShowPasswordConfirmation((visible) => !visible)}>
+                <div className="auth-password-wrap">
+                  <Input id="signup-password-confirmation" className="pr-10" type={showPasswordConfirmation ? 'text' : 'password'} autoComplete="new-password" minLength={6} placeholder="Re-enter your password" required value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} />
+                  <button className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-md text-foreground-muted transition-colors hover:bg-surface-200 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" type="button" aria-label={showPasswordConfirmation ? 'Hide password confirmation' : 'Show password confirmation'} onClick={() => setShowPasswordConfirmation((visible) => !visible)}>
                     {showPasswordConfirmation ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
                   </button>
                 </div>
               </div>
-              <Button type="submit" variant="primary" size="large" className="login-submit-button w-full" loading={isSubmitting} iconRight={<ArrowRight className="size-4" aria-hidden="true" />}>
-                Create account
-              </Button>
-              <p className="login-form-note">After you verify your email, RepoView will ask you to accept the current <Link href="/terms">Terms</Link> and acknowledge the <Link href="/privacy">Privacy Policy</Link>.</p>
-              <p className="login-form-note">Already have an account? <Link href="/login">Sign in</Link></p>
-            </form>
-          </>
-        )}
-      </CardContent>
-    </Card>
+            </div>
+            <Button type="submit" variant="primary" size="large" className="button-md w-full" loading={isSubmitting} iconRight={<ArrowRight className="size-4" aria-hidden="true" />}>
+              Create account
+            </Button>
+            <div className="auth-form-footer">
+              <p className="auth-legal-note">By creating an account, you agree to the <Link href="/terms">Terms</Link> and acknowledge the <Link href="/privacy">Privacy Policy</Link>.</p>
+              <p className="auth-account-note">Already have an account? <Link href="/login">Sign in</Link></p>
+            </div>
+          </form>
+        </>
+      )}
+    </div>
   )
 }
 

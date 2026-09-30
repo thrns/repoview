@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 import { SignupForm } from '@/components/admin/signup-form'
-import { LandingFooter, LandingNav } from '@/components/landing/landing-chrome'
+import { AuthLayout } from '@/components/landing/auth-layout'
 
 export const metadata: Metadata = {
   title: 'Create account | RepoView',
@@ -10,12 +10,11 @@ export const metadata: Metadata = {
 
 export default function SignupPage() {
   return (
-    <main className="landing-page login-page">
-      <LandingNav homeHref="/" minimal />
-      <div className="login-content">
-        <SignupForm />
-      </div>
-      <LandingFooter homeHref="/" sectionPrefix="/" />
-    </main>
+    <AuthLayout
+      headline="Share code with confidence."
+      signals={['Private repository shares', 'Viewer activity insights', 'A workspace built for you']}
+    >
+      <SignupForm />
+    </AuthLayout>
   )
 }
