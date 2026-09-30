@@ -16,7 +16,6 @@ import {
 } from '../lib/github/contents'
 import { loadAuthorizedViewerRoot } from '../lib/viewer/root-loader'
 import type { GitHubRawTreeEntry } from '../lib/github/trees'
-import type { ViewerTreeState } from '../lib/viewer/tree-model'
 
 const getClient = vi.mocked(getGitHubInstallationClientForInstallation)
 const getTree = vi.fn()
@@ -143,25 +142,63 @@ describe('GitHub repository file loading', () => {
 
   it('rejects root README symlinks before rendering their contents', async () => {
     configureGitHub([treeEntry('README.md', { mode: '120000', sha: 'readme-link-blob', size: 8 })])
-    const tree: ViewerTreeState = {
-      status: 'ready',
-      nodes: [{
-        path: 'README.md',
-        name: 'README.md',
-        parentPath: null,
-        kind: 'file',
-        sourceType: 'blob',
-      }],
-    }
 
     await expect(loadAuthorizedViewerRoot({
       owner,
       repository: repo,
       ref,
-      tree,
       installationRecordId,
       workspaceId,
     })).resolves.toEqual({ status: 'unavailable', reason: 'unavailable' })
+    expect(getBlob).not.toHaveBeenCalled()
+  })
+
+  it('loads a root README from the non-recursive tree entry without waiting for a recursive tree', async () => {
+    const bytes = Buffer.from('# Hello')
+    configureGitHub([treeEntry('README.md', { sha: 'readme-sha', size: bytes.length })], bytes)
+    getBlob.mockResolvedValue({
+      data: { sha: 'readme-sha', size: bytes.length, encoding: 'base64', content: bytes.toString('base64') },
+    })
+
+    await expect(loadAuthorizedViewerRoot({
+      owner,
+      repository: repo,
+      ref,
+      installationRecordId,
+      workspaceId,
+    })).resolves.toEqual({
+      status: 'ready',
+      readme: { path: 'README.md', size: bytes.length, content: '# Hello' },
+    })
+
+    expect(getTree).toHaveBeenCalledOnce()
+    expect(getTree).toHaveBeenCalledWith({ owner, repo, tree_sha: ref })
+  })
+
+  it('keeps a missing root README as a valid empty root state', async () => {
+    configureGitHub([treeEntry('src/index.ts')])
+
+    await expect(loadAuthorizedViewerRoot({
+      owner,
+      repository: repo,
+      ref,
+      installationRecordId,
+      workspaceId,
+    })).resolves.toEqual({ status: 'ready', readme: null })
+    expect(getBlob).not.toHaveBeenCalled()
+  })
+
+  it('does not use a normalized root-tree path to fetch a README blob', async () => {
+    configureGitHub([treeEntry('/README.md', { sha: 'aliased-readme-sha', size: 8 })])
+
+    await expect(loadAuthorizedViewerRoot({
+      owner,
+      repository: repo,
+      ref,
+      installationRecordId,
+      workspaceId,
+    })).resolves.toEqual({ status: 'unavailable', reason: 'unavailable' })
+
     expect(getBlob).not.toHaveBeenCalled()
   })
 

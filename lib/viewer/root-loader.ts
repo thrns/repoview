@@ -1,41 +1,46 @@
 import 'server-only'
 
-import { GitHubFileError, loadRepositoryFile } from '@/lib/github/contents'
+import { GitHubFileError, loadRepositoryFileFromTreeEntry } from '@/lib/github/contents'
+import { GitHubTreeTruncatedError, loadRepositoryRootTree } from '@/lib/github/trees'
+import { GitHubRepositoryError } from '@/lib/github/types'
+import { buildViewerTree } from './tree-model'
 
 import { findRootReadme, type ViewerRootState } from './root-model'
-import type { ViewerTreeState } from './tree-model'
 
 export async function loadAuthorizedViewerRoot({
   owner,
   repository,
   ref,
-  tree,
   installationRecordId,
   workspaceId,
 }: {
   owner: string
   repository: string
   ref: string
-  tree: ViewerTreeState
   installationRecordId: string
   workspaceId: string
 }): Promise<ViewerRootState> {
-  if (tree.status !== 'ready') {
-    return {
-      status: 'unavailable',
-      reason: tree.reason === 'ref-unavailable' || tree.reason === 'rate-limited' || tree.reason === 'access'
-        ? tree.reason
-        : 'tree',
-    }
-  }
-
-  const readmeNode = findRootReadme(tree.nodes)
-  if (!readmeNode) {
-    return { status: 'ready', readme: null }
-  }
-
   try {
-    const content = await loadRepositoryFile(owner, repository, readmeNode.path, ref, installationRecordId, workspaceId, 'system')
+    const rootTree = await loadRepositoryRootTree(owner, repository, ref, installationRecordId, workspaceId, 'system')
+    const readmeNode = findRootReadme(buildViewerTree(rootTree))
+    if (!readmeNode) {
+      return { status: 'ready', readme: null }
+    }
+
+    const matchingEntries = rootTree.filter((entry) => entry.path === readmeNode.path)
+    if (matchingEntries.length !== 1) {
+      return { status: 'unavailable', reason: 'unavailable' }
+    }
+
+    const content = await loadRepositoryFileFromTreeEntry(
+      owner,
+      repository,
+      readmeNode.path,
+      matchingEntries[0],
+      installationRecordId,
+      workspaceId,
+      'system',
+    )
     if (content.kind === 'image') {
       return { status: 'unavailable', reason: 'binary' }
     }
@@ -53,6 +58,18 @@ export async function loadAuthorizedViewerRoot({
       },
     }
   } catch (error) {
+    if (error instanceof GitHubTreeTruncatedError) {
+      return { status: 'unavailable', reason: 'tree' }
+    }
+    if (error instanceof GitHubRepositoryError && error.code === 'not_found') {
+      return { status: 'unavailable', reason: 'ref-unavailable' }
+    }
+    if (error instanceof GitHubRepositoryError && error.code === 'rate_limited') {
+      return { status: 'unavailable', reason: 'rate-limited' }
+    }
+    if (error instanceof GitHubRepositoryError && (error.code === 'unauthorized' || error.code === 'forbidden')) {
+      return { status: 'unavailable', reason: 'access' }
+    }
     if (error instanceof GitHubFileError && error.code === 'rate_limited') {
       return { status: 'unavailable', reason: 'rate-limited' }
     }

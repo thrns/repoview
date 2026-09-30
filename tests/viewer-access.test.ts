@@ -19,43 +19,27 @@ import { synchronizeRepositoryForGitHub } from '../lib/repositories/synchronize'
 const requireSession = vi.mocked(requireViewerSession)
 const synchronizeRepository = vi.mocked(synchronizeRepositoryForGitHub)
 
-const accessibleRepository = {
-  githubRepositoryId: 42,
-  githubNodeId: 'node-42',
-  installationRecordId: 'installation-record-1',
-  owner: 'renamed-owner',
-  name: 'renamed-repository',
-  fullName: 'renamed-owner/renamed-repository',
-  private: true,
-  defaultBranch: 'main',
-  description: null,
-  htmlUrl: 'https://github.com/renamed-owner/renamed-repository',
-  archived: false,
-  disabled: false,
-}
-
 const viewer = {
   repository: {
     id: 'repository-1',
     workspace_id: 'workspace-1',
     github_installation_id: 'installation-record-1',
     github_repository_id: 42,
+    github_owner: 'renamed-owner',
+    github_repo: 'renamed-repository',
+    enabled: true,
   },
-  share: { id: 'share-1', workspace_id: 'workspace-1' },
+  share: { id: 'share-1', repository_id: 'repository-1', workspace_id: 'workspace-1' },
   session: { id: 'session-1' },
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
   requireSession.mockResolvedValue(viewer as never)
-  synchronizeRepository.mockResolvedValue({
-    repository: { ...viewer.repository, enabled: true },
-    githubRepository: accessibleRepository,
-  } as never)
 })
 
 describe('viewer repository authorization', () => {
-  it('checks current installation access by stable repository id before returning mutable location metadata', async () => {
+  it('uses persisted repository metadata after session authorization without synchronizing GitHub', async () => {
     await expect(requireViewerRepositoryAccess('share-1')).resolves.toMatchObject({
       installationRecordId: 'installation-record-1',
       accessibleRepository: {
@@ -64,29 +48,17 @@ describe('viewer repository authorization', () => {
         name: 'renamed-repository',
       },
     })
-    expect(synchronizeRepository).toHaveBeenCalledWith('repository-1', 'workspace-1', 'system')
-    expect(requireSession.mock.invocationCallOrder[0]).toBeLessThan(synchronizeRepository.mock.invocationCallOrder[0] ?? Infinity)
+    expect(synchronizeRepository).not.toHaveBeenCalled()
   })
 
-  it.each([
-    ['suspended installation', () => synchronizeRepository.mockRejectedValue(new Error('inactive'))],
-    ['repository removed from installation', () => synchronizeRepository.mockRejectedValue(new Error('removed'))],
-    ['repository disabled by GitHub', () => synchronizeRepository.mockResolvedValue({
-      repository: { ...viewer.repository, enabled: true },
-      githubRepository: { ...accessibleRepository, disabled: true },
-    } as never)],
-  ])('denies access when %s', async (_label, configure) => {
-    configure()
+  it('denies a repository whose persisted enabled state is false', async () => {
+    requireSession.mockResolvedValue({
+      ...viewer,
+      repository: { ...viewer.repository, enabled: false },
+    } as never)
+
     await expect(requireViewerRepositoryAccess('share-1')).rejects.toBeInstanceOf(ViewerRepositoryAccessError)
-  })
-
-  it('does not relabel a synchronization failure as an invalid viewer session', async () => {
-    synchronizeRepository.mockRejectedValue(new Error('GitHub API unavailable'))
-
-    await expect(requireViewerRepositoryAccess('share-1')).rejects.toMatchObject({
-      name: 'ViewerRepositoryAccessError',
-      reason: 'unavailable',
-    })
+    expect(synchronizeRepository).not.toHaveBeenCalled()
   })
 
   it('reports a missing stable repository identity as repository unavailable', async () => {

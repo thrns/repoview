@@ -6,7 +6,7 @@ vi.mock('../lib/github/client', () => ({
 }))
 
 import { getGitHubInstallationClientForInstallation } from '../lib/github/client'
-import { loadRepositoryTree, GitHubTreeTruncatedError } from '../lib/github/trees'
+import { loadRepositoryRootTree, loadRepositoryTree, GitHubTreeTruncatedError } from '../lib/github/trees'
 
 const getClient = vi.mocked(getGitHubInstallationClientForInstallation)
 
@@ -46,5 +46,24 @@ describe('GitHub repository trees', () => {
     await expect(loadRepositoryTree('octocat', 'hello-world', 'main', 'installation-record-id', 'workspace-id')).rejects.toBeInstanceOf(
       GitHubTreeTruncatedError,
     )
+  })
+
+  it('loads root entries without requesting a recursive tree', async () => {
+    const getTree = vi.fn().mockResolvedValue({
+      data: {
+        truncated: false,
+        tree: [
+          { path: 'README.md', mode: '100644', type: 'blob', sha: 'readme-sha', size: 8 },
+          { path: 'docs', mode: '040000', type: 'tree', sha: 'docs-sha' },
+        ],
+      },
+    })
+    getClient.mockReturnValue({ rest: { git: { getTree } } } as never)
+
+    await expect(loadRepositoryRootTree('octocat', 'hello-world', 'main', 'installation-record-id', 'workspace-id')).resolves.toEqual([
+      { path: 'README.md', mode: '100644', type: 'blob', sha: 'readme-sha', size: 8 },
+      { path: 'docs', mode: '040000', type: 'tree', sha: 'docs-sha' },
+    ])
+    expect(getTree).toHaveBeenCalledWith({ owner: 'octocat', repo: 'hello-world', tree_sha: 'main' })
   })
 })

@@ -37,7 +37,9 @@ function createAdminMock(overrides: {
   revokedAt?: string | null
   expiresAt?: string | null
   repositoryEnabled?: boolean
+  repositoryIdentity?: number | null
   workspaceStatus?: 'active' | 'deleting' | 'deleted'
+  installationStatus?: 'active' | 'inactive'
 } = {}) {
   const session = {
     id: sessionId,
@@ -78,6 +80,8 @@ function createAdminMock(overrides: {
     id: repositoryId,
     workspace_id: 'workspace-1',
     github_installation_id: '44444444-4444-4444-8444-444444444444',
+    github_repository_id: overrides.repositoryIdentity === undefined ? 42 : overrides.repositoryIdentity,
+    github_node_id: 'node-42',
     github_owner: 'octocat',
     github_repo: 'hello-world',
     default_branch: 'main',
@@ -100,7 +104,7 @@ function createAdminMock(overrides: {
         return {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
-          maybeSingle: vi.fn().mockResolvedValue({ data: { status: 'active' }, error: null }),
+          maybeSingle: vi.fn().mockResolvedValue({ data: { status: overrides.installationStatus ?? 'active' }, error: null }),
         }
       }
       return {
@@ -140,7 +144,9 @@ describe('viewer session authorization', () => {
     { label: 'revoked share', token: 'raw-session-token', shareId, overrides: { revokedAt: '2026-09-21T01:00:00.000Z' } },
     { label: 'expired share', token: 'raw-session-token', shareId, overrides: { expiresAt: '2020-01-01T00:00:00.000Z' } },
     { label: 'disabled repository', token: 'raw-session-token', shareId, overrides: { repositoryEnabled: false } },
+    { label: 'missing stable repository identity', token: 'raw-session-token', shareId, overrides: { repositoryIdentity: null } },
     { label: 'deleting workspace', token: 'raw-session-token', shareId, overrides: { workspaceStatus: 'deleting' as const } },
+    { label: 'inactive installation', token: 'raw-session-token', shareId, overrides: { installationStatus: 'inactive' as const } },
   ])('denies $label', async ({ token, shareId: effectiveShareId, overrides }) => {
     getAdmin.mockReturnValue(createAdminMock(overrides) as never)
 

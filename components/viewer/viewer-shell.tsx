@@ -191,17 +191,11 @@ export function ViewerShell({ children, shareId, repositoryName, refName, allowD
 
   useEffect(() => {
     if (tree.status !== 'ready') return
-    const candidates = tree.nodes
-      .filter((node) => node.kind === 'file' && node.path !== (root.status === 'ready' ? root.readme?.path : undefined))
-      .filter((node) => node.size === undefined || node.size <= 300_000)
-      .slice(0, 4)
-      .map((node) => node.path)
     const timer = window.setTimeout(() => {
       void import('./viewer-file-content')
-      candidates.forEach(prefetchPath)
     }, 700)
     return () => window.clearTimeout(timer)
-  }, [prefetchPath, root, tree])
+  }, [tree.status])
 
   return (
     <ViewerAnalyticsProvider shareId={shareId} initialPath={activePath} analyticsMode={analyticsMode} gpcApplied={gpcApplied}>

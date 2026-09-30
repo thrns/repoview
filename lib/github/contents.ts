@@ -87,60 +87,100 @@ export async function loadRepositoryFile(
 
   try {
     const entry = await resolveRepositoryBlobEntry(client, owner, repo, normalizedPath, ref)
-    const size = entry.size
-    if (size > MAX_TEXT_PREVIEW_BYTES) {
-      return {
-        kind: 'unavailable',
-        path: normalizedPath,
-        size,
-        reason: 'oversized',
-        message: 'Preview unavailable.',
-      }
-    }
-
-    const imageMediaType = getImageMediaType(normalizedPath)
-    if (imageMediaType) {
-      return {
-        kind: 'image',
-        path: normalizedPath,
-        size,
-        mediaType: imageMediaType,
-      }
-    }
-
-    if (isKnownBinaryPath(normalizedPath)) {
-      return {
-        kind: 'unavailable',
-        path: normalizedPath,
-        size,
-        reason: 'binary',
-        message: 'Preview unavailable.',
-      }
-    }
-
-    const bytes = await loadVerifiedBlobBytes(client, owner, repo, entry)
-    if (hasNullByte(bytes)) {
-      return {
-        kind: 'unavailable',
-        path: normalizedPath,
-        size,
-        reason: 'binary',
-        message: 'Preview unavailable.',
-      }
-    }
-
-    return {
-      kind: 'text',
-      path: normalizedPath,
-      size,
-      content: bytes.toString('utf8'),
-    }
+    return await loadRepositoryFileFromVerifiedEntry(client, owner, repo, entry)
   } catch (error) {
     if (error instanceof GitHubFileError) {
       throw error
     }
 
     throw mapGitHubFileError(error)
+  }
+}
+
+/**
+ * Load a file from an entry returned by a non-recursive tree lookup. The entry
+ * is rechecked for an exact path and regular-blob mode before its SHA is used.
+ */
+export async function loadRepositoryFileFromTreeEntry(
+  owner: string,
+  repo: string,
+  path: string,
+  entry: GitHubRawTreeEntry,
+  installationRecordId: string,
+  workspaceId: string,
+  access: GitHubInstallationAccess = 'system',
+): Promise<GitHubFileContent> {
+  const normalizedPath = normalizeFilePath(path)
+  const client = await getGitHubInstallationClientForInstallation(installationRecordId, workspaceId, access)
+
+  try {
+    if (entry.path !== normalizedPath) {
+      throw new GitHubFileError('not_found')
+    }
+    const verifiedEntry = verifyRepositoryBlobEntry(entry)
+    return await loadRepositoryFileFromVerifiedEntry(client, owner, repo, verifiedEntry)
+  } catch (error) {
+    if (error instanceof GitHubFileError) {
+      throw error
+    }
+
+    throw mapGitHubFileError(error)
+  }
+}
+
+async function loadRepositoryFileFromVerifiedEntry(
+  client: Awaited<ReturnType<typeof getGitHubInstallationClientForInstallation>>,
+  owner: string,
+  repo: string,
+  entry: VerifiedRepositoryBlobEntry,
+): Promise<GitHubFileContent> {
+  const size = entry.size
+  if (size > MAX_TEXT_PREVIEW_BYTES) {
+    return {
+      kind: 'unavailable',
+      path: entry.path,
+      size,
+      reason: 'oversized',
+      message: 'Preview unavailable.',
+    }
+  }
+
+  const imageMediaType = getImageMediaType(entry.path)
+  if (imageMediaType) {
+    return {
+      kind: 'image',
+      path: entry.path,
+      size,
+      mediaType: imageMediaType,
+    }
+  }
+
+  if (isKnownBinaryPath(entry.path)) {
+    return {
+      kind: 'unavailable',
+      path: entry.path,
+      size,
+      reason: 'binary',
+      message: 'Preview unavailable.',
+    }
+  }
+
+  const bytes = await loadVerifiedBlobBytes(client, owner, repo, entry)
+  if (hasNullByte(bytes)) {
+    return {
+      kind: 'unavailable',
+      path: entry.path,
+      size,
+      reason: 'binary',
+      message: 'Preview unavailable.',
+    }
+  }
+
+  return {
+    kind: 'text',
+    path: entry.path,
+    size,
+    content: bytes.toString('utf8'),
   }
 }
 
@@ -202,12 +242,15 @@ async function resolveRepositoryBlobEntry(
     throw new GitHubFileError('not_a_file')
   }
 
-  const entry = exactEntries[0]
+  return verifyRepositoryBlobEntry(exactEntries[0])
+}
+
+function verifyRepositoryBlobEntry(entry: GitHubRawTreeEntry): VerifiedRepositoryBlobEntry {
   if (entry.type !== 'blob' || (entry.mode !== '100644' && entry.mode !== '100755')) {
     throw new GitHubFileError('not_a_file')
   }
 
-  if (!entry.sha.trim() || entry.size === undefined) {
+  if (!entry.sha.trim() || !Number.isSafeInteger(entry.size) || entry.size === undefined || entry.size < 0) {
     throw new GitHubFileError('upstream')
   }
 

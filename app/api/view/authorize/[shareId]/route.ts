@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { requireViewerRepositoryAccess } from '@/lib/auth/viewer-access'
+import { requireViewerSession } from '@/lib/auth/viewer-session'
 import { checkPublicRateLimit, checkRateLimits, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../../lib/security/rate-limit'
 
 export const dynamic = 'force-dynamic'
@@ -20,9 +20,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ shar
     return rateLimitUnavailableResponse()
   }
 
-  let viewer: Awaited<ReturnType<typeof requireViewerRepositoryAccess>>
+  let viewer: Awaited<ReturnType<typeof requireViewerSession>>
   try {
-    viewer = await requireViewerRepositoryAccess(shareId)
+    viewer = await requireViewerSession(shareId)
   } catch {
     return authorizationResponse(404)
   }

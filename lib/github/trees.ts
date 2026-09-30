@@ -41,12 +41,33 @@ export async function loadRepositoryTree(
   const client = await getGitHubInstallationClientForInstallation(installationRecordId, workspaceId, access)
   const entries = await loadRepositoryTreeEntriesFromClient(client, owner, repo, ref)
 
+  return normalizeGitHubTreeEntries(entries)
+}
+
+/** Load only the first-level tree entries for root-file discovery. */
+export async function loadRepositoryRootTree(
+  owner: string,
+  repo: string,
+  ref: string,
+  installationRecordId: string,
+  workspaceId: string,
+  access: GitHubInstallationAccess = 'system',
+): Promise<GitHubTreeEntry[]> {
+  const client = await getGitHubInstallationClientForInstallation(installationRecordId, workspaceId, access)
+  const entries = await loadRepositoryTreeEntriesFromClient(client, owner, repo, ref, false)
+
+  // Keep raw paths here so README blob verification cannot trust a SHA after
+  // path normalization changes which tree entry it came from.
+  return normalizeGitHubTreeEntries(entries, false)
+}
+
+function normalizeGitHubTreeEntries(entries: GitHubRawTreeEntry[], normalizePaths = true) {
   return entries
     .filter((entry): entry is GitHubRawTreeEntry & { type: GitHubTreeEntry['type'] } =>
       entry.type === 'blob' || entry.type === 'tree' || entry.type === 'commit',
     )
     .map((entry) => ({
-      path: normalizeTreePath(entry.path),
+      path: normalizePaths ? normalizeTreePath(entry.path) : entry.path,
       mode: entry.mode,
       type: entry.type,
       sha: entry.sha,
@@ -63,6 +84,7 @@ export async function loadRepositoryTreeEntriesFromClient(
   owner: string,
   repo: string,
   ref: string,
+  recursive = true,
 ): Promise<GitHubRawTreeEntry[]> {
   let data: Awaited<ReturnType<typeof client.rest.git.getTree>>['data']
 
@@ -71,7 +93,7 @@ export async function loadRepositoryTreeEntriesFromClient(
       owner,
       repo,
       tree_sha: normalizeTreeRef(ref),
-      recursive: '1',
+      ...(recursive ? { recursive: '1' as const } : {}),
     }))
   } catch (error) {
     throw mapGitHubRepositoryError(error)

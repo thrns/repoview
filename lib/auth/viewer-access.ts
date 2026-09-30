@@ -1,8 +1,7 @@
 import 'server-only'
 
-import { RepositorySynchronizationError, synchronizeRepositoryForGitHub } from '../repositories/synchronize'
 import { requireViewerSession } from './viewer-session'
-import { logViewerDiagnostic, summarizeViewerError } from '../viewer/diagnostics'
+import { logViewerDiagnostic } from '../viewer/diagnostics'
 import { isShareCode } from '../shares/share-code'
 
 export class ViewerRepositoryAccessError extends Error {
@@ -21,16 +20,15 @@ export class ViewerRepositoryAccessError extends Error {
 }
 
 /**
- * Authorize a viewer request all the way through the current GitHub App
- * installation state before any repository content is loaded.
- *
- * The current GitHub location is intentionally resolved by the stable
- * repository id. Owner/name values are mutable display metadata and must not
- * be used as the access-control key.
+ * Authorize from persisted, trusted workspace state. GitHub metadata
+ * synchronization belongs to explicit repository-management flows; actual
+ * tree and blob calls still verify the active installation before contacting
+ * GitHub and fail closed when access has been removed.
  */
 export async function requireViewerRepositoryAccess(shareIdentifier: string) {
   const viewer = await requireViewerSession(shareIdentifier)
-  const repositoryId = viewer.repository.github_repository_id
+  const { repository, share } = viewer
+  const repositoryId = repository.github_repository_id
 
   if (!repositoryId || !Number.isSafeInteger(repositoryId) || repositoryId <= 0) {
     logViewerDiagnostic('viewer-repository-identity-missing', {
@@ -39,33 +37,24 @@ export async function requireViewerRepositoryAccess(shareIdentifier: string) {
     throw new ViewerRepositoryAccessError('repository_unavailable')
   }
 
-  let synchronized: Awaited<ReturnType<typeof synchronizeRepositoryForGitHub>>
-  try {
-    synchronized = await synchronizeRepositoryForGitHub(
-      viewer.repository.id,
-      viewer.share.workspace_id,
-      'system',
-    )
-  } catch (error) {
-    logViewerDiagnostic('viewer-repository-synchronization-failed', {
-      shareIdentifierType: getShareIdentifierType(shareIdentifier),
-      repositoryIdentityPresent: true,
-      error: summarizeViewerError(error).message,
-    })
-    throw new ViewerRepositoryAccessError(
-      error instanceof RepositorySynchronizationError && error.code !== 'unavailable'
-        ? 'repository_unavailable'
-        : 'unavailable',
-      error,
-    )
-  }
+  const owner = repository.github_owner.trim()
+  const name = repository.github_repo.trim()
 
-  if (synchronized.githubRepository.githubRepositoryId !== repositoryId || synchronized.githubRepository.disabled || synchronized.repository.enabled === false) {
+  if (
+    repository.id !== share.repository_id
+    || repository.workspace_id !== share.workspace_id
+    || !repository.enabled
+    || !repository.github_installation_id
+    || !owner
+    || !name
+  ) {
     logViewerDiagnostic('viewer-repository-access-invariant-failed', {
       shareIdentifierType: getShareIdentifierType(shareIdentifier),
-      repositoryIdentityMatches: synchronized.githubRepository.githubRepositoryId === repositoryId,
-      githubRepositoryDisabled: synchronized.githubRepository.disabled,
-      repositoryEnabled: synchronized.repository.enabled,
+      repositoryMatchesShare: repository.id === share.repository_id,
+      repositoryMatchesWorkspace: repository.workspace_id === share.workspace_id,
+      repositoryEnabled: repository.enabled,
+      installationReferencePresent: Boolean(repository.github_installation_id),
+      repositoryLocationPresent: Boolean(owner && name),
     })
     throw new ViewerRepositoryAccessError('repository_unavailable')
   }
@@ -73,15 +62,18 @@ export async function requireViewerRepositoryAccess(shareIdentifier: string) {
   logViewerDiagnostic('viewer-repository-authorized', {
     shareIdentifierType: getShareIdentifierType(shareIdentifier),
     repositoryIdentityMatches: true,
-    githubRepositoryDisabled: false,
     repositoryEnabled: true,
   })
 
   return {
     ...viewer,
-    repository: synchronized.repository,
-    installationRecordId: synchronized.repository.github_installation_id,
-    accessibleRepository: synchronized.githubRepository,
+    installationRecordId: repository.github_installation_id,
+    accessibleRepository: {
+      githubRepositoryId: repositoryId,
+      owner,
+      name,
+      fullName: `${owner}/${name}`,
+    },
   }
 }
 

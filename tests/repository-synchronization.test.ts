@@ -126,6 +126,25 @@ describe('repository GitHub synchronization', () => {
     expect(updateQuery.single).toHaveBeenCalled()
   })
 
+  it('skips the repository update when synchronized metadata is unchanged', async () => {
+    const unchangedRepository = {
+      ...repository,
+      github_node_id: 'new-node',
+      github_owner: 'new-owner',
+      github_repo: 'renamed-repository',
+      default_branch: 'trunk',
+    }
+    const { repositoryQuery } = configureDatabase(unchangedRepository, unchangedRepository)
+    getMetadata.mockResolvedValue(githubRepository({ installationRecordId: 'installation-old' }) as never)
+
+    await expect(synchronizeRepositoryForGitHub('repository-1', 'workspace-1')).resolves.toMatchObject({
+      repository: unchangedRepository,
+      githubRepository: { githubRepositoryId: 42 },
+    })
+
+    expect(repositoryQuery.update).not.toHaveBeenCalled()
+  })
+
   it('fails closed when the repository was removed from every installation', async () => {
     configureDatabase()
     getMetadata.mockRejectedValue(new GitHubRepositoryError('not_found'))

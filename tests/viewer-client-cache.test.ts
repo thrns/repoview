@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   ViewerAuthorizationFailure,
+  revalidateViewerAuthorization,
 } from '../lib/viewer/client-authorization'
 import { ViewerFileCache } from '../lib/viewer/client-file-cache'
 
@@ -20,6 +21,10 @@ describe('private viewer file cache', () => {
     load = vi.fn(async (path: string) => ({ path, content: `private ${path}` }))
   })
 
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   it('does not display a cached file after the share is revoked', async () => {
     const cache = new ViewerFileCache<TestFile>()
 
@@ -28,6 +33,23 @@ describe('private viewer file cache', () => {
 
     await expect(cache.navigate('A', authorize, () => load('A'))).rejects.toBeInstanceOf(ViewerAuthorizationFailure)
     expect(load).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects and clears cached content when the authorize endpoint fails', async () => {
+    const cache = new ViewerFileCache<TestFile>()
+    await cache.prefetch('A', () => load('A'))
+    const fetchMock = vi.fn(async () => new Response(null, { status: 404 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(cache.navigate(
+      'A',
+      () => revalidateViewerAuthorization('share-1'),
+      () => load('A'),
+    )).rejects.toBeInstanceOf(ViewerAuthorizationFailure)
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/view/authorize/share-1', expect.objectContaining({ cache: 'no-store' }))
+    expect(load).toHaveBeenCalledTimes(1)
+    expect(cache.has('A')).toBe(false)
   })
 
   it('revalidates a prefetched file before navigation can display it', async () => {

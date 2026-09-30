@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/lib/auth/viewer-access', () => ({ requireViewerRepositoryAccess: vi.fn() }))
+vi.mock('@/lib/auth/viewer-session', () => ({ requireViewerSession: vi.fn() }))
+vi.mock('@/lib/repositories/synchronize', () => ({ synchronizeRepositoryForGitHub: vi.fn() }))
+vi.mock('@/lib/github/repositories', () => ({ getRepositoryMetadataById: vi.fn() }))
 vi.mock('../lib/security/rate-limit', () => ({
   checkPublicRateLimit: vi.fn(async () => null),
   checkRateLimits: vi.fn(async () => null),
@@ -9,13 +11,15 @@ vi.mock('../lib/security/rate-limit', () => ({
 }))
 
 import { GET } from '../app/api/view/authorize/[shareId]/route'
-import { requireViewerRepositoryAccess } from '@/lib/auth/viewer-access'
+import { requireViewerSession } from '@/lib/auth/viewer-session'
+import { synchronizeRepositoryForGitHub } from '@/lib/repositories/synchronize'
+import { getRepositoryMetadataById } from '@/lib/github/repositories'
 
-const requireAccess = vi.mocked(requireViewerRepositoryAccess)
+const requireSession = vi.mocked(requireViewerSession)
 
 beforeEach(() => {
   vi.clearAllMocks()
-  requireAccess.mockResolvedValue({ session: { id: 'session-1' } } as never)
+  requireSession.mockResolvedValue({ session: { id: 'session-1' } } as never)
 })
 
 describe('viewer authorization revalidation route', () => {
@@ -28,11 +32,13 @@ describe('viewer authorization revalidation route', () => {
     expect(response.status).toBe(204)
     expect(response.headers.get('cache-control')).toBe('private, no-store')
     expect(response.headers.get('vary')).toBe('Cookie')
-    expect(requireAccess).toHaveBeenCalledWith('share-1')
+    expect(requireSession).toHaveBeenCalledWith('share-1')
+    expect(synchronizeRepositoryForGitHub).not.toHaveBeenCalled()
+    expect(getRepositoryMetadataById).not.toHaveBeenCalled()
   })
 
   it('keeps authorization failures indistinguishable from a missing share', async () => {
-    requireAccess.mockRejectedValue(new Error('revoked share'))
+    requireSession.mockRejectedValue(new Error('revoked share'))
 
     const response = await GET(
       new Request('https://repoview.test/api/view/authorize/share-1'),

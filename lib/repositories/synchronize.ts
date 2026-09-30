@@ -114,11 +114,10 @@ export async function synchronizeRepositoryForGitHub(
   // the public viewer on the same verified GitHub App installation used by
   // share creation while still allowing transfers to another active
   // installation in the workspace to recover below.
-  const orderedInstallations = [...installations].sort((left, right) => {
-    const leftIsCurrent = left.id === repository.github_installation_id
-    const rightIsCurrent = right.id === repository.github_installation_id
-    return Number(rightIsCurrent) - Number(leftIsCurrent)
-  })
+  const storedInstallation = installations.find((installation) => installation.id === repository.github_installation_id)
+  const orderedInstallations = storedInstallation
+    ? [storedInstallation, ...installations.filter((installation) => installation.id !== storedInstallation.id)]
+    : installations
 
   let sawAccessFailure = false
   for (const [installationIndex, installation] of orderedInstallations.entries()) {
@@ -174,6 +173,29 @@ export async function synchronizeRepositoryForGitHub(
       github_repo: githubRepository.name,
       default_branch: githubRepository.defaultBranch,
     }
+
+    const metadataChanged = repository.github_installation_id !== update.github_installation_id
+      || repository.github_repository_id !== update.github_repository_id
+      || repository.github_node_id !== update.github_node_id
+      || repository.github_owner !== update.github_owner
+      || repository.github_repo !== update.github_repo
+      || repository.default_branch !== update.default_branch
+
+    if (!metadataChanged) {
+      logViewerDiagnostic('repository-sync-success', {
+        access,
+        repositoryId,
+        workspaceId,
+        installationIndex,
+        githubRepositoryIdentityMatches: repository.github_repository_id === githubRepository.githubRepositoryId,
+        metadataChanged: false,
+      })
+      return {
+        repository: repository as Tables<'repositories'>,
+        githubRepository,
+      }
+    }
+
     const { data: synchronized, error: updateError } = await supabase
       .from('repositories')
       .update(update)

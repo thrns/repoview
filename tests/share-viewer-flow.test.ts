@@ -118,7 +118,8 @@ describe('public share to viewer flow', () => {
       tree: { status: 'ready' },
     })
     expect(state.viewerSessionHashFilter).toBe(state.sessionInsert.mock.calls[0]?.[0]?.session_token_hash)
-    expect(getMetadata).toHaveBeenCalledWith(42, installationId, workspaceId, 'system')
+    expect(listInstallations).not.toHaveBeenCalled()
+    expect(getMetadata).not.toHaveBeenCalled()
   })
 })
 

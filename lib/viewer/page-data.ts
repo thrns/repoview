@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { cache } from 'react'
 import { headers } from 'next/headers'
 
 import { requireViewerRepositoryAccess } from '@/lib/auth/viewer-access'
@@ -10,10 +11,7 @@ import { loadAuthorizedViewerRoot } from './root-loader'
 import { loadAuthorizedViewerTree } from './tree-loader'
 import { logViewerDiagnostic } from './diagnostics'
 
-export async function getViewerPageData(shareIdentifier: string) {
-  // Do not memoize private repository content across authorization checks.
-  // Every page render starts with a fresh share, workspace, installation, and
-  // stable-repository access validation before loading tree or file data.
+async function getViewerPageDataUncached(shareIdentifier: string) {
   const { repository, share, session, installationRecordId, accessibleRepository } = await requireViewerRepositoryAccess(shareIdentifier)
   logViewerDiagnostic('viewer-page-authorization-complete', {
     shareIdentifierType: getShareIdentifierType(shareIdentifier),
@@ -22,23 +20,24 @@ export async function getViewerPageData(shareIdentifier: string) {
     sessionPresent: Boolean(session.id),
   })
   const requestGpc = isGlobalPrivacyControl((await headers()).get('sec-gpc'))
-  const tree = await loadAuthorizedViewerTree({
-    owner: accessibleRepository.owner,
-    repository: accessibleRepository.name,
-    ref: share.ref,
-    repositoryRules: repository.default_rules,
-    shareRules: share.rules,
-    installationRecordId,
-    workspaceId: repository.workspace_id,
-  })
-  const root = await loadAuthorizedViewerRoot({
-    owner: accessibleRepository.owner,
-    repository: accessibleRepository.name,
-    ref: share.ref,
-    tree,
-    installationRecordId,
-    workspaceId: repository.workspace_id,
-  })
+  const [tree, root] = await Promise.all([
+    loadAuthorizedViewerTree({
+      owner: accessibleRepository.owner,
+      repository: accessibleRepository.name,
+      ref: share.ref,
+      repositoryRules: repository.default_rules,
+      shareRules: share.rules,
+      installationRecordId,
+      workspaceId: repository.workspace_id,
+    }),
+    loadAuthorizedViewerRoot({
+      owner: accessibleRepository.owner,
+      repository: accessibleRepository.name,
+      ref: share.ref,
+      installationRecordId,
+      workspaceId: repository.workspace_id,
+    }),
+  ])
 
   logViewerDiagnostic('viewer-page-data-loaded', {
     shareIdentifierType: getShareIdentifierType(shareIdentifier),
@@ -65,6 +64,10 @@ export async function getViewerPageData(shareIdentifier: string) {
     root,
   }
 }
+
+// React scopes this memoization to one server render request. The cached value
+// is never reused to authorize a later HTTP request.
+export const getViewerPageData = cache(getViewerPageDataUncached)
 
 function getShareIdentifierType(value: string) {
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) return 'uuid'

@@ -125,6 +125,13 @@ export async function authorizeViewerSession(shareId: string, rawSessionToken: s
     || repository.id !== share.repository_id
     || repository.workspace_id !== share.workspace_id
     || !repository.enabled
+    || !repository.github_repository_id
+    || !Number.isSafeInteger(repository.github_repository_id)
+    || repository.github_repository_id <= 0
+    || typeof repository.github_owner !== 'string'
+    || !repository.github_owner.trim()
+    || typeof repository.github_repo !== 'string'
+    || !repository.github_repo.trim()
   ) {
     logViewerDiagnostic('viewer-repository-validation-failed', {
       shareIdentifierType: getShareIdentifierType(shareId),
@@ -132,6 +139,19 @@ export async function authorizeViewerSession(shareId: string, rawSessionToken: s
       repositoryMatchesShare: Boolean(repository && repository.id === share.repository_id),
       repositoryMatchesWorkspace: Boolean(repository && repository.workspace_id === share.workspace_id),
       repositoryEnabled: repository?.enabled === true,
+      repositoryIdentityPresent: Boolean(
+        repository
+        && repository.github_repository_id !== null
+        && Number.isSafeInteger(repository.github_repository_id)
+        && repository.github_repository_id > 0,
+      ),
+      repositoryLocationPresent: Boolean(
+        repository
+        && typeof repository.github_owner === 'string'
+        && repository.github_owner.trim()
+        && typeof repository.github_repo === 'string'
+        && repository.github_repo.trim(),
+      ),
     })
     throw new ViewerAuthorizationError('repository_unavailable')
   }
