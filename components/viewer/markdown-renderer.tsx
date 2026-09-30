@@ -22,7 +22,7 @@ const markdownSanitizeSchema = {
   attributes: {
     ...defaultSchema.attributes,
     p: [...(defaultSchema.attributes?.p ?? []), 'align'],
-    img: [...(defaultSchema.attributes?.img ?? []), 'width'],
+    img: [...(defaultSchema.attributes?.img ?? []), 'width', 'height'],
   },
 }
 
@@ -118,7 +118,15 @@ function createComponents({ shareId, documentPath, tree }: { shareId: string; do
     // Repository-relative images are rewritten to the protected asset route by
     // resolveMarkdownUrl. That keeps the selected share ref and GitHub App
     // credentials on the server while still allowing external HTTPS images.
-    return <MarkdownImage {...rest} src={resolution.href} alt={alt} analyticsPath={documentPath} />
+    return (
+      <MarkdownImage
+        {...rest}
+        src={resolution.href}
+        alt={alt}
+        analyticsPath={documentPath}
+        referrerPolicy={resolution.kind === 'external' ? 'no-referrer' : undefined}
+      />
+    )
   },
   hr: (props) => <hr {...withoutNode(props)} className="markdown-rule" />,
   }

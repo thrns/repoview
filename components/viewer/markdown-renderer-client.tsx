@@ -24,7 +24,7 @@ const markdownSanitizeSchema = {
   attributes: {
     ...defaultSchema.attributes,
     p: [...(defaultSchema.attributes?.p ?? []), 'align'],
-    img: [...(defaultSchema.attributes?.img ?? []), 'width'],
+    img: [...(defaultSchema.attributes?.img ?? []), 'width', 'height'],
   },
 }
 
@@ -178,7 +178,15 @@ function createComponents({ shareId, documentPath, tree, onOpenPath }: { shareId
         return <span {...rest} className="markdown-image-placeholder" role="img" aria-label={alt || 'Image unavailable'}>{alt || 'Image unavailable'}</span>
       }
 
-      return <MarkdownImage {...rest} src={resolution.href} alt={alt} analyticsPath={documentPath} />
+      return (
+        <MarkdownImage
+          {...rest}
+          src={resolution.href}
+          alt={alt}
+          analyticsPath={documentPath}
+          referrerPolicy={resolution.kind === 'external' ? 'no-referrer' : undefined}
+        />
+      )
     },
     hr: (props) => <hr {...withoutNode(props)} className="markdown-rule" />,
   }

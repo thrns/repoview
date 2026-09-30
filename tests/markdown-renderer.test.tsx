@@ -82,6 +82,11 @@ describe('markdown renderer', () => {
     expect(html).toContain('alt="tracebox system map"')
     expect(html).toContain('src="https://example.com/readme-hero.webp"')
     expect(html).toContain('alt="External preview"')
+    const repositoryImage = html.match(/<img\b[^>]*src="\/api\/assets\/share-123\/docs\/assets\/readme-hero\.png"[^>]*>/)?.[0]
+    const externalImage = html.match(/<img\b[^>]*src="https:\/\/example\.com\/readme-hero\.webp"[^>]*>/)?.[0]
+    expect(repositoryImage).toBeDefined()
+    expect(repositoryImage).not.toContain('referrerpolicy=')
+    expect(externalImage).toMatch(/referrer[Pp]olicy="no-referrer"/)
     expect(html).toContain('class="markdown-image markdown-image-pending"')
     expect(html).toContain('markdown-image-skeleton')
     expect(html).not.toContain('![tracebox system map](docs/assets/readme-hero.png)')

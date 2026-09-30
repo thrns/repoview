@@ -1,11 +1,10 @@
 'use client'
 
-import Lightbox from 'yet-another-react-lightbox'
-import Fullscreen from 'yet-another-react-lightbox/plugins/fullscreen'
-import Zoom from 'yet-another-react-lightbox/plugins/zoom'
-import { useEffect, useRef, useState, type ImgHTMLAttributes } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type ImgHTMLAttributes } from 'react'
 import { Skeleton } from '@/components/ui'
 import { useViewerAnalytics } from './viewer-analytics'
+
+const MarkdownImageLightbox = lazy(() => import('./markdown-image-lightbox'))
 
 interface MarkdownImageProps extends ImgHTMLAttributes<HTMLImageElement> {
   src?: string
@@ -15,9 +14,7 @@ interface MarkdownImageProps extends ImgHTMLAttributes<HTMLImageElement> {
 
 interface MarkdownImageState {
   src: string
-  status: 'loaded' | 'error'
-  transitionComplete: boolean
-  aspectRatio?: string
+  status: 'loading' | 'loaded' | 'error'
 }
 
 export function MarkdownImage({ src, alt = '', width, height, className, analyticsPath, ...props }: MarkdownImageProps) {
@@ -27,42 +24,31 @@ export function MarkdownImage({ src, alt = '', width, height, className, analyti
   const analytics = useViewerAnalytics()
 
   const isSmall = src ? isSmallImage({ src, alt, width, height }) : false
-  const currentImageState = src && imageState?.src === src ? imageState : null
-  const isLoading = Boolean(src) && currentImageState === null
-  const isLoaded = currentImageState?.status === 'loaded'
-  const isError = currentImageState?.status === 'error'
-  const showSkeleton = isLoading || (isLoaded && !currentImageState.transitionComplete)
+  const currentStatus = src && imageState?.src === src ? imageState.status : 'loading'
+  const isLoading = currentStatus === 'loading'
+  const isLoaded = currentStatus === 'loaded'
+  const isError = currentStatus === 'error'
   const explicitWidth = normalizeDimension(width)
   const explicitHeight = normalizeDimension(height)
-  const aspectRatio = explicitWidth !== undefined && explicitWidth > 0 && explicitHeight !== undefined && explicitHeight > 0
-    ? `${explicitWidth} / ${explicitHeight}`
-    : currentImageState?.aspectRatio ?? '16 / 9'
+  const hasAspectRatio = explicitWidth !== undefined && explicitWidth > 0 && explicitHeight !== undefined && explicitHeight > 0
+  const frameStyle = hasAspectRatio
+    ? { aspectRatio: `${explicitWidth} / ${explicitHeight}`, width: `min(${explicitWidth}px, 100%)` }
+    : undefined
 
   useEffect(() => {
-    if (!src) return
+    if (!src) {
+      setImageState(null)
+      return
+    }
+
+    setOpen(false)
+    setImageState({ src, status: 'loading' })
 
     const image = imageRef.current
-    if (!image?.complete) return
-
-    setImageState({
-      src,
-      status: image.naturalWidth > 0 ? 'loaded' : 'error',
-      transitionComplete: image.naturalWidth === 0,
-      aspectRatio: image.naturalWidth > 0 ? `${image.naturalWidth} / ${image.naturalHeight}` : undefined,
-    })
+    if (image?.complete) {
+      setImageState({ src, status: image.naturalWidth > 0 ? 'loaded' : 'error' })
+    }
   }, [src])
-
-  useEffect(() => {
-    if (!src || !currentImageState || currentImageState.status !== 'loaded' || currentImageState.transitionComplete) return
-
-    const timer = window.setTimeout(() => {
-      setImageState((state) => state?.src === src && state.status === 'loaded'
-        ? { ...state, transitionComplete: true }
-        : state)
-    }, 180)
-
-    return () => window.clearTimeout(timer)
-  }, [currentImageState, src])
 
   if (!src) return null
 
@@ -70,50 +56,51 @@ export function MarkdownImage({ src, alt = '', width, height, className, analyti
     <span
       className="markdown-image-frame"
       data-markdown-image-size={isSmall ? 'small' : 'large'}
-      style={{ aspectRatio }}
+      style={frameStyle}
       aria-busy={isLoading}
     >
-      {showSkeleton ? (
-        <Skeleton className={`markdown-image-skeleton${isLoaded ? ' markdown-image-skeleton-fade' : ''}`} />
-      ) : null}
-      <img
-        {...props}
-        ref={imageRef}
-        src={src}
-        alt={alt}
-        width={width}
-        height={height}
-        className={[
-          'markdown-image',
-          className,
-          isLoading ? 'markdown-image-pending' : null,
-          isLoaded ? 'markdown-image-ready' : null,
-          isError ? 'markdown-image-error' : null,
-        ].filter(Boolean).join(' ')}
-        data-markdown-image-size={isSmall ? 'small' : 'large'}
-        loading="lazy"
-        decoding="async"
-        onLoad={(event) => {
-          const { naturalWidth, naturalHeight } = event.currentTarget
-          setImageState({
-            src,
-            status: 'loaded',
-            transitionComplete: false,
-            aspectRatio: naturalWidth > 0 && naturalHeight > 0 ? `${naturalWidth} / ${naturalHeight}` : undefined,
-          })
-          props.onLoad?.(event)
-          analytics.track('image_viewed', analyticsPath ?? null, { source: 'markdown' })
-        }}
-        onError={(event) => {
-          setImageState({ src, status: 'error', transitionComplete: true })
-          props.onError?.(event)
-        }}
-      />
+      {isLoading ? <Skeleton className="markdown-image-skeleton" /> : null}
+      {isError ? (
+        <span className="markdown-image-unavailable" role="img" aria-label={alt ? `${alt} unavailable` : 'Image unavailable'}>
+          Image unavailable
+        </span>
+      ) : (
+        <img
+          {...props}
+          ref={imageRef}
+          src={src}
+          alt={alt}
+          width={width}
+          height={height}
+          className={[
+            'markdown-image',
+            className,
+            isLoading ? 'markdown-image-pending' : null,
+            isLoaded ? 'markdown-image-ready' : null,
+          ].filter(Boolean).join(' ')}
+          data-markdown-image-size={isSmall ? 'small' : 'large'}
+          loading="lazy"
+          decoding="async"
+          onLoad={(event) => {
+            setImageState({ src, status: 'loaded' })
+            props.onLoad?.(event)
+            analytics.track('image_viewed', analyticsPath ?? null, { source: 'markdown' })
+          }}
+          onError={(event) => {
+            setImageState({ src, status: 'error' })
+            props.onError?.(event)
+          }}
+        />
+      )}
     </span>
   )
 
   if (isSmall) {
     return <span className="markdown-image-inline">{imageFrame}</span>
+  }
+
+  if (isError) {
+    return <span className="markdown-image-failed">{imageFrame}</span>
   }
 
   return (
@@ -126,14 +113,11 @@ export function MarkdownImage({ src, alt = '', width, height, className, analyti
       >
         {imageFrame}
       </button>
-      <Lightbox
-        open={open}
-        close={() => setOpen(false)}
-        slides={[{ src, alt }]}
-        plugins={[Zoom, Fullscreen]}
-        carousel={{ finite: true }}
-        labels={{ Close: 'Close image', "Enter Fullscreen": 'Open fullscreen', "Exit Fullscreen": 'Exit fullscreen' }}
-      />
+      {open ? (
+        <Suspense fallback={null}>
+          <MarkdownImageLightbox src={src} alt={alt} close={() => setOpen(false)} />
+        </Suspense>
+      ) : null}
     </>
   )
 }

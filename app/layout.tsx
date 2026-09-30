@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter, Manrope, Source_Code_Pro } from 'next/font/google'
 import './globals.css'
-import 'yet-another-react-lightbox/styles.css'
 
 import { Providers } from './providers'
 

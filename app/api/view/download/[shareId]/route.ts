@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { requireViewerRepositoryAccess } from '@/lib/auth/viewer-access'
 import { loadRepositoryFile } from '@/lib/github/contents'
 import { normalizeRepositoryPath } from '@/lib/security/path'
+import { buildAttachmentContentDisposition } from '@/lib/security/content-disposition'
 import { isPathAllowedForShare } from '@/lib/security/visibility'
 import { checkPublicRateLimit, checkRateLimits, rateLimitResponse, rateLimitUnavailableResponse } from '../../../../../lib/security/rate-limit'
 import { QuotaExceededError, QuotaUnavailableError, quotaResponse, quotaUnavailableResponse, reserveQuota } from '../../../../../lib/security/quotas'
@@ -49,6 +50,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ shar
       'system',
     )
     if (file.kind !== 'text') return new NextResponse(null, { status: 404 })
-    return new NextResponse(file.content, { headers: { 'Cache-Control': 'private, no-store', 'Content-Type': 'text/plain; charset=utf-8', 'Content-Disposition': `attachment; filename="${path.split('/').at(-1) || 'download.txt'}"` } })
+    const basename = path.split('/').at(-1) || 'download.txt'
+    return new NextResponse(file.content, { headers: { 'Cache-Control': 'private, no-store', 'Content-Type': 'text/plain; charset=utf-8', 'Content-Disposition': buildAttachmentContentDisposition(basename) } })
   } catch { return new NextResponse(null, { status: 404 }) }
 }
