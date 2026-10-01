@@ -26,15 +26,25 @@ function result<T>(data: T, error: null | { code?: string } | Error = null) {
   return { data, error }
 }
 
-function createQuery(value: unknown) {
-  return {
-    select: vi.fn().mockReturnThis(),
+type QueryObservation = { table: string; method: string; args: unknown[] }
+
+function createQuery(value: unknown, table = 'unknown', queryLog: QueryObservation[] = []) {
+  const query = {
+    select: vi.fn((...args: unknown[]) => {
+      queryLog.push({ table, method: 'select', args })
+      return query
+    }),
     eq: vi.fn().mockReturnThis(),
     gte: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
+    in: vi.fn((...args: unknown[]) => {
+      queryLog.push({ table, method: 'in', args })
+      return query
+    }),
     then: (resolve: (value: unknown) => unknown) => Promise.resolve(resolve(value)),
   }
+  return query
 }
 
 function setupServer({
@@ -55,20 +65,22 @@ function setupServer({
   viewers?: unknown[]
 } = {}) {
   let viewEventQuery = 0
+  const queryLog: QueryObservation[] = []
   const admin = {
     from(table: string) {
-      if (table === 'shares') return createQuery(result(shares))
-      if (table === 'repositories') return createQuery(result(repositories))
-      if (table === 'viewer_sessions') return createQuery(result(sessions))
-      if (table === 'viewers') return createQuery(result(viewers))
+      if (table === 'shares') return createQuery(result(shares), table, queryLog)
+      if (table === 'repositories') return createQuery(result(repositories), table, queryLog)
+      if (table === 'viewer_sessions') return createQuery(result(sessions), table, queryLog)
+      if (table === 'viewers') return createQuery(result(viewers), table, queryLog)
       if (table === 'view_events') {
         const data = viewEventQuery++ === 0 ? confirmations : viewEventQuery === 2 ? recentEvents : analyticsEvents
-        return createQuery(result(data))
+        return createQuery(result(data), table, queryLog)
       }
       throw new Error(`Unexpected table ${table}`)
     },
   }
   getServer.mockResolvedValue(admin as never)
+  return { queryLog }
 }
 
 describe('dashboard overview', () => {
@@ -115,6 +127,31 @@ describe('dashboard overview', () => {
     expect(overview.workspaceSignalsOverTime).toHaveLength(7)
     expect(overview.workspaceSignalsOverTime.some((point) => point.filesViewed === 1 && point.downloads === 1 && point.copies === 1)).toBe(true)
     expect(overview.metricTrends.confirmedViews.changePercent).toBeNull()
+  })
+
+  it('selects only the required columns and scopes viewer lookup to fetched sessions', async () => {
+    const { queryLog } = setupServer({
+      sessions: [{ id: 'session-1', viewer_id: 'viewer-1', confirmed_at: '2026-09-20T00:00:00.000Z', active_ms: 1000 }],
+      viewers: [{ id: 'viewer-1', viewer_code: 'A81F' }],
+    })
+
+    await getDashboardOverview(now, '7d')
+
+    const projections = queryLog.filter((entry) => entry.method === 'select').map((entry) => [entry.table, entry.args[0]])
+    expect(projections).toEqual([
+      ['shares', 'id, repository_id, recipient_label, expires_at, revoked_at'],
+      ['repositories', 'id, github_owner, github_repo, enabled'],
+      ['viewer_sessions', 'id, viewer_id, confirmed_at, active_ms'],
+      ['view_events', 'share_id, created_at'],
+      ['view_events', 'id, share_id, session_id, event_type, path, metadata, created_at'],
+      ['view_events', 'event_type, path, session_id, created_at'],
+      ['viewers', 'id, viewer_code'],
+    ])
+    expect(queryLog.find((entry) => entry.table === 'viewers' && entry.method === 'in')).toEqual({
+      table: 'viewers',
+      method: 'in',
+      args: ['id', ['viewer-1']],
+    })
   })
 
   it('supports the selected 30-day range and generates daily view points', async () => {

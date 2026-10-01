@@ -93,15 +93,20 @@ export async function getDashboardOverview(now = new Date(), range: DashboardRan
   const historySince = new Date(Math.min(previousStart.getTime(), legacyThirtyDayStart.getTime())).toISOString()
   const selectedSince = currentStart.toISOString()
 
-  const [sharesResult, repositoriesResult, sessionsResult, confirmationsResult, eventsResult, analyticsEventsResult, viewersResult] = await Promise.all([
-    supabase.from('shares').select('*').eq('workspace_id', workspace.id),
-    supabase.from('repositories').select('*').eq('workspace_id', workspace.id),
+  const [sharesResult, repositoriesResult, sessionsResult, confirmationsResult, eventsResult, analyticsEventsResult] = await Promise.all([
+    supabase.from('shares').select('id, repository_id, recipient_label, expires_at, revoked_at').eq('workspace_id', workspace.id),
+    supabase.from('repositories').select('id, github_owner, github_repo, enabled').eq('workspace_id', workspace.id),
     supabase.from('viewer_sessions').select('id, viewer_id, confirmed_at, active_ms').eq('workspace_id', workspace.id).gte('confirmed_at', historySince),
-    supabase.from('view_events').select('id, share_id, session_id, created_at').eq('workspace_id', workspace.id).eq('event_type', 'view_confirmed').gte('created_at', historySince),
+    supabase.from('view_events').select('share_id, created_at').eq('workspace_id', workspace.id).eq('event_type', 'view_confirmed').gte('created_at', historySince),
     supabase.from('view_events').select('id, share_id, session_id, event_type, path, metadata, created_at').eq('workspace_id', workspace.id).gte('created_at', selectedSince).order('created_at', { ascending: false }).limit(24),
-    supabase.from('view_events').select('event_type, path, session_id, share_id, created_at').eq('workspace_id', workspace.id).gte('created_at', historySince),
-    supabase.from('viewers').select('id, viewer_code').eq('workspace_id', workspace.id),
+    supabase.from('view_events').select('event_type, path, session_id, created_at').eq('workspace_id', workspace.id).gte('created_at', historySince),
   ])
+
+  const sessions = sessionsResult.data ?? []
+  const viewerIds = [...new Set(sessions.map((session) => session.viewer_id).filter((viewerId): viewerId is string => Boolean(viewerId)))]
+  const viewersResult = viewerIds.length > 0
+    ? await supabase.from('viewers').select('id, viewer_code').eq('workspace_id', workspace.id).in('id', viewerIds)
+    : { data: [], error: null }
 
   const queryErrors = [sharesResult.error, repositoriesResult.error, sessionsResult.error, confirmationsResult.error, eventsResult.error, analyticsEventsResult.error, viewersResult.error]
   if (queryErrors.some((error) => error?.code === 'PGRST205')) {
@@ -114,7 +119,6 @@ export async function getDashboardOverview(now = new Date(), range: DashboardRan
 
   const shares = sharesResult.data ?? []
   const repositories = repositoriesResult.data ?? []
-  const sessions = sessionsResult.data ?? []
   const confirmations = confirmationsResult.data ?? []
   const recentEvents = eventsResult.data ?? []
   const analyticsEvents = analyticsEventsResult.data ?? []

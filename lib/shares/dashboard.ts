@@ -72,7 +72,11 @@ export async function listShareDashboardItems(now = new Date()): Promise<ShareDa
   })
 }
 
-export function getShareStatus(share: Tables<'shares'>, repository: Tables<'repositories'> | null, now = new Date()): ShareStatus {
+export function getShareStatus(
+  share: Pick<Tables<'shares'>, 'revoked_at' | 'expires_at'>,
+  repository: Pick<Tables<'repositories'>, 'enabled'> | null,
+  now = new Date(),
+): ShareStatus {
   if (share.revoked_at) {
     return 'revoked'
   }
