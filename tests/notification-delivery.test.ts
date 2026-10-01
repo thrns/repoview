@@ -95,6 +95,46 @@ describe('notification delivery ledger', () => {
     })).resolves.toEqual({ status: 'already-queued' })
   })
 
+  it('creates one pending delivery per confirmed session, including a new session on the same share', async () => {
+    const deliveries = new Map<string, Record<string, unknown>>()
+    let nextId = 1
+    const upsert = vi.fn((row: Record<string, unknown>, options: { onConflict: string; ignoreDuplicates: boolean }) => {
+      if (options.onConflict !== 'idempotency_key' || !options.ignoreDuplicates) {
+        return chain({ data: null, error: { code: '42P10', message: 'No matching conflict target' } })
+      }
+
+      const key = String(row.idempotency_key)
+      if (deliveries.has(key)) return chain({ data: null, error: null })
+
+      const delivery = { id: `delivery-${nextId++}`, ...row }
+      deliveries.set(key, delivery)
+      return chain({ data: { id: delivery.id }, error: null })
+    })
+    const admin = { from: vi.fn(() => ({ upsert })) } as never
+
+    const queue = (sessionId: string) => queueNotificationDelivery(admin, {
+      workspaceId: 'workspace-1',
+      shareId: 'share-1',
+      sessionId,
+      recipient: 'alice@example.com',
+      notificationKind: 'view_opened',
+      idempotencyKey: `view_opened:${sessionId}`,
+      email,
+    })
+
+    await expect(queue('session-1')).resolves.toEqual({ status: 'queued', deliveryId: 'delivery-1' })
+    await expect(queue('session-1')).resolves.toEqual({ status: 'already-queued' })
+    await expect(queue('session-2')).resolves.toEqual({ status: 'queued', deliveryId: 'delivery-2' })
+
+    expect([...deliveries.values()]).toHaveLength(2)
+    expect([...deliveries.values()].map((delivery) => delivery.status)).toEqual(['pending', 'pending'])
+    expect([...deliveries.values()].map((delivery) => delivery.idempotency_key)).toEqual([
+      'view_opened:session-1',
+      'view_opened:session-2',
+    ])
+    expect(upsert).toHaveBeenCalledTimes(3)
+  })
+
   it('marks a successful provider attempt with its provider message id', async () => {
     const delivery = {
       id: 'delivery-1',

@@ -6,12 +6,17 @@ vi.mock('../lib/security/rate-limit', () => ({ checkPublicRateLimit: vi.fn(async
 vi.mock('../lib/supabase/admin', () => ({ createSupabaseAdminClient: vi.fn() }))
 vi.mock('../lib/notifications/notify-view', () => ({ notifyConfirmedViewer: vi.fn().mockResolvedValue({ status: 'already-attempted' }) }))
 vi.mock('../lib/viewer/view-events', () => ({ recordViewerViewEvent: vi.fn().mockResolvedValue({ recorded: true }) }))
+vi.mock('../lib/viewer/diagnostics', async () => ({
+  ...(await vi.importActual<typeof import('../lib/viewer/diagnostics')>('../lib/viewer/diagnostics')),
+  logViewerDiagnostic: vi.fn(),
+}))
 
 import { POST } from '../app/api/view/confirm/route'
 import { requireViewerSession } from '../lib/auth/viewer-session'
 import { notifyConfirmedViewer } from '../lib/notifications/notify-view'
 import { createSupabaseAdminClient } from '../lib/supabase/admin'
 import { recordViewerViewEvent } from '../lib/viewer/view-events'
+import { logViewerDiagnostic } from '../lib/viewer/diagnostics'
 
 const requireSession = vi.mocked(requireViewerSession)
 const getAdmin = vi.mocked(createSupabaseAdminClient)
@@ -25,6 +30,7 @@ beforeEach(() => {
   getAdmin.mockClear()
   notifyViewer.mockClear()
   recordViewEvent.mockClear()
+  vi.mocked(logViewerDiagnostic).mockClear()
 })
 
 function createAdminMock(confirmedSession: object | null, confirmError: object | null = null) {
@@ -132,9 +138,14 @@ describe('view confirmation route', () => {
     expect(notifyViewer).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps viewer confirmation successful when SMTP notification fails', async () => {
+  it('keeps viewer access successful and logs sanitized diagnostics when notification queueing fails', async () => {
     requireSession.mockResolvedValue({ session: { id: sessionId }, share: { workspace_id: 'workspace-1' } } as never)
-    notifyViewer.mockRejectedValue(new Error('SMTP provider unavailable'))
+    notifyViewer.mockRejectedValue({
+      code: '42P10',
+      message: 'there is no unique or exclusion constraint matching the ON CONFLICT specification',
+      details: 'Key (idempotency_key)=(view_opened:33333333-3333-4333-8333-333333333333) already exists.',
+      hint: 'password=private-password',
+    })
     const { admin } = createAdminMock({ id: sessionId, share_id: shareId, confirmed_at: '2026-09-22T00:00:00.000Z' })
     getAdmin.mockReturnValue(admin as never)
 
@@ -142,6 +153,14 @@ describe('view confirmation route', () => {
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({ confirmed: true })
+    expect(logViewerDiagnostic).toHaveBeenCalledWith('viewer-notification-failed', expect.objectContaining({
+      shareId,
+      sessionId,
+      errorCode: '42P10',
+      errorMessage: 'there is no unique or exclusion constraint matching the ON CONFLICT specification',
+      errorDetails: expect.stringContaining('Key (idempotency_key)'),
+      errorHint: 'password=[redacted]',
+    }))
   })
 
   it('treats an already-confirmed session as an idempotent no-op', async () => {

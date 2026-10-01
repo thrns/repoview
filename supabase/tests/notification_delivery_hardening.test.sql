@@ -16,6 +16,7 @@ create temporary table notification_fixture (
   repository_id uuid not null,
   share_id uuid not null,
   session_id uuid not null,
+  repeat_session_id uuid,
   delivery_id uuid,
   unknown_delivery_id uuid
 ) on commit drop;
@@ -66,12 +67,61 @@ insert into public.notification_deliveries (
 select workspace_id, share_id, session_id, 'email', 'notification-delivery@example.com',
        'view_opened', 'pending', jsonb_build_object('email', jsonb_build_object(
          'to', 'notification-delivery@example.com', 'subject', 'Test', 'text', 'Test'
-       )), 'notification-test-delivery'
+       )), 'view_opened:' || session_id::text
 from notification_fixture
 ;
 
 update notification_fixture
-set delivery_id = (select id from public.notification_deliveries where idempotency_key = 'notification-test-delivery');
+set delivery_id = (
+  select deliveries.id
+  from public.notification_deliveries as deliveries
+  where deliveries.idempotency_key = 'view_opened:' || notification_fixture.session_id::text
+);
+
+select is((select status from public.notification_deliveries where id = (select delivery_id from notification_fixture)), 'pending', 'new confirmed-view delivery starts pending');
+
+select lives_ok($$
+  insert into public.notification_deliveries (
+    workspace_id, share_id, session_id, channel, recipient,
+    notification_kind, status, payload, idempotency_key
+  )
+  select workspace_id, share_id, session_id, 'email', 'notification-delivery@example.com',
+         'view_opened', 'pending', '{}'::jsonb, 'view_opened:' || session_id::text
+  from notification_fixture
+  on conflict (idempotency_key) do nothing
+$$, 'plain ON CONFLICT (idempotency_key) accepts the delivery unique index');
+
+select is((
+  select count(*) from public.notification_deliveries
+  where idempotency_key = 'view_opened:' || (select session_id::text from notification_fixture)
+), 1::bigint, 'duplicate confirmation for one session leaves exactly one delivery');
+
+insert into public.viewer_sessions (id, workspace_id, share_id, session_token_hash, confirmed_at, ended_at)
+select gen_random_uuid(), workspace_id, share_id, 'notification-test-session-token-repeat', now(), now()
+from notification_fixture;
+
+update notification_fixture
+set repeat_session_id = (
+  select id from public.viewer_sessions
+  where session_token_hash = 'notification-test-session-token-repeat'
+);
+
+select lives_ok($$
+  insert into public.notification_deliveries (
+    workspace_id, share_id, session_id, channel, recipient,
+    notification_kind, status, payload, idempotency_key
+  )
+  select workspace_id, share_id, repeat_session_id, 'email', 'notification-delivery@example.com',
+         'view_opened', 'pending', '{}'::jsonb, 'view_opened:' || repeat_session_id::text
+  from notification_fixture
+  on conflict (idempotency_key) do nothing
+$$, 'a new viewer session for the same share accepts its own notification');
+
+select is((
+  select count(*) from public.notification_deliveries
+  where idempotency_key like 'view_opened:%'
+    and share_id = (select share_id from notification_fixture)
+), 2::bigint, 'a new session on the same share creates another delivery');
 
 select is((select status from public.claim_notification_delivery((select delivery_id from notification_fixture), now())), 'processing', 'eligible delivery is claimed for provider processing');
 select isnt((select outbound_attempt_started_at from public.notification_deliveries where id = (select delivery_id from notification_fixture)), null::timestamptz, 'provider attempt state is persisted before send');

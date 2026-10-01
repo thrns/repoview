@@ -11,7 +11,7 @@ import { isGlobalPrivacyControl } from '../../../../lib/viewer/privacy-shared'
 import { recordViewerViewEvent } from '../../../../lib/viewer/view-events'
 import { isRequestBodyTooLarge, readJsonBody } from '../../../../lib/security/body-limit'
 import { SHARE_IDENTIFIER_PATTERN } from '../../../../lib/shares/share-code'
-import { logViewerDiagnostic } from '../../../../lib/viewer/diagnostics'
+import { logViewerDiagnostic, summarizeDatabaseError } from '../../../../lib/viewer/diagnostics'
 
 const MAX_CONFIRM_BODY_BYTES = 32 * 1024
 
@@ -150,11 +150,12 @@ export async function POST(request: Request) {
         })
       }
     }
-  } catch {
+  } catch (error) {
     logViewerDiagnostic('viewer-notification-failed', {
       shareId: internalShareId,
       sessionId: confirmedSession.id,
       reason: 'queueing-error',
+      ...summarizeDatabaseError(error),
     })
     // Notification queueing must not make a confirmed viewer lose access.
   }

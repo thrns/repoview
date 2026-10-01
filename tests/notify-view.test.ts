@@ -107,6 +107,19 @@ describe('confirmed-view notification', () => {
     expect(queueDelivery).toHaveBeenCalledWith(admin, expect.objectContaining({ idempotencyKey: `view_opened:${input.sessionId}` }))
   })
 
+  it('queues generic shares without a recipient label', async () => {
+    const { admin } = createAdminMock({ id: input.sessionId })
+    getAdmin.mockReturnValue(admin as never)
+
+    await expect(notifyConfirmedViewer({ ...input, share: { ...input.share, recipient_label: null } }))
+      .resolves.toEqual({ status: 'queued', deliveryId: 'delivery-1' })
+
+    expect(queueDelivery).toHaveBeenCalledWith(admin, expect.objectContaining({
+      idempotencyKey: `view_opened:${input.sessionId}`,
+      email: expect.objectContaining({ text: expect.stringContaining('Share: Generic share') }),
+    }))
+  })
+
   it('returns quota exhaustion without pretending a delivery was queued', async () => {
     queueDelivery.mockResolvedValue({ status: 'quota-exceeded', message: 'Daily quota exceeded.' })
     const { admin } = createAdminMock({ id: input.sessionId })

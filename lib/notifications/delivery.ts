@@ -6,7 +6,7 @@ import { createSupabaseAdminClient } from '../supabase/admin'
 import type { Json, Tables } from '../supabase/database.types'
 import { sendTransactionalEmail, TransactionalEmailProviderError, type TransactionalEmail } from './email-provider'
 import { QuotaExceededError, releaseQuota, reserveQuota } from '../security/quotas'
-import { logViewerDiagnostic } from '../viewer/diagnostics'
+import { logViewerDiagnostic, summarizeDatabaseError } from '../viewer/diagnostics'
 
 const MAX_ATTEMPTS = 5
 const RETRY_DELAYS_MS = [60_000, 5 * 60_000, 30 * 60_000, 2 * 60 * 60_000]
@@ -54,6 +54,7 @@ export async function queueNotificationDelivery(
       shareId: input.shareId,
       sessionId: input.sessionId,
       reason: 'quota-reservation-failed',
+      ...summarizeDatabaseError(error),
     })
     throw error
   }
@@ -82,12 +83,22 @@ export async function queueNotificationDelivery(
   } as never, { onConflict: 'idempotency_key', ignoreDuplicates: true }).select('id').maybeSingle()
 
   if (error) {
-    await releaseQuota(reservation, admin)
     logViewerDiagnostic('viewer-notification-queue-failed', {
       shareId: input.shareId,
       sessionId: input.sessionId,
       reason: 'delivery-ledger-insert-failed',
+      ...summarizeDatabaseError(error),
     })
+    try {
+      await releaseQuota(reservation, admin)
+    } catch (releaseError) {
+      logViewerDiagnostic('viewer-notification-queue-failed', {
+        shareId: input.shareId,
+        sessionId: input.sessionId,
+        reason: 'quota-release-failed',
+        ...summarizeDatabaseError(releaseError),
+      })
+    }
     throw error
   }
   if (!data) {
