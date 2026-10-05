@@ -21,11 +21,11 @@ const serverFixture = {
 describe('environment validation', () => {
   it('validates and normalizes public configuration', () => {
     expect(parsePublicEnv({
-      NEXT_PUBLIC_APP_URL: 'https://code.thrn.im',
+      NEXT_PUBLIC_APP_URL: 'https://repoview.thrn.im',
       NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'publishable-key',
     })).toEqual({
-      NEXT_PUBLIC_APP_URL: 'https://code.thrn.im',
+      NEXT_PUBLIC_APP_URL: 'https://repoview.thrn.im',
       NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'publishable-key',
     })
@@ -37,11 +37,11 @@ describe('environment validation', () => {
     const previous = Object.fromEntries(keys.map((key) => [key, environment[key]]))
 
     try {
-      environment.NEXT_PUBLIC_APP_URL = 'https://code.thrn.im'
+      environment.NEXT_PUBLIC_APP_URL = 'https://repoview.thrn.im'
       environment.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
       environment.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = 'publishable-key'
       expect(getPublicEnv()).toEqual({
-        NEXT_PUBLIC_APP_URL: 'https://code.thrn.im',
+        NEXT_PUBLIC_APP_URL: 'https://repoview.thrn.im',
         NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'publishable-key',
       })

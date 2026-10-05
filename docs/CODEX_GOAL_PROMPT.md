@@ -45,7 +45,7 @@ Important rules:
 - README and all Markdown rendering must work correctly, including GFM tables, task lists, fenced code, safe links, nested relative links, and private relative images.
 - Use a GitHub App for read-only private repository access.
 - Use Gmail SMTP through Nodemailer for meaningful-view notifications.
-- Keep RepoView deployable to Vercel at `code.thrn.im`.
+- Keep RepoView deployable to Vercel at `repoview.thrn.im`.
 - Never expose GitHub App credentials, installation tokens, Supabase service-role credentials, SMTP credentials, raw share tokens, viewer-session tokens, or unrestricted private source URLs to the browser.
 - A simple email/link scanner must not trigger a confirmed-view notification.
 

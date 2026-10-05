@@ -1,12 +1,23 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter, Manrope, Source_Code_Pro } from 'next/font/google'
 import './globals.css'
 
 import { Providers } from './providers'
+import { NOINDEX_ROBOTS, SITE_URL } from '@/lib/seo'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: 'RepoView — Share private repositories without making them public',
   description: 'Create a secure, read-only repository link and understand how viewers engage with your private code.',
+  robots: NOINDEX_ROBOTS,
+}
+
+export const viewport: Viewport = {
+  colorScheme: 'light dark',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#FAFAFA' },
+    { media: '(prefers-color-scheme: dark)', color: '#09090B' },
+  ],
 }
 
 // The page CSP is nonce-based in production. Keep the app request-rendered so
@@ -31,7 +42,7 @@ const sourceCodePro = Source_Code_Pro({
   variable: '--font-source-code-pro',
   display: 'swap',
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+  weight: 'variable',
   fallback: ['ui-monospace', 'Menlo', 'monospace'],
 })
 

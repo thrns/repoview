@@ -158,12 +158,14 @@ const admonitionClasses: Record<AdmonitionType, string> = {
   destructive: 'border-destructive/25 bg-destructive/5',
 }
 
-export function Admonition({ type = 'default', title, description, icon, children, className }: { type?: AdmonitionType; title?: ReactNode; description?: ReactNode; icon?: ReactNode; children?: ReactNode; className?: string }) {
+export function Admonition({ type = 'default', title, titleLevel = 'h3', description, icon, children, className }: { type?: AdmonitionType; title?: ReactNode; titleLevel?: 'h1' | 'h2' | 'h3'; description?: ReactNode; icon?: ReactNode; children?: ReactNode; className?: string }) {
+  const Title = titleLevel
+
   return (
     <div role={type === 'destructive' ? 'alert' : 'status'} className={cn('flex items-start gap-3 rounded-md border p-4 text-sm', admonitionClasses[type], className)}>
       {icon ? <span className="mt-0.5 shrink-0" aria-hidden="true">{icon}</span> : null}
       <div className="min-w-0">
-        {title ? <h3 className="font-medium text-foreground">{title}</h3> : null}
+        {title ? <Title className="font-medium text-foreground">{title}</Title> : null}
         {description ? <p className={cn(Boolean(title) && 'mt-1', 'text-foreground-muted')}>{description}</p> : null}
         {children}
       </div>

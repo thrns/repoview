@@ -99,7 +99,7 @@ export function AdminShell({ email, children, displayName, onboardingIncomplete 
             </Sheet>
           </div>
           <Link href="/dashboard" className="flex min-w-0 items-center gap-2 rounded-sm text-foreground focus-visible:outline-none" aria-label="RepoView overview">
-            <BrandLogo size={24} priority />
+            <BrandLogo size={24} preload />
             <span className="font-heading text-sm font-semibold tracking-tight">RepoView</span>
           </Link>
           <span aria-hidden="true" className="px-1 text-sm text-foreground-muted">/</span>

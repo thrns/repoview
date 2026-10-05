@@ -2,9 +2,9 @@ import 'server-only'
 
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
-import type { User } from '@supabase/supabase-js'
+import type { SupabaseClient, User } from '@supabase/supabase-js'
 
-import type { Tables, WorkspaceRole } from '@/lib/supabase/database.types'
+import type { Database, Tables, WorkspaceRole } from '@/lib/supabase/database.types'
 
 export type WorkspaceContext = {
   user: User
@@ -131,6 +131,17 @@ export async function requireShareAccess(shareId: string): Promise<AuthorizedSha
 
 export async function getUserWorkspaceMemberships(): Promise<{ user: User; workspaces: WorkspaceSelection[] }> {
   const { supabase, user } = await getAuthenticatedClient()
+  return getUserWorkspaceMembershipsForUser(supabase, user)
+}
+
+/**
+ * Load memberships for a user already returned by auth.getUser() on this request.
+ * Pass the same cookie-authenticated Supabase client so RLS remains in effect.
+ */
+export async function getUserWorkspaceMembershipsForUser(
+  supabase: SupabaseClient<Database>,
+  user: User,
+): Promise<{ user: User; workspaces: WorkspaceSelection[] }> {
   const membershipsResult = await supabase
     .from('workspace_members')
     .select('*')

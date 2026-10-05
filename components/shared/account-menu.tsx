@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
 import { ThemeSwitcher } from '@/components/shared/theme-switcher'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, cn } from '@/components/ui'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/overlays'
+import { cn } from '@/components/ui/utils'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 export type AccountMenuData = {

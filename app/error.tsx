@@ -1,6 +1,7 @@
 'use client'
 
-import { Button, ErrorDisplay, PageContainer } from '@/components/ui'
+import { Button } from '@/components/ui/button'
+import { ErrorDisplay, PageContainer } from '@/components/ui/patterns'
 
 export default function ErrorBoundary({ reset }: { reset: () => void }) {
   return (

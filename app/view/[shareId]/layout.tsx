@@ -6,10 +6,11 @@ import { ViewerShell } from '@/components/viewer/viewer-shell'
 import { ViewerRepositoryAccessError } from '@/lib/auth/viewer-access'
 import { ViewerAuthorizationError } from '@/lib/auth/viewer-session'
 import { getViewerPageData } from '@/lib/viewer/page-data'
+import { NOINDEX_ROBOTS } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
-  robots: { index: false, follow: false, noarchive: true },
+  robots: NOINDEX_ROBOTS,
 }
 
 export default async function ViewerLayout({

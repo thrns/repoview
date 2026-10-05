@@ -1,8 +1,11 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { getOnboardingState } from '@/lib/auth/onboarding'
+import { NOINDEX_ROBOTS } from '@/lib/seo'
 
+export const metadata: Metadata = { robots: NOINDEX_ROBOTS }
 export const dynamic = 'force-dynamic'
 
 export default async function OnboardingPage({ searchParams }: { searchParams?: Promise<{ github?: string | string[]; repositories?: string | string[] }> }) {

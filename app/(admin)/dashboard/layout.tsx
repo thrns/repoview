@@ -1,7 +1,11 @@
+import type { Metadata } from 'next'
+
 import { requireWorkspace } from '@/lib/auth/workspace'
 import { AdminShell } from '@/components/admin/admin-shell'
 import { getOnboardingState } from '@/lib/auth/onboarding'
+import { NOINDEX_ROBOTS } from '@/lib/seo'
 
+export const metadata: Metadata = { robots: NOINDEX_ROBOTS }
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {

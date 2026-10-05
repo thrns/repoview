@@ -36,7 +36,7 @@ export function LegalSidebar({ sections }: { sections: LegalSection[] }) {
           <span>On this page</span>
           <span className="legal-sidebar-count">{sections.length} sections</span>
         </div>
-        <nav className="legal-sidebar-nav">
+        <nav aria-label="Policy sections" className="legal-sidebar-nav">
           {sections.map((section) => (
             <a
               key={section.id}

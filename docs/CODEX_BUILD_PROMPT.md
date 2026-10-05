@@ -10,7 +10,7 @@ Before coding, read `docs.md` in full and treat it as the architecture/product s
 
 **RepoView** is a private, read-only GitHub repository sharing application hosted at:
 
-`https://code.thrn.im`
+`https://repoview.thrn.im`
 
 It lets the owner create expiring/revocable private links to selected GitHub repositories. A recipient can browse source code and Markdown without a GitHub account. The owner can see meaningful view activity in a private dashboard and receives a Gmail SMTP notification when a real browser meaningfully views a share.
 
@@ -35,7 +35,7 @@ Use these exact/high-level choices:
   - TLS/STARTTLS using Google-supported SMTP configuration.
   - Credentials only from server-side environment variables.
 - **Vercel** is the production host.
-- Production custom domain: **`code.thrn.im`**.
+- Production custom domain: **`repoview.thrn.im`**.
 - **Shiki** for syntax highlighting. Prefer server-side highlighting. Do not use Monaco for the read-only viewer.
 - Markdown:
   - `react-markdown`
@@ -128,7 +128,7 @@ Admin can create a share with:
 
 Public link format for new shares:
 
-`https://code.thrn.im/view/<9-character-alphanumeric-code>`
+`https://repoview.thrn.im/view/<9-character-alphanumeric-code>`
 
 Security requirements:
 - generate the nine-character code with a cryptographically secure, unbiased random choice from `A-Z`, `a-z`, and `0-9`.
@@ -778,7 +778,7 @@ README must explain:
 6. migrations;
 7. dev command;
 8. Vercel deployment;
-9. adding `code.thrn.im`;
+9. adding `repoview.thrn.im`;
 10. security model.
 
 ## Initial implementation sequence

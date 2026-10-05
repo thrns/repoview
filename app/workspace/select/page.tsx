@@ -1,9 +1,12 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 
 import { selectActiveWorkspace } from '@/app/workspace/actions'
 import { getUserWorkspaceMemberships } from '@/lib/auth/workspace'
 import { Admonition, Button, Card, CardContent, PageContainer, Select } from '@/components/ui'
+import { NOINDEX_ROBOTS } from '@/lib/seo'
 
+export const metadata: Metadata = { robots: NOINDEX_ROBOTS }
 export const dynamic = 'force-dynamic'
 
 export default async function WorkspaceSelectionPage() {

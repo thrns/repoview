@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm'
 import type { Components } from 'react-markdown'
 
 import { BrandLogo } from '@/components/shared/brand-logo'
+import { SkipToContent } from '@/components/ui/patterns'
 import type { LegalSection } from '@/lib/legal-content'
 
 import { LegalSidebar } from './legal-sidebar'
@@ -43,7 +44,8 @@ function withoutNode<T extends { node?: unknown }>(props: T) {
 
 export function LegalDocument({ content, sections }: { content: string; sections: LegalSection[] }) {
   return (
-    <main className="legal-page min-h-screen bg-background text-foreground">
+    <div className="legal-page min-h-screen bg-background text-foreground">
+      <SkipToContent />
       <header className="legal-header">
         <div className="legal-header-inner">
           <Link href="/" className="legal-brand" aria-label="RepoView home">
@@ -56,14 +58,14 @@ export function LegalDocument({ content, sections }: { content: string; sections
           </nav>
         </div>
       </header>
-      <div className="legal-layout">
+      <main id="main" tabIndex={-1} className="legal-layout scroll-mt-16 outline-hidden">
         <LegalSidebar sections={sections} />
         <article className="legal-article markdown-content">
           <Markdown components={markdownComponents} remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSlug]}>
             {content}
           </Markdown>
         </article>
-      </div>
-    </main>
+      </main>
+    </div>
   )
 }

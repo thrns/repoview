@@ -204,13 +204,13 @@ RepoView composes low-volume, deduplicated first-meaningful-view and session-sum
 1. Import the repository into Vercel with the **Next.js** framework preset.
 2. Use the default build command, `pnpm build`.
 3. Add all `.env` values in the appropriate Vercel environment scopes.
-4. Set `NEXT_PUBLIC_APP_URL=https://code.thrn.im` for production.
+4. Set `NEXT_PUBLIC_APP_URL=https://repoview.thrn.im` for production.
 5. Set `REPOVIEW_TRUSTED_SOURCE_IP_MODE=vercel` when requests reach RepoView through Vercel's edge.
 6. Keep GitHub, SMTP, Supabase service-role, and Shiki work on the normal Node/serverless runtime; do not move them to Edge without validating the dependencies.
 
-## `code.thrn.im` domain
+## `repoview.thrn.im` domain
 
-In Vercel, open **Settings → Domains**, add `code.thrn.im`, and publish the exact DNS record Vercel provides for the current project. Do not guess or hardcode a DNS target. Confirm Vercel has issued HTTPS, then update `NEXT_PUBLIC_APP_URL` and create new share links from the canonical domain.
+In Vercel, open **Settings → Domains**, add `repoview.thrn.im`, and publish the exact DNS record Vercel provides for the current project. Do not guess or hardcode a DNS target. Confirm Vercel has issued HTTPS, then set `NEXT_PUBLIC_APP_URL=https://repoview.thrn.im` and create new share links from the canonical domain.
 
 ## Development commands
 

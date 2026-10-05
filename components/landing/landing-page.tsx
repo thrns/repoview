@@ -1,7 +1,4 @@
-'use client'
-
 import Link from 'next/link'
-import { useState } from 'react'
 import {
   ArrowUpRight,
   Check,
@@ -22,8 +19,12 @@ import {
 import type { ReactNode } from 'react'
 
 import { LandingFooter, LandingNav } from '@/components/landing/landing-chrome'
+import { CopyShareLinkButton } from '@/components/landing/copy-share-link-button'
 import type { AccountMenuData } from '@/components/shared/account-menu'
-import { Button } from '@/components/ui'
+import { Button } from '@/components/ui/button'
+import { SITE_URL } from '@/lib/seo'
+
+const exampleShareUrl = new URL('/view/aB3xK9pQ2', SITE_URL)
 
 const analyticsRows = [
   { file: 'README.md', attention: '8m 02s', views: 18, percent: 88 },
@@ -32,28 +33,17 @@ const analyticsRows = [
 ]
 
 export function LandingPage({ account }: { account?: AccountMenuData }) {
-  const [copied, setCopied] = useState(false)
-
-  function copyShareLink() {
-    const clipboardWrite = typeof navigator !== 'undefined'
-      ? navigator.clipboard?.writeText('https://repoview.dev/view/aB3xK9pQ2')
-      : undefined
-
-    void clipboardWrite?.catch(() => undefined)
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 1800)
-  }
-
   return (
-    <main className="landing-page">
+    <div className="landing-page">
       <LandingNav account={account} />
 
+      <main id="main" tabIndex={-1} className="scroll-mt-16 outline-hidden">
       <section className="hero-section" id="top">
         <div className="landing-container hero-layout">
           <div className="hero-copy">
-            <h1><span className="hero-heading-lead">Give private code a</span><span>proper review surface.</span></h1>
+            <h1><span className="hero-heading-lead">Share private GitHub</span>{' '}<span>repositories without going public.</span></h1>
             <p className="hero-description">
-              Share private code with a scoped, read-only link. See what reviewers explore.
+              Share a private GitHub repository through a scoped, read-only link—without making it public or adding the recipient as a collaborator. Viewers do not need a RepoView account.
             </p>
             <div className="hero-actions">
               <Button asChild variant="primary" size="large" className="button-md">
@@ -70,7 +60,7 @@ export function LandingPage({ account }: { account?: AccountMenuData }) {
             <div className="hero-stage-frame">
               <div className="hero-stage-meta">
                 <span>What the recipient sees</span>
-                <span><i className="status-dot" /> scoped share</span>
+                <span><i className="status-dot" aria-hidden="true" /> scoped share</span>
               </div>
               <HeroRepositoryPreview />
             </div>
@@ -81,18 +71,18 @@ export function LandingPage({ account }: { account?: AccountMenuData }) {
       <section className="story-section recipient-section" id="recipient">
         <div className="landing-container story-layout">
           <div className="story-copy">
-            <h2>A familiar repository review, without repository access.</h2>
+            <h2>A read-only review view for private GitHub repositories.</h2>
             <p>
-              Recipients open the link and start reading. They can move through the files and rendered content you chose to share, without creating an account or seeing an edit surface.
+              Share a selected repository with a recruiter, client, collaborator, or reviewer. They can browse its files and rendered content without GitHub collaborator access. Read <Link href="/share-private-github-repository" className="text-link hover:underline">how to share a private GitHub repository</Link>.
             </p>
             <ul className="experience-list">
-              <ExperiencePoint icon={<Eye className="size-4" aria-hidden="true" />} title="Open and read immediately" copy="No viewer sign-in or setup for the person reviewing your work." />
-              <ExperiencePoint icon={<FileText className="size-4" aria-hidden="true" />} title="Keep technical context intact" copy="Markdown, source, images, and diagrams stay in one repository-shaped view." />
-              <ExperiencePoint icon={<LockKeyhole className="size-4" aria-hidden="true" />} title="Stay read-only" copy="A share provides a review surface, not repository credentials." />
+              <ExperiencePoint icon={<Eye className="size-4" aria-hidden="true" />} title="No viewer account required" copy="Recipients do not need a RepoView account to open a share." />
+              <ExperiencePoint icon={<FileText className="size-4" aria-hidden="true" />} title="Keep technical context intact" copy="Browse source and rendered Markdown, including supported repository images and Mermaid diagrams." />
+              <ExperiencePoint icon={<LockKeyhole className="size-4" aria-hidden="true" />} title="Stay read-only" copy="The link exposes only the repository content allowed by its ref and visibility rules." />
             </ul>
           </div>
 
-          <div className="story-note" aria-label="Recipient experience summary">
+          <aside className="story-note" aria-label="Recipient experience summary">
             <div className="story-note-heading"><span>Recipient path</span><span>read only</span></div>
             <div className="review-path">
               <ReviewPathItem icon={<Github className="size-4" aria-hidden="true" />} title="tekkscope / repoview" copy="Private repository" />
@@ -100,25 +90,25 @@ export function LandingPage({ account }: { account?: AccountMenuData }) {
               <ReviewPathItem icon={<GitBranch className="size-4" aria-hidden="true" />} title="main" copy="The ref you selected" />
             </div>
             <p className="story-note-foot">The repository remains private on GitHub.</p>
-          </div>
+          </aside>
         </div>
       </section>
 
       <section className="story-section control-section" id="control">
         <div className="landing-container story-layout control-layout">
           <div className="story-visual">
-            <ShareLinkPreview copied={copied} onCopy={copyShareLink} />
+            <ShareLinkPreview />
           </div>
           <div className="story-copy">
-            <h2>You decide what leaves your workspace.</h2>
+            <h2>Choose the repository, ref, and paths the link can show.</h2>
             <p>
-              Choose the repository and ref, keep the share read-only, and decide how long the link should work before you send it.
+              Select a registered GitHub repository and ref, then optionally narrow visibility to specific paths. Set an expiry, or revoke the share from your dashboard whenever you need to end access.
             </p>
             <div className="control-points">
               <ControlPoint title="Read-only access" copy="Recipients can review the files you authorize, not edit them." />
-              <ControlPoint title="Owner-controlled GitHub access" copy="RepoView retrieves repository content server-side." />
-              <ControlPoint title="Expiry or revocation when you need it" copy="End access without changing the repository itself." />
-              <ControlPoint title="No viewer account required" copy="The link is the entry point for the recipient." />
+              <ControlPoint title="Owner-controlled GitHub access" copy="RepoView retrieves private repository content through the owner's read-only GitHub App connection." />
+              <ControlPoint title="Expiry or revocation when you need it" copy="Choose when a link expires, or revoke it at any time." />
+              <ControlPoint title="No viewer RepoView account" copy="The recipient opens the read-only link directly in a browser." />
             </div>
           </div>
         </div>
@@ -127,13 +117,13 @@ export function LandingPage({ account }: { account?: AccountMenuData }) {
       <section className="story-section engagement-section" id="engagement">
         <div className="landing-container story-layout engagement-layout">
           <div className="story-copy">
-            <h2>Come back with a useful signal.</h2>
+            <h2>See how viewers engage with a repository share.</h2>
             <p>
-              See when a share was meaningfully explored and which files held attention. RepoView measures engagement without pretending to know who an anonymous viewer is.
+              When a viewer enables optional engagement analytics, you can see which files they open and how long they spend. These are activity signals, not proof of who viewed the link or whether they were the intended recipient.
             </p>
             <div className="signal-note">
               <span className="signal-note-icon"><Timer className="size-4" aria-hidden="true" /></span>
-              <span><strong>Low-volume activity</strong><small>Follow the review, not a stream of noise.</small></span>
+              <span><strong>Engagement, not identity</strong><small>Analytics do not verify a viewer's identity or affiliation.</small></span>
             </div>
           </div>
           <div className="story-visual">
@@ -153,9 +143,10 @@ export function LandingPage({ account }: { account?: AccountMenuData }) {
           </div>
         </div>
       </section>
+      </main>
 
       <LandingFooter />
-    </main>
+    </div>
   )
 }
 
@@ -164,8 +155,8 @@ function HeroRepositoryPreview() {
     <div className="product-window hero-product-window" aria-hidden="true">
       <div className="preview-browser-bar">
         <span><LockKeyhole className="size-3" aria-hidden="true" /> Scoped link</span>
-        <span className="preview-url">repoview.dev/view/aB3xK9pQ2</span>
-        <span className="preview-readonly"><i className="status-dot" /> read-only</span>
+        <span className="preview-url">{exampleShareUrl.host}{exampleShareUrl.pathname}</span>
+        <span className="preview-readonly"><i className="status-dot" aria-hidden="true" /> read-only</span>
       </div>
       <div className="preview-repository-bar">
         <div className="preview-repository-name"><Github className="size-4" aria-hidden="true" /><strong>tekkscope / repoview</strong><span className="preview-private"><LockKeyhole className="size-3" aria-hidden="true" /> private</span></div>
@@ -185,7 +176,7 @@ function HeroRepositoryPreview() {
         <article className="preview-reader">
           <div className="preview-reader-path"><span>tekkscope / repoview</span><ChevronRight className="size-3" aria-hidden="true" /><strong>README.md</strong><span className="preview-format">Markdown</span></div>
           <span className="preview-file-label">README.md</span>
-          <h3>Ship reliable systems, together.</h3>
+          <div className="preview-reader-title">Ship reliable systems, together.</div>
           <p>A small toolkit for making complex infrastructure easier to understand, operate, and improve.</p>
           <div className="preview-rule" />
           <div className="preview-reader-grid">
@@ -227,21 +218,21 @@ function ReviewPathItem({ icon, title, copy }: { icon: ReactNode; title: string;
   )
 }
 
-function ShareLinkPreview({ copied, onCopy }: { copied: boolean; onCopy: () => void }) {
+function ShareLinkPreview() {
   return (
     <div className="share-preview-card">
       <div className="share-preview-top">
-        <div><span className="share-overline">Owner control</span><h3>Create a scoped share</h3></div>
+        <div><span className="share-overline">Owner control</span><div className="share-preview-title">Create a scoped share</div></div>
         <span className="share-secure-mark"><LockKeyhole className="size-4" aria-hidden="true" /></span>
       </div>
       <div className="share-form">
-        <label>Repository<span className="fake-input"><Github className="size-4" aria-hidden="true" /><span>tekkscope / repoview</span><ChevronDown className="size-3" aria-hidden="true" /></span></label>
+        <div className="share-form-field">Repository<span className="fake-input"><Github className="size-4" aria-hidden="true" /><span>tekkscope / repoview</span><ChevronDown className="size-3" aria-hidden="true" /></span></div>
         <div className="share-form-row">
-          <label>Ref<span className="fake-input"><GitBranch className="size-3.5" aria-hidden="true" /><span>main</span><ChevronDown className="size-3" aria-hidden="true" /></span></label>
-          <label>Expiry<span className="fake-input"><Clock3 className="size-3.5" aria-hidden="true" /><span>7 days</span></span></label>
+          <div className="share-form-field">Ref<span className="fake-input"><GitBranch className="size-3.5" aria-hidden="true" /><span>main</span><ChevronDown className="size-3" aria-hidden="true" /></span></div>
+          <div className="share-form-field">Expiry<span className="fake-input"><Clock3 className="size-3.5" aria-hidden="true" /><span>7 days</span></span></div>
         </div>
-        <div className="generated-link"><span><Link2 className="size-3.5" aria-hidden="true" /> repoview.dev/view/aB3xK9pQ2</span><span className="link-status"><i className="status-dot" /> active</span></div>
-        <Button type="button" variant="primary" size="large" className="button-md share-button" onClick={onCopy} iconRight={<ArrowUpRight className="size-3.5" aria-hidden="true" />}>{copied ? 'Link copied' : 'Copy private link'}</Button>
+        <div className="generated-link"><span><Link2 className="size-3.5" aria-hidden="true" /> {exampleShareUrl.host}{exampleShareUrl.pathname}</span><span className="link-status"><i className="status-dot" aria-hidden="true" /> active</span></div>
+        <CopyShareLinkButton />
       </div>
       <div className="share-preview-footer"><span><Check className="size-3" aria-hidden="true" /> Read-only</span><span>Revoke anytime</span></div>
     </div>
@@ -261,7 +252,7 @@ function AnalyticsPreview() {
   return (
     <div className="analytics-preview-card">
       <div className="analytics-preview-top">
-        <div><span className="share-overline">Share activity</span><h3>tekkscope / repoview</h3></div>
+        <div><span className="share-overline">Share activity</span><div className="analytics-preview-title">tekkscope / repoview</div></div>
         <span className="analytics-period">Recent</span>
       </div>
       <div className="metrics-grid">
@@ -280,7 +271,7 @@ function AnalyticsPreview() {
           </div>
         ))}
       </div>
-      <div className="analytics-signal"><span className="signal-dot" /><span>Meaningful activity is available in your workspace.</span></div>
+      <div className="analytics-signal"><span className="signal-dot" aria-hidden="true" /><span>Meaningful activity is available in your workspace.</span></div>
     </div>
   )
 }

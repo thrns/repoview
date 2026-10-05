@@ -4,7 +4,7 @@ import { Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 
-import { Button } from '@/components/ui'
+import { Button } from '@/components/ui/button'
 
 export function ThemeSwitcher({ className }: { className?: string }) {
   const [mounted, setMounted] = useState(false)
@@ -13,8 +13,6 @@ export function ThemeSwitcher({ className }: { className?: string }) {
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  if (!mounted) return null
 
   const currentTheme = theme === 'dark' || (theme === 'system' && resolvedTheme === 'dark') ? 'dark' : 'light'
   const nextTheme = currentTheme === 'dark' ? 'light' : 'dark'
@@ -27,10 +25,14 @@ export function ThemeSwitcher({ className }: { className?: string }) {
       type="button"
       variant="ghost"
       size="icon"
-      aria-label={`${currentLabel}. ${nextLabel}`}
-      title={`${currentLabel} · ${nextLabel}`}
+      aria-label={mounted ? `${currentLabel}. ${nextLabel}` : undefined}
+      aria-hidden={!mounted}
+      tabIndex={mounted ? undefined : -1}
+      disabled={!mounted}
+      title={mounted ? `${currentLabel} · ${nextLabel}` : undefined}
       onClick={() => setTheme(nextTheme)}
       className={className ?? 'text-foreground-muted hover:text-foreground'}
+      style={{ visibility: mounted ? 'visible' : 'hidden' }}
     >
       <Icon className="size-4" aria-hidden="true" />
     </Button>

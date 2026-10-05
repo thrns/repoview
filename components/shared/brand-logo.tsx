@@ -1,15 +1,15 @@
 import Image from 'next/image'
 
-import { cn } from '@/components/ui'
+import { cn } from '@/components/ui/utils'
 
 interface BrandLogoProps {
   alt?: string
   className?: string
-  priority?: boolean
+  preload?: boolean
   size?: number
 }
 
-export function BrandLogo({ alt = '', className, priority = false, size = 28 }: BrandLogoProps) {
+export function BrandLogo({ alt = '', className, preload = false, size = 28 }: BrandLogoProps) {
   return (
     <span className={cn('relative inline-flex shrink-0', className)} style={{ width: size, height: size }}>
       <Image
@@ -17,7 +17,7 @@ export function BrandLogo({ alt = '', className, priority = false, size = 28 }: 
         alt={alt}
         width={size}
         height={size}
-        priority={priority}
+        preload={preload}
         className="block h-full w-full object-contain dark:hidden"
       />
       <Image
@@ -25,7 +25,7 @@ export function BrandLogo({ alt = '', className, priority = false, size = 28 }: 
         alt={alt}
         width={size}
         height={size}
-        priority={priority}
+        preload={preload}
         className="hidden h-full w-full object-contain dark:block"
       />
     </span>

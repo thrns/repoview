@@ -4,7 +4,7 @@ This file is the execution checklist for building **RepoView**.
 
 **Primary architecture/specification:** `docs.md`  
 **Application:** RepoView  
-**Production domain:** `https://code.thrn.im`  
+**Production domain:** `https://repoview.thrn.im`
 **Framework:** Next.js 16.3.3  
 **Database/Auth:** Supabase SDK  
 **UI:** Provided `design-system/` folder — reuse its components, tokens, styling stack, typography, themes, and interaction patterns  
@@ -609,7 +609,7 @@ Added protected `/dashboard/shares/new` with repository/ref loading, recipient l
 - [x] Persist share row.
 - [x] Return the public code and `/view/<code>` URL.
 - [x] Construct:
-  - `https://code.thrn.im/view/<9-character-code>` in production
+  - `https://repoview.thrn.im/view/<9-character-code>` in production
   - local URL in development
 
 **Acceptance criteria**
@@ -1551,7 +1551,7 @@ Used the in-app browser as the equivalent live smoke harness. Local browser chec
 - [x] Add Gmail App Password setup.
 - [x] Add environment configuration.
 - [x] Add Vercel deployment.
-- [x] Add `code.thrn.im` domain setup.
+- [x] Add `repoview.thrn.im` domain setup.
 - [x] Add security model.
 - [x] Add development commands.
 
@@ -1559,7 +1559,7 @@ Used the in-app browser as the equivalent live smoke harness. Local browser chec
 - A competent developer can reproduce the app from README.
 
 **Implementation note:**
-Added the root `README.md` with the current route/library architecture, prerequisites, local setup, complete environment template, migration order, Supabase/GitHub/Gmail configuration, security model, Vercel deployment, `code.thrn.im` DNS guidance, and verification commands.
+Added the root `README.md` with the current route/library architecture, prerequisites, local setup, complete environment template, migration order, Supabase/GitHub/Gmail configuration, security model, Vercel deployment, `repoview.thrn.im` DNS guidance, and verification commands.
 
 ---
 
@@ -1584,7 +1584,7 @@ Reconciled the route map, viewer-session cookie wording, current `lib/` boundari
 
 - [ ] Configure Vercel project.
 - [ ] Add required environment variables.
-- [ ] Set `NEXT_PUBLIC_APP_URL=https://code.thrn.im`.
+- [ ] Set `NEXT_PUBLIC_APP_URL=https://repoview.thrn.im`.
 - [ ] Confirm production build uses Node/serverless runtime where required by Shiki/GitHub/SMTP.
 - [ ] Never commit production secrets.
 
@@ -1596,7 +1596,7 @@ Repository-side preparation is complete and the local production webpack build p
 
 ---
 
-## Task 22.2 — Configure `code.thrn.im`
+## Task 22.2 — Configure `repoview.thrn.im`
 
 - [ ] Add custom domain to Vercel project.
 - [ ] Use the exact DNS record Vercel currently provides.
@@ -1604,7 +1604,7 @@ Repository-side preparation is complete and the local production webpack build p
 - [ ] Verify canonical app URL.
 
 **Acceptance criteria**
-- `https://code.thrn.im` serves RepoView over valid HTTPS.
+- `https://repoview.thrn.im` serves RepoView over valid HTTPS.
 
 ---
 
@@ -1702,7 +1702,7 @@ pnpm build
 - [ ] `docs.md` is current.
 - [ ] Production flow works.
 - [ ] Final quality gate passes.
-- [ ] RepoView is ready to use at `code.thrn.im`.
+- [ ] RepoView is ready to use at `repoview.thrn.im`.
 
 **Final implementation note:**  
 <!-- Summarize any deliberate deviations from docs.md here -->

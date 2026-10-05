@@ -16,7 +16,7 @@ export function ShareError({ reason }: { reason?: string }) {
           <BrandLogo size={24} />
           <span className="font-heading text-sm font-semibold tracking-tight">RepoView</span>
         </div>
-        <Admonition type="warning" icon={<AlertTriangle className="size-4 text-warning" />} title={error.title} description={error.description} className="p-4 sm:p-5">
+        <Admonition type="warning" icon={<AlertTriangle className="size-4 text-warning" />} title={error.title} titleLevel="h1" description={error.description} className="p-4 sm:p-5">
           <Button asChild variant="outline" className="mt-4">
             <Link href="/">
               <ArrowLeft className="size-4" aria-hidden="true" />

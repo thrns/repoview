@@ -1,7 +1,7 @@
 # RepoView — Architecture & Product Specification
 
 **Application:** RepoView  
-**Production domain:** `code.thrn.im`  
+**Production domain:** `repoview.thrn.im`
 **Purpose:** Secure, read-only sharing of selected private GitHub repositories with polished source/Markdown rendering, revocable links, meaningful-view analytics, and owner email notifications.  
 **Primary host:** Vercel  
 **Framework:** Next.js 16.3.3 App Router  
@@ -160,7 +160,7 @@ Deploy the Next.js application to Vercel.
 
 Production hostname:
 
-`code.thrn.im`
+`repoview.thrn.im`
 
 Environment secrets live in Vercel project environment variables.
 
@@ -178,10 +178,10 @@ Environment secrets live in Vercel project environment variables.
                                  Contents: read-only
                                            │
                                            ▼
-┌──────────────────────┐        ┌───────────────────────────┐
-│ Owner / Admin        │        │ RepoView / Next.js 16.3.3│
-│ code.thrn.im/dashboard├──────►│ Vercel                   │
-└──────────────────────┘        │                           │
+┌──────────────────────────────┐        ┌───────────────────────────┐
+│ Owner / Admin                │        │ RepoView / Next.js 16.3.3│
+│ repoview.thrn.im/dashboard   ├──────►│ Vercel                   │
+└──────────────────────────────┘        │                           │
          │                       │ Server Components         │
          │ Supabase Auth         │ Route Handlers            │
          │                       │ GitHub service layer      │
@@ -198,7 +198,7 @@ Environment secrets live in Vercel project environment variables.
                                   └───────────────────────┘
 
 Recipient:
-https://code.thrn.im/view/<9-character-code>
+https://repoview.thrn.im/view/<9-character-code>
           │
           ▼
 share-code validation + viewer session cookie
@@ -317,7 +317,7 @@ crypto.randomInt() over the fixed A-Z/a-z/0-9 alphabet
 
 Example URL:
 
-`https://code.thrn.im/view/aB3xK9pQ2`
+`https://repoview.thrn.im/view/aB3xK9pQ2`
 
 The `share_code` column is unique. Code generation retries only a bounded number of times when that unique key collides; unrelated database errors are propagated. Historical eight-character codes remain valid for existing shares.
 
@@ -1396,7 +1396,7 @@ Device: Desktop
 Country: Canada
 
 View activity
-https://code.thrn.im/dashboard/shares/<share-id>
+https://repoview.thrn.im/dashboard/shares/<share-id>
 ```
 
 Never put:
@@ -1787,14 +1787,14 @@ Framework preset:
 Add all production values in Vercel settings.
 
 Make sure:
-- `NEXT_PUBLIC_APP_URL=https://code.thrn.im`
+- `NEXT_PUBLIC_APP_URL=https://repoview.thrn.im`
 - secrets are Production-scoped appropriately.
 
 ### Domain
 
 In the Vercel project:
 1. Settings → Domains.
-2. Add `code.thrn.im`.
+2. Add `repoview.thrn.im`.
 3. Vercel will show the exact required DNS record.
 4. Add that record in the DNS provider for `thrn.im`.
 5. Verify HTTPS provisioning.
@@ -1839,7 +1839,7 @@ Create a GitHub App under the GitHub account/org.
 
 Suggested:
 - Name: RepoView
-- Homepage URL: `https://code.thrn.im`
+- Homepage URL: `https://repoview.thrn.im`
 - Webhook: not required for v1 unless used for cache invalidation
 - OAuth callback: optional; any callback/webhook must persist installation metadata server-side
 
@@ -2122,7 +2122,7 @@ These can distract from the core portfolio-sharing experience.
 - [ ] tests pass.
 - [ ] `pnpm build` passes.
 - [ ] deploys on Vercel.
-- [ ] `code.thrn.im` attached.
+- [ ] `repoview.thrn.im` attached.
 - [ ] HTTPS works.
 
 ---
@@ -2282,7 +2282,7 @@ Next.js 16.3.3 on Vercel
         └── Notifications ── Gmail SMTP
         │
         ▼
-code.thrn.im
+repoview.thrn.im
 ```
 
 The most important implementation principle is:

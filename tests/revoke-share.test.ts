@@ -8,7 +8,7 @@ vi.mock('../lib/auth/workspace', () => ({
 vi.mock('../lib/security/rate-limit', () => ({ enforceAuthenticatedRateLimit: vi.fn(async () => undefined) }))
 vi.mock('../lib/supabase/server', () => ({ createSupabaseServerClient: vi.fn() }))
 vi.mock('../lib/security/tokens', () => ({ generateShareCode: vi.fn(() => 'aB3xK9pQ2'), hashShareToken: vi.fn(() => 'new-token-hash') }))
-vi.mock('../lib/env/public', () => ({ getPublicEnv: vi.fn(() => ({ NEXT_PUBLIC_APP_URL: 'https://code.thrn.im/' })) }))
+vi.mock('../lib/env/public', () => ({ getPublicEnv: vi.fn(() => ({ NEXT_PUBLIC_APP_URL: 'https://repoview.thrn.im/' })) }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
 import { revokeShare, rotateShare, updateShareExpiry } from '../app/(admin)/dashboard/shares/[id]/actions'
@@ -65,7 +65,7 @@ describe('revoke share action', () => {
     const builder = { update: vi.fn(() => builder), eq: vi.fn(() => builder), select: vi.fn(() => builder), maybeSingle }
     vi.mocked(createSupabaseServerClient).mockResolvedValue({ from: vi.fn(() => builder) } as never)
 
-    await expect(rotateShare(shareId)).resolves.toEqual({ shareCode: 'aB3xK9pQ2', shareUrl: 'https://code.thrn.im/view/aB3xK9pQ2' })
+    await expect(rotateShare(shareId)).resolves.toEqual({ shareCode: 'aB3xK9pQ2', shareUrl: 'https://repoview.thrn.im/view/aB3xK9pQ2' })
     expect(builder.update).toHaveBeenCalledWith({ share_code: 'aB3xK9pQ2', token_hash: 'new-token-hash', revoked_at: null })
   })
 
@@ -77,7 +77,7 @@ describe('revoke share action', () => {
     const builder = { update: vi.fn(() => builder), eq: vi.fn(() => builder), select: vi.fn(() => builder), maybeSingle }
     vi.mocked(createSupabaseServerClient).mockResolvedValue({ from: vi.fn(() => builder) } as never)
 
-    await expect(rotateShare(shareId)).resolves.toEqual({ shareCode: 'zY8wV7uT6', shareUrl: 'https://code.thrn.im/view/zY8wV7uT6' })
+    await expect(rotateShare(shareId)).resolves.toEqual({ shareCode: 'zY8wV7uT6', shareUrl: 'https://repoview.thrn.im/view/zY8wV7uT6' })
     expect(builder.update).toHaveBeenCalledTimes(2)
     expect(builder.update).toHaveBeenLastCalledWith({ share_code: 'zY8wV7uT6', token_hash: 'new-token-hash', revoked_at: null })
   })
