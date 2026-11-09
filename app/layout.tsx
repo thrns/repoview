@@ -21,7 +21,7 @@ export const viewport: Viewport = {
 }
 
 // The page CSP is nonce-based in production. Keep the app request-rendered so
-// Next can attach each request's nonce to its generated scripts.
+// Next can attach each request's nonce to generated scripts and next-themes' bootstrap.
 export const dynamic = 'force-dynamic'
 
 const inter = Inter({
