@@ -22,11 +22,15 @@ export async function renderSourceCodeLanguage(code: string, language: string) {
     })
     return safeGeneratedHtml(html) ?? renderPlainSource(code)
   } catch {
-    const html = await codeToHtml(code, {
-      lang: 'text' as BundledLanguage,
-      theme: SHIKI_THEME,
-    })
-    return safeGeneratedHtml(html) ?? renderPlainSource(code)
+    try {
+      const html = await codeToHtml(code, {
+        lang: 'text' as BundledLanguage,
+        theme: SHIKI_THEME,
+      })
+      return safeGeneratedHtml(html) ?? renderPlainSource(code)
+    } catch {
+      return renderPlainSource(code)
+    }
   }
 }
 
@@ -37,7 +41,7 @@ export async function SourceCodeRenderer({ code, filename }: { code: string; fil
 }
 
 function renderPlainSource(code: string) {
-  return `<pre class="shiki"><code>${escapeHtml(code)}</code></pre>`
+  return `<pre class="shiki plain-source"><code>${escapeHtml(code)}</code></pre>`
 }
 
 function escapeHtml(value: string) {

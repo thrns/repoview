@@ -28,4 +28,20 @@ describe('source code renderer', () => {
     expect(html).not.toContain('<script>')
     expect(html).not.toContain('onclick=')
   })
+
+  it('renders supported and unknown source languages with line markup', async () => {
+    const files = [
+      { filename: 'config.yaml', code: 'apiVersion: v1\nkind: ConfigMap', marker: 'ConfigMap' },
+      { filename: 'settings.json', code: '{"enabled": true}', marker: 'enabled' },
+      { filename: 'src/index.ts', code: 'const answer: number = 42', marker: 'answer' },
+      { filename: 'worker.py', code: 'def answer() -> int:\n    return 42', marker: 'answer' },
+      { filename: 'notes.custom', code: 'plain content\n  indented', marker: 'indented' },
+    ]
+
+    for (const file of files) {
+      const html = await renderSourceCode(file.code, file.filename)
+      expect(html).toContain('class="line"')
+      expect(html).toContain(file.marker)
+    }
+  })
 })

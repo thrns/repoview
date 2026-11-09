@@ -9,41 +9,46 @@ import supabaseTheme from '../../design-system/lib/themes/supabase-2.json'
 
 const SHIKI_THEME = supabaseTheme
 
+let shikiModulePromise: Promise<typeof import('shiki')> | null = null
+
+function loadShiki() {
+  if (!shikiModulePromise) {
+    shikiModulePromise = import('shiki').catch((error: unknown) => {
+      shikiModulePromise = null
+      throw error
+    })
+  }
+
+  return shikiModulePromise
+}
+
 export function ClientSourceCodeRenderer({ code, filename }: { code: string; filename: string }) {
-  const [result, setResult] = useState<{ input: string; html?: string; failed?: boolean } | null>(null)
-  const input = `${filename}\0${code}`
+  const [result, setResult] = useState<{ filename: string; code: string; html: string | null } | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    const timer = window.setTimeout(() => {
-      void import('shiki').then(async ({ codeToHtml }) => {
-        try {
-          const rendered = await codeToHtml(code, {
-            lang: detectViewerLanguage(filename),
-            theme: SHIKI_THEME,
-          })
-          const safeHtml = safeGeneratedHtml(rendered)
-          if (!cancelled) setResult({ input, html: safeHtml ?? undefined, failed: !safeHtml })
-        } catch {
-          if (!cancelled) setResult({ input, failed: true })
-        }
-      }).catch(() => {
-        if (!cancelled) setResult({ input, failed: true })
+    void loadShiki().then(async ({ codeToHtml }) => {
+      const rendered = await codeToHtml(code, {
+        lang: detectViewerLanguage(filename),
+        theme: SHIKI_THEME,
       })
-    }, 0)
+      const html = safeGeneratedHtml(rendered)
+      if (!cancelled) setResult({ filename, code, html })
+    }).catch(() => {
+      if (!cancelled) setResult({ filename, code, html: null })
+    })
 
     return () => {
       cancelled = true
-      window.clearTimeout(timer)
     }
-  }, [code, filename, input])
+  }, [code, filename])
 
-  if (result?.input === input && result.html) {
+  if (result?.filename === filename && result.code === code && result.html !== null) {
     return <div className="source-code" dangerouslySetInnerHTML={{ __html: result.html }} />
   }
 
-  if (result?.input === input && result.failed) {
-    return <div className="source-code px-6 py-8 text-sm text-foreground-muted" role="status">Unable to render this file preview.</div>
+  if (result?.filename === filename && result.code === code) {
+    return <PlainSourceCode code={code} />
   }
 
   return (
@@ -51,6 +56,14 @@ export function ClientSourceCodeRenderer({ code, filename }: { code: string; fil
       {Array.from({ length: 14 }, (_, index) => (
         <Skeleton key={index} className="h-4" style={{ width: `${55 + (index % 5) * 9}%` }} />
       ))}
+    </div>
+  )
+}
+
+function PlainSourceCode({ code }: { code: string }) {
+  return (
+    <div className="source-code">
+      <pre className="shiki plain-source"><code>{code}</code></pre>
     </div>
   )
 }

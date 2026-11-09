@@ -336,6 +336,10 @@ body:has([data-viewer-shell]) {
   background-color: var(--code-surface) !important;
 }
 
+.source-code .shiki.plain-source {
+  white-space: pre;
+}
+
 .source-code .shiki > code {
   display: block;
 }

@@ -25,7 +25,7 @@ describe('security headers', () => {
     }
   })
 
-  it('allows eval-backed React debugging only in development', async () => {
+  it('allows WebAssembly compilation without enabling general eval in production', async () => {
     const environment = process.env as Record<string, string | undefined>
     const originalNodeEnv = environment.NODE_ENV
 
@@ -33,14 +33,16 @@ describe('security headers', () => {
       environment.NODE_ENV = 'development'
       const developmentHeaders = await nextConfig.headers?.()
       const developmentCsp = developmentHeaders?.find((entry) => entry.source === '/:path*')?.headers.find((entry) => entry.key === 'Content-Security-Policy')?.value
-      expect(developmentCsp).toContain("script-src 'self' 'unsafe-eval'")
+      expect(getScriptPolicy(developmentCsp)).toContain("'unsafe-eval'")
+      expect(getScriptPolicy(developmentCsp)).toContain("'wasm-unsafe-eval'")
       expect(getScriptPolicy(developmentCsp)).not.toContain("'unsafe-inline'")
 
       environment.NODE_ENV = 'production'
       const productionHeaders = await nextConfig.headers?.()
       const productionCsp = productionHeaders?.find((entry) => entry.source === '/:path*')?.headers.find((entry) => entry.key === 'Content-Security-Policy')?.value
-      expect(getScriptPolicy(productionCsp)).toBe("script-src 'self'")
+      expect(getScriptPolicy(productionCsp)).toBe("script-src 'self' 'wasm-unsafe-eval'")
       expect(getScriptPolicy(productionCsp)).not.toContain("'unsafe-inline'")
+      expect(getScriptPolicy(productionCsp)).not.toContain("'unsafe-eval'")
     } finally {
       environment.NODE_ENV = originalNodeEnv
     }
@@ -48,8 +50,9 @@ describe('security headers', () => {
 
   it('uses a request nonce for Next scripts on rendered pages', () => {
     const policy = createContentSecurityPolicy({ nonce: 'test-nonce', isDevelopment: false })
-    expect(getScriptPolicy(policy)).toBe("script-src 'self' 'nonce-test-nonce' 'strict-dynamic'")
+    expect(getScriptPolicy(policy)).toBe("script-src 'self' 'nonce-test-nonce' 'strict-dynamic' 'wasm-unsafe-eval'")
     expect(getScriptPolicy(policy)).not.toContain("'unsafe-inline'")
+    expect(getScriptPolicy(policy)).not.toContain("'unsafe-eval'")
   })
 })
 

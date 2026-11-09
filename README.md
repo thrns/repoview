@@ -19,7 +19,7 @@ Recipients receive a short-lived session cookie after the public share-code exch
 
 ## Prerequisites
 
-- Node.js 22.x (the repository pins Node 22 in `.nvmrc` and `package.json`).
+- Node.js 26.x (the repository pins Node 26 in `.nvmrc` and `package.json`).
 - pnpm 10.12.4.
 - A Supabase project with email/password Auth enabled.
 - A public GitHub App with read-only Contents permission and OAuth authorization enabled through a callback URL.

@@ -2,6 +2,7 @@ export function createContentSecurityPolicy({ nonce, isDevelopment = false }: { 
   const scriptSources = [
     "'self'",
     ...(nonce ? [`'nonce-${nonce}'`, "'strict-dynamic'"] : []),
+    "'wasm-unsafe-eval'",
     ...(isDevelopment ? ["'unsafe-eval'"] : []),
   ].join(' ')
 
