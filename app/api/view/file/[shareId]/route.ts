@@ -2,6 +2,7 @@ import { after } from 'next/server'
 import { NextResponse } from 'next/server'
 
 import { requireViewerRepositoryAccess } from '@/lib/auth/viewer-access'
+import { renderSourceCode } from '@/components/viewer/source-code-renderer'
 import { GitHubFileError, loadRepositoryFile } from '@/lib/github/contents'
 import { normalizeRepositoryPath } from '@/lib/security/path'
 import { isPathAllowedForShare } from '@/lib/security/visibility'
@@ -65,6 +66,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ shar
       'system',
     )
 
+    let highlightedHtml: string | undefined
+    if (file.kind === 'text' && detectViewerLanguage(file.path) !== 'markdown' && file.size <= 200_000) {
+      try {
+        highlightedHtml = await renderSourceCode(file.content, file.path)
+      } catch {
+        // Plaintext remains available.
+      }
+    }
+    const previewFile = file.kind === 'text' && highlightedHtml
+      ? { ...file, highlightedHtml }
+      : file
+
     after(() => recordViewerViewEvent({
       shareId: viewer.share.id,
       sessionId: viewer.session.id,
@@ -76,7 +89,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ shar
       metadata: { route: 'client-file', preview: file.kind },
     }).catch(() => undefined))
 
-    return fileResponse({ file }, 200, {
+    return fileResponse({ file: previewFile }, 200, {
       auth: authMs,
       github: performance.now() - githubStartedAt,
       total: performance.now() - requestStartedAt,

@@ -31,7 +31,7 @@ export function ViewerFileContent({ file, shareId, tree, onOpenPath, allowDownlo
           <MarkdownRendererClient key={file.path} source={file.content} shareId={shareId} documentPath={file.path} tree={tree} onOpenPath={onOpenPath} />
         </div>
       ) : (
-        <ClientSourceCodeRenderer key={file.path} code={file.content} filename={file.path} />
+        <ClientSourceCodeRenderer key={file.path} code={file.content} highlightedHtml={file.highlightedHtml} />
       )}
     </ViewerFileLayout>
   )

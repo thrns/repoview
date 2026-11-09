@@ -13,8 +13,7 @@ describe('security headers', () => {
     expect(values.get('Referrer-Policy')).toBe('strict-origin-when-cross-origin')
     expect(values.get('X-Frame-Options')).toBe('DENY')
     expect(values.get('Permissions-Policy')).toContain('camera=()')
-    expect(values.get('Content-Security-Policy')).toContain("object-src 'none'")
-    expect(values.get('Content-Security-Policy')).toContain("frame-ancestors 'none'")
+    expect(values.has('Content-Security-Policy')).toBe(false)
   })
 
   it('uses no-referrer on secret-link and viewer routes', async () => {
@@ -25,31 +24,10 @@ describe('security headers', () => {
     }
   })
 
-  it('allows WebAssembly compilation without enabling general eval in production', async () => {
-    const environment = process.env as Record<string, string | undefined>
-    const originalNodeEnv = environment.NODE_ENV
-
-    try {
-      environment.NODE_ENV = 'development'
-      const developmentHeaders = await nextConfig.headers?.()
-      const developmentCsp = developmentHeaders?.find((entry) => entry.source === '/:path*')?.headers.find((entry) => entry.key === 'Content-Security-Policy')?.value
-      expect(getScriptPolicy(developmentCsp)).toContain("'unsafe-eval'")
-      expect(getScriptPolicy(developmentCsp)).toContain("'wasm-unsafe-eval'")
-      expect(getScriptPolicy(developmentCsp)).not.toContain("'unsafe-inline'")
-
-      environment.NODE_ENV = 'production'
-      const productionHeaders = await nextConfig.headers?.()
-      const productionCsp = productionHeaders?.find((entry) => entry.source === '/:path*')?.headers.find((entry) => entry.key === 'Content-Security-Policy')?.value
-      expect(getScriptPolicy(productionCsp)).toBe("script-src 'self' 'wasm-unsafe-eval'")
-      expect(getScriptPolicy(productionCsp)).not.toContain("'unsafe-inline'")
-      expect(getScriptPolicy(productionCsp)).not.toContain("'unsafe-eval'")
-    } finally {
-      environment.NODE_ENV = originalNodeEnv
-    }
-  })
-
   it('uses a request nonce for Next scripts on rendered pages', () => {
     const policy = createContentSecurityPolicy({ nonce: 'test-nonce', isDevelopment: false })
+    expect(policy).toContain("object-src 'none'")
+    expect(policy).toContain("frame-ancestors 'none'")
     expect(getScriptPolicy(policy)).toBe("script-src 'self' 'nonce-test-nonce' 'strict-dynamic' 'wasm-unsafe-eval'")
     expect(getScriptPolicy(policy)).not.toContain("'unsafe-inline'")
     expect(getScriptPolicy(policy)).not.toContain("'unsafe-eval'")

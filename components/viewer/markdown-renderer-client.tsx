@@ -140,7 +140,7 @@ function createComponents({ shareId, documentPath, tree, onOpenPath }: { shareId
             <span className="font-mono text-xs text-foreground-muted">{language}</span>
             <CopyFileButton content={source} analyticsPath={documentPath} />
           </div>
-          <ClientSourceCodeRenderer code={source} filename={`file.${language}`} />
+          <ClientSourceCodeRenderer code={source} />
         </div>
       )
     },

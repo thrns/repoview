@@ -8,13 +8,18 @@ import { SourceCodeRenderer } from './source-code-renderer'
 import { UnavailableFilePreview } from './file-unavailable-preview'
 import { ViewerFileLayout } from './viewer-file-layout'
 
-export type ViewerFilePreviewState = GitHubFileContent | {
-  kind: 'unavailable'
-  path: string
-  size: number
-  reason: 'not-found' | 'rate-limited' | 'access' | 'unavailable'
-  message: 'Preview unavailable.'
-}
+export type ViewerFilePreviewState =
+  | (Extract<GitHubFileContent, { kind: 'text' }> & {
+      highlightedHtml?: string
+    })
+  | Exclude<GitHubFileContent, { kind: 'text' }>
+  | {
+      kind: 'unavailable'
+      path: string
+      size: number
+      reason: 'not-found' | 'rate-limited' | 'access' | 'unavailable'
+      message: 'Preview unavailable.'
+    }
 
 export async function ViewerFilePreview({ file, shareId, tree, allowDownload = false }: { file: ViewerFilePreviewState; shareId: string; tree?: ViewerTreeState; allowDownload?: boolean }) {
   if (file.kind === 'image') {

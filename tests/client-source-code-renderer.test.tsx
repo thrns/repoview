@@ -4,18 +4,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { codeToHtmlMock } = vi.hoisted(() => ({ codeToHtmlMock: vi.fn() }))
-vi.mock('shiki', () => ({ codeToHtml: codeToHtmlMock }))
-
 import { ClientSourceCodeRenderer } from '../components/viewer/client-source-code-renderer'
-
-const sourceFiles = [
-  { filename: 'backend/k8s/configmap.yaml', code: 'apiVersion: v1\nkind: ConfigMap\ndata:\n  LOG_LEVEL: info', language: 'yaml' },
-  { filename: 'settings.json', code: '{"enabled": true, "count": 3}', language: 'json' },
-  { filename: 'src/index.ts', code: 'export const answer: number = 42', language: 'typescript' },
-  { filename: 'scripts/process.py', code: 'def process(value: str) -> str:\n    return value.strip()', language: 'python' },
-  { filename: 'notes.custom', code: 'unknown\ttext\n  stays visible', language: 'text' },
-]
 
 describe('client source code renderer', () => {
   let container: HTMLDivElement
@@ -25,7 +14,6 @@ describe('client source code renderer', () => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
     container = document.createElement('div')
     document.body.append(container)
-    codeToHtmlMock.mockReset()
   })
 
   afterEach(() => {
@@ -37,38 +25,30 @@ describe('client source code renderer', () => {
     vi.unstubAllGlobals()
   })
 
-  it('renders YAML, JSON, TypeScript, Python, and unknown text files during navigation', async () => {
-    codeToHtmlMock.mockImplementation((code: string, options: { lang: string }) => {
-      const lines = code.split('\n').map((line) => `<span class="line">${escapeHtml(line)}</span>`).join('')
-      return Promise.resolve(`<pre class="shiki" data-language="${options.lang}"><code>${lines}</code></pre>`)
+  it('renders server-provided highlighted HTML', () => {
+    const code = 'export const answer = 42'
+    const highlightedHtml = '<pre class="shiki"><code><span class="line">export const answer = 42</span></code></pre>'
+
+    act(() => {
+      root = createRoot(container)
+      root.render(<ClientSourceCodeRenderer code={code} highlightedHtml={highlightedHtml} />)
     })
 
-    for (const file of sourceFiles) {
-      await act(async () => {
-        if (!root) root = createRoot(container)
-        root.render(<ClientSourceCodeRenderer code={file.code} filename={file.filename} />)
-      })
-      await act(async () => vi.waitFor(() => {
-        const renderedLines = container.querySelectorAll('.source-code .line')
-        const rendered = Array.from(renderedLines, (line) => line.textContent ?? '').join('\n')
-        expect(rendered).toContain(file.code)
-      }, { timeout: 10_000 }))
+    expect(container.querySelector('.source-code .shiki .line')?.textContent).toBe(code)
+    expect(container.textContent).toBe(code)
+  })
 
-      expect(container.querySelector('.source-code .shiki')?.getAttribute('data-language')).toBe(file.language)
-      expect(container.querySelector('.source-code .line')).not.toBeNull()
-      expect(container.textContent).not.toContain('Unable to render this file preview.')
-    }
+  it('renders escaped plaintext when no server highlight is available', () => {
+    const code = '<script>\n  unsafe()\n\t</script>'
 
-    expect(codeToHtmlMock).toHaveBeenCalledTimes(sourceFiles.length)
+    act(() => {
+      root = createRoot(container)
+      root.render(<ClientSourceCodeRenderer code={code} />)
+    })
+
+    const pre = container.querySelector<HTMLPreElement>('.plain-source')
+    expect(pre?.classList.contains('shiki')).toBe(true)
+    expect(pre?.querySelector('code')?.textContent).toBe(code)
+    expect(pre?.querySelector('script')).toBeNull()
   })
 })
-
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, (character) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-  })[character] ?? character)
-}
